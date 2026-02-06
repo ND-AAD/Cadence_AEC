@@ -18,7 +18,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.type_config import get_type_config
+from app.core.type_config import get_conflict_excluded_types, get_type_config
 from app.models.core import Item, Snapshot
 from app.schemas.items import ItemSummary
 from app.schemas.snapshots import (
@@ -291,12 +291,12 @@ async def get_resolved_view(
     sources_result = await db.execute(select(Item).where(Item.id.in_(source_ids)))
     sources = {s.id: s for s in sources_result.scalars().all()}
 
-    # Filter to document sources (exclude workflow self-snapshots)
-    workflow_types = {"change", "conflict", "decision", "note"}
+    # Filter to document sources (exclude types marked exclude_from_conflicts)
+    excluded_types = get_conflict_excluded_types()
     document_snapshots = [
         s for s in all_snapshots
         if s.source_id in sources
-        and sources[s.source_id].item_type not in workflow_types
+        and sources[s.source_id].item_type not in excluded_types
     ]
 
     # Find effective snapshot per source: most recent by ordinal <= context ordinal

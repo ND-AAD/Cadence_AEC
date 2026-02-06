@@ -38,8 +38,14 @@ async def test_type_config_endpoint_returns_all_types(client):
         assert "is_source_type" in type_config
         assert "is_context_type" in type_config
         assert "valid_targets" in type_config
+        assert "render_mode" in type_config
+        assert "default_sort" in type_config
+        assert "search_fields" in type_config
+        assert "exclude_from_conflicts" in type_config
         assert "properties" in type_config
         assert isinstance(type_config["properties"], list)
+        assert isinstance(type_config["search_fields"], list)
+        assert type_config["render_mode"] in ("table", "cards", "list", "timeline")
 
 
 @pytest.mark.asyncio
@@ -106,6 +112,63 @@ async def test_milestone_is_context_type(client):
 
     milestone_config = data["milestone"]
     assert milestone_config["is_context_type"] is True
+
+
+@pytest.mark.asyncio
+async def test_milestone_is_navigable(client):
+    """Milestones are navigable — you can drill into an issuance to see submitted items."""
+    response = await client.get("/api/v1/config/types")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["milestone"]["navigable"] is True
+    assert data["phase"]["navigable"] is True
+
+
+@pytest.mark.asyncio
+async def test_door_render_mode_is_table(client):
+    """Door type renders as a table (tabular data with many properties)."""
+    response = await client.get("/api/v1/config/types")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["door"]["render_mode"] == "table"
+    assert data["room"]["render_mode"] == "cards"
+    assert data["milestone"]["render_mode"] == "timeline"
+
+
+@pytest.mark.asyncio
+async def test_workflow_types_excluded_from_conflicts(client):
+    """Workflow types (change, conflict, decision, note) are excluded from conflict detection."""
+    response = await client.get("/api/v1/config/types")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["change"]["exclude_from_conflicts"] is True
+    assert data["conflict"]["exclude_from_conflicts"] is True
+    assert data["decision"]["exclude_from_conflicts"] is True
+    assert data["note"]["exclude_from_conflicts"] is True
+
+    # Document sources should NOT be excluded
+    assert data["schedule"]["exclude_from_conflicts"] is False
+    assert data["specification"]["exclude_from_conflicts"] is False
+    assert data["drawing"]["exclude_from_conflicts"] is False
+
+
+@pytest.mark.asyncio
+async def test_search_fields_populated(client):
+    """Types have search_fields configured for indexing."""
+    response = await client.get("/api/v1/config/types")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Doors should be searchable by mark
+    assert "mark" in data["door"]["search_fields"]
+    # Rooms should be searchable by name and number
+    assert "name" in data["room"]["search_fields"]
+    assert "number" in data["room"]["search_fields"]
+    # Schedules should be searchable by name
+    assert "name" in data["schedule"]["search_fields"]
 
 
 # ─── Milestone Template Endpoint ───────────────────────────────

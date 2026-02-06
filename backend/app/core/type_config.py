@@ -5,10 +5,16 @@ Types are application configuration, not database schema.
 Adding a new type requires zero migrations — just an entry here.
 
 Each type defines:
-  - display metadata (label, icon, color)
+  - display metadata (label, icon, color, render_mode)
   - which properties are expected
   - which connection targets are valid
-  - navigation behavior
+  - navigation and search behavior
+  - conflict detection participation
+
+Implementation notes (spec alignment):
+  - Tech spec v6.1 `isTemporal` → code `is_context_type` (role in the triple)
+  - `is_source_type` added in implementation (not in original spec)
+  - `render_mode` from tech spec: how the scale panel renders items of this type
 """
 
 from dataclasses import dataclass, field
@@ -43,7 +49,20 @@ class TypeConfig:
     # Whether items of this type can be a snapshot source
     is_source_type: bool = False
     # Whether items of this type can be a snapshot context (milestone)
+    # (Tech spec v6.1: `isTemporal`)
     is_context_type: bool = False
+    # How to render items of this type in the scale panel
+    # Values: "table" (tabular grid), "cards" (visual cards),
+    #         "list" (simple list), "timeline" (temporal sequence)
+    render_mode: str = "list"
+    # Default sort field for items of this type
+    default_sort: str = "identifier"
+    # Which property names are included in search indexing
+    search_fields: list[str] = field(default_factory=list)
+    # Whether to exclude this type's snapshots from conflict detection.
+    # When True, snapshots from items of this type are not used as
+    # comparison sources in cross-source conflict analysis.
+    exclude_from_conflicts: bool = False
 
 
 # ─── Type Registry ─────────────────────────────────────────────
@@ -67,6 +86,11 @@ def get_types_by_category(category: str) -> list[TypeConfig]:
     return [t for t in ITEM_TYPES.values() if t.category == category]
 
 
+def get_conflict_excluded_types() -> set[str]:
+    """Get type names that are excluded from conflict detection."""
+    return {t.name for t in ITEM_TYPES.values() if t.exclude_from_conflicts}
+
+
 # ─── Organization Types ────────────────────────────────────────
 
 register_type(TypeConfig(
@@ -76,6 +100,9 @@ register_type(TypeConfig(
     category="organization",
     valid_targets=["building", "schedule", "specification", "milestone", "phase"],
     navigable=True,
+    render_mode="cards",
+    default_sort="name",
+    search_fields=["name"],
 ))
 
 register_type(TypeConfig(
@@ -85,6 +112,9 @@ register_type(TypeConfig(
     category="organization",
     valid_targets=["project"],
     navigable=True,
+    render_mode="cards",
+    default_sort="name",
+    search_fields=["name"],
 ))
 
 register_type(TypeConfig(
@@ -94,6 +124,9 @@ register_type(TypeConfig(
     category="organization",
     valid_targets=["portfolio", "project"],
     navigable=True,
+    render_mode="cards",
+    default_sort="name",
+    search_fields=["name"],
 ))
 
 
@@ -106,6 +139,9 @@ register_type(TypeConfig(
     category="spatial",
     valid_targets=["floor"],
     navigable=True,
+    render_mode="list",
+    default_sort="name",
+    search_fields=["name", "address"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("address", "Address"),
@@ -119,6 +155,9 @@ register_type(TypeConfig(
     category="spatial",
     valid_targets=["room"],
     navigable=True,
+    render_mode="list",
+    default_sort="level",
+    search_fields=["name"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("level", "Level", data_type="number"),
@@ -132,6 +171,9 @@ register_type(TypeConfig(
     category="spatial",
     valid_targets=["door"],
     navigable=True,
+    render_mode="cards",
+    default_sort="number",
+    search_fields=["name", "number"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("number", "Room Number"),
@@ -149,6 +191,9 @@ register_type(TypeConfig(
     category="spatial",
     valid_targets=[],
     navigable=True,
+    render_mode="table",
+    default_sort="mark",
+    search_fields=["mark", "type", "hardware_set"],
     properties=[
         PropertyDef("mark", "Mark", required=True),
         PropertyDef("width", "Width", data_type="number", unit="in"),
@@ -172,6 +217,9 @@ register_type(TypeConfig(
     is_source_type=True,
     valid_targets=["door", "room", "floor"],
     navigable=True,
+    render_mode="table",
+    default_sort="name",
+    search_fields=["name", "document_number", "discipline"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("document_number", "Document Number"),
@@ -187,6 +235,9 @@ register_type(TypeConfig(
     is_source_type=True,
     valid_targets=["door", "room"],
     navigable=True,
+    render_mode="list",
+    default_sort="section_number",
+    search_fields=["name", "section_number", "discipline"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("section_number", "Section Number"),
@@ -202,6 +253,9 @@ register_type(TypeConfig(
     is_source_type=True,
     valid_targets=["door", "room", "floor", "building"],
     navigable=True,
+    render_mode="list",
+    default_sort="sheet_number",
+    search_fields=["name", "sheet_number", "discipline"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("sheet_number", "Sheet Number"),
@@ -218,7 +272,10 @@ register_type(TypeConfig(
     plural_label="Milestones",
     category="temporal",
     is_context_type=True,
-    navigable=False,
+    navigable=True,
+    render_mode="timeline",
+    default_sort="ordinal",
+    search_fields=["name"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("ordinal", "Ordinal", data_type="number", required=True,
@@ -234,7 +291,10 @@ register_type(TypeConfig(
     plural_label="Phases",
     category="temporal",
     valid_targets=["milestone"],
-    navigable=False,
+    navigable=True,
+    render_mode="timeline",
+    default_sort="name",
+    search_fields=["name", "abbreviation"],
     properties=[
         PropertyDef("name", "Name", required=True),
         PropertyDef("abbreviation", "Abbreviation"),
@@ -247,6 +307,10 @@ register_type(TypeConfig(
     plural_label="Import Batches",
     category="temporal",
     navigable=False,
+    render_mode="list",
+    default_sort="created_at",
+    search_fields=["filename"],
+    exclude_from_conflicts=True,
     properties=[
         PropertyDef("filename", "Filename", required=True),
         PropertyDef("row_count", "Row Count", data_type="number"),
@@ -266,6 +330,10 @@ register_type(TypeConfig(
     # Workflow items point TO what they reference
     valid_targets=["door", "room", "floor", "building"],
     navigable=True,
+    render_mode="table",
+    default_sort="created_at",
+    search_fields=["property_name"],
+    exclude_from_conflicts=True,
     properties=[
         PropertyDef("property_name", "Property", required=True),
         PropertyDef("previous_value", "Previous Value"),
@@ -282,6 +350,10 @@ register_type(TypeConfig(
     category="workflow",
     valid_targets=["door", "room", "floor", "building"],
     navigable=True,
+    render_mode="table",
+    default_sort="created_at",
+    search_fields=["property_name"],
+    exclude_from_conflicts=True,
     properties=[
         PropertyDef("property_name", "Property", required=True),
         PropertyDef("status", "Status", data_type="enum",
@@ -298,6 +370,10 @@ register_type(TypeConfig(
     is_source_type=True,  # Decisions act as resolution sources
     valid_targets=["conflict"],
     navigable=True,
+    render_mode="list",
+    default_sort="created_at",
+    search_fields=["rationale", "decided_by"],
+    exclude_from_conflicts=True,
     properties=[
         PropertyDef("rationale", "Rationale"),
         PropertyDef("resolved_value", "Resolved Value"),
@@ -312,6 +388,10 @@ register_type(TypeConfig(
     category="workflow",
     valid_targets=["door", "room", "floor", "building", "conflict", "change", "decision"],
     navigable=False,
+    render_mode="list",
+    default_sort="created_at",
+    search_fields=["content"],
+    exclude_from_conflicts=True,
     properties=[
         PropertyDef("content", "Content", required=True),
     ],

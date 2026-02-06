@@ -317,3 +317,254 @@ async def test_connected_items_action_counts(client):
     assert "action_counts" in door_item, "action_counts should be present"
     assert door_item["action_counts"]["changes"] == 2, f"Expected 2 changes, got {door_item['action_counts']['changes']}"
     assert door_item["action_counts"]["conflicts"] == 1, f"Expected 1 conflict, got {door_item['action_counts']['conflicts']}"
+
+
+# ─── Milestone Navigation (Snapshot-aware) ───────────────────
+
+@pytest.mark.asyncio
+async def test_milestone_connected_shows_snapshot_items(client):
+    """Navigating into a milestone shows items that have snapshots at that context.
+
+    This is the core test: 'dive into 50% CD and see what was submitted.'
+    Doors with snapshots at CD appear; doors without snapshots at CD do not.
+    """
+    # Create milestone, source, and doors
+    milestone = (await client.post("/api/v1/items/", json={
+        "item_type": "milestone", "identifier": "CD",
+        "properties": {"name": "Construction Documents", "ordinal": 400},
+    })).json()
+    schedule = (await client.post("/api/v1/items/", json={
+        "item_type": "schedule", "identifier": "Door Schedule",
+        "properties": {"name": "Door Schedule"},
+    })).json()
+    door1 = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "Door 101",
+    })).json()
+    door2 = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "Door 103",
+    })).json()
+    door_not_submitted = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "Door 102",
+    })).json()
+
+    # Create snapshots at CD for door1 and door2 (but NOT door_not_submitted)
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door1["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish": "paint"},
+    })
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door2["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish": "stain"},
+    })
+
+    # Navigate into the milestone
+    response = await client.get(f"/api/v1/items/{milestone['id']}/connected")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should see the doors that were submitted
+    type_names = [g["item_type"] for g in data["connected"]]
+    assert "door" in type_names
+
+    door_group = next(g for g in data["connected"] if g["item_type"] == "door")
+    door_ids = {d["id"] for d in door_group["items"]}
+    assert door1["id"] in door_ids, "Door 101 was submitted at CD"
+    assert door2["id"] in door_ids, "Door 103 was submitted at CD"
+    assert door_not_submitted["id"] not in door_ids, "Door 102 was NOT submitted"
+    assert door_group["count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_milestone_connected_shows_sources(client):
+    """Navigating into a milestone shows the sources that submitted at that context."""
+    milestone = (await client.post("/api/v1/items/", json={
+        "item_type": "milestone", "identifier": "DD",
+        "properties": {"name": "Design Development", "ordinal": 300},
+    })).json()
+    schedule = (await client.post("/api/v1/items/", json={
+        "item_type": "schedule", "identifier": "Door Schedule",
+        "properties": {"name": "Door Schedule"},
+    })).json()
+    spec = (await client.post("/api/v1/items/", json={
+        "item_type": "specification", "identifier": "Div 08",
+        "properties": {"name": "Div 08 - Openings"},
+    })).json()
+    door = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "Door 201",
+    })).json()
+
+    # Both sources submit snapshots at DD
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish": "paint"},
+    })
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door["id"], "context_id": milestone["id"],
+        "source_id": spec["id"], "properties": {"finish": "paint"},
+    })
+
+    # Navigate into milestone
+    response = await client.get(f"/api/v1/items/{milestone['id']}/connected")
+    data = response.json()
+
+    type_names = [g["item_type"] for g in data["connected"]]
+    assert "schedule" in type_names, "Schedule submitted at DD"
+    assert "specification" in type_names, "Spec submitted at DD"
+
+
+@pytest.mark.asyncio
+async def test_milestone_connected_deduplicates(client):
+    """Items reachable via both Connection and Snapshot appear only once."""
+    milestone = (await client.post("/api/v1/items/", json={
+        "item_type": "milestone", "identifier": "CD",
+        "properties": {"name": "CD", "ordinal": 400},
+    })).json()
+    schedule = (await client.post("/api/v1/items/", json={
+        "item_type": "schedule", "identifier": "Schedule A",
+    })).json()
+    door = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "Door 301",
+    })).json()
+
+    # Create an explicit Connection: milestone → door
+    await client.post("/api/v1/connections/", json={
+        "source_item_id": milestone["id"], "target_item_id": door["id"],
+    })
+
+    # Also create a Snapshot: (door, CD, schedule)
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish": "paint"},
+    })
+
+    # Navigate into milestone — door should appear exactly once
+    response = await client.get(f"/api/v1/items/{milestone['id']}/connected")
+    data = response.json()
+
+    door_group = next(
+        (g for g in data["connected"] if g["item_type"] == "door"), None
+    )
+    assert door_group is not None
+    assert door_group["count"] == 1, "Door should appear exactly once despite dual reachability"
+
+
+@pytest.mark.asyncio
+async def test_milestone_connected_respects_type_filter(client):
+    """Type filter works with snapshot-derived items."""
+    milestone = (await client.post("/api/v1/items/", json={
+        "item_type": "milestone", "identifier": "SD",
+        "properties": {"name": "SD", "ordinal": 200},
+    })).json()
+    schedule = (await client.post("/api/v1/items/", json={
+        "item_type": "schedule", "identifier": "Sched",
+    })).json()
+    door = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "D-401",
+    })).json()
+    room = (await client.post("/api/v1/items/", json={
+        "item_type": "room", "identifier": "Room 100",
+    })).json()
+
+    # Snapshots at SD for both door and room
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish": "paint"},
+    })
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": room["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish_floor": "tile"},
+    })
+
+    # Filter to only doors
+    response = await client.get(
+        f"/api/v1/items/{milestone['id']}/connected?types=door"
+    )
+    data = response.json()
+
+    type_names = [g["item_type"] for g in data["connected"]]
+    assert "door" in type_names
+    assert "room" not in type_names, "Room should be filtered out"
+
+
+@pytest.mark.asyncio
+async def test_milestone_connected_respects_exclude(client):
+    """Exclude parameter works with snapshot-derived items."""
+    project = (await client.post("/api/v1/items/", json={
+        "item_type": "project", "identifier": "Test Project",
+    })).json()
+    milestone = (await client.post("/api/v1/items/", json={
+        "item_type": "milestone", "identifier": "CD",
+        "properties": {"name": "CD", "ordinal": 400},
+    })).json()
+    schedule = (await client.post("/api/v1/items/", json={
+        "item_type": "schedule", "identifier": "Sched",
+    })).json()
+    door = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "D-501",
+    })).json()
+
+    # Project → milestone connection (structural)
+    await client.post("/api/v1/connections/", json={
+        "source_item_id": project["id"], "target_item_id": milestone["id"],
+    })
+
+    # Snapshot at CD
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": door["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish": "paint"},
+    })
+
+    # Navigate into milestone, excluding project from breadcrumb
+    response = await client.get(
+        f"/api/v1/items/{milestone['id']}/connected?exclude={project['id']}"
+    )
+    data = response.json()
+
+    # Project should be excluded, door and schedule should remain
+    all_ids = set()
+    for group in data["connected"]:
+        for item in group["items"]:
+            all_ids.add(item["id"])
+
+    assert project["id"] not in all_ids, "Project excluded by breadcrumb"
+    assert door["id"] in all_ids, "Door visible via snapshot"
+
+
+@pytest.mark.asyncio
+async def test_non_context_type_ignores_snapshot_query(client):
+    """Regular spatial items don't trigger the snapshot-aware query."""
+    room = (await client.post("/api/v1/items/", json={
+        "item_type": "room", "identifier": "Room 600",
+    })).json()
+    door = (await client.post("/api/v1/items/", json={
+        "item_type": "door", "identifier": "D-601",
+    })).json()
+    milestone = (await client.post("/api/v1/items/", json={
+        "item_type": "milestone", "identifier": "DD",
+        "properties": {"ordinal": 300},
+    })).json()
+    schedule = (await client.post("/api/v1/items/", json={
+        "item_type": "schedule", "identifier": "Sched",
+    })).json()
+
+    # Connection: room → door
+    await client.post("/api/v1/connections/", json={
+        "source_item_id": room["id"], "target_item_id": door["id"],
+    })
+
+    # Snapshot at DD for the room itself (room is the item, not a context)
+    await client.post("/api/v1/snapshots/", json={
+        "item_id": room["id"], "context_id": milestone["id"],
+        "source_id": schedule["id"], "properties": {"finish_floor": "tile"},
+    })
+
+    # Navigate into room — should only see connection-based items
+    response = await client.get(f"/api/v1/items/{room['id']}/connected")
+    data = response.json()
+
+    type_names = [g["item_type"] for g in data["connected"]]
+    assert "door" in type_names
+    # Should NOT see milestone or schedule just because room has a snapshot
+    # (room is spatial, not a context type)
+    assert "milestone" not in type_names
+    assert "schedule" not in type_names

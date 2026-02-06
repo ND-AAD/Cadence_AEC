@@ -28,6 +28,10 @@ async def get_type_config():
             "is_source_type": cfg.is_source_type,
             "is_context_type": cfg.is_context_type,
             "valid_targets": cfg.valid_targets,
+            "render_mode": cfg.render_mode,
+            "default_sort": cfg.default_sort,
+            "search_fields": cfg.search_fields,
+            "exclude_from_conflicts": cfg.exclude_from_conflicts,
             "properties": [
                 {
                     "name": p.name,

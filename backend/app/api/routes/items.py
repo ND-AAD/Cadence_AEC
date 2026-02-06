@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.type_config import ITEM_TYPES, get_type_config
-from app.models.core import Connection, Item
+from app.models.core import Connection, Item, Snapshot
 from app.schemas.items import (
     ItemCreate,
     ItemResponse,
@@ -275,6 +275,47 @@ async def get_connected_items(
         if type_filter:
             q = q.where(Item.item_type.in_(type_filter))
         result = await db.execute(q)
+        connected_items.extend(result.scalars().all())
+
+    # For context types (milestones), also surface items via Snapshot.
+    # When you navigate into "50% CD", you see items described at that
+    # context and sources that submitted at it — same mechanism as
+    # spatial navigation, just reading from the snapshot triple instead
+    # of the connection table.
+    type_cfg = get_type_config(item.item_type)
+    if type_cfg and type_cfg.is_context_type:
+        # Items described at this context (doors, rooms, etc.)
+        snapshot_items_q = (
+            select(Item).where(
+                Item.id.in_(
+                    select(Snapshot.item_id)
+                    .where(Snapshot.context_id == item_id)
+                    .distinct()
+                )
+            )
+        )
+        if exclude_ids:
+            snapshot_items_q = snapshot_items_q.where(Item.id.notin_(exclude_ids))
+        if type_filter:
+            snapshot_items_q = snapshot_items_q.where(Item.item_type.in_(type_filter))
+        result = await db.execute(snapshot_items_q)
+        connected_items.extend(result.scalars().all())
+
+        # Sources that submitted at this context
+        snapshot_sources_q = (
+            select(Item).where(
+                Item.id.in_(
+                    select(Snapshot.source_id)
+                    .where(Snapshot.context_id == item_id)
+                    .distinct()
+                )
+            )
+        )
+        if exclude_ids:
+            snapshot_sources_q = snapshot_sources_q.where(Item.id.notin_(exclude_ids))
+        if type_filter:
+            snapshot_sources_q = snapshot_sources_q.where(Item.item_type.in_(type_filter))
+        result = await db.execute(snapshot_sources_q)
         connected_items.extend(result.scalars().all())
 
     # Deduplicate (item reachable via both directions)

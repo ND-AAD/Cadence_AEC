@@ -1,6 +1,9 @@
 # Archive (previous versions - local reference only)
 Archive/
 
+# Reference documents (spec, workplan, onboarding - local only)
+reference/
+
 # Python
 __pycache__/
 *.py[cod]

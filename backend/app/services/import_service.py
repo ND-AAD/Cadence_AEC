@@ -25,7 +25,7 @@ import openpyxl
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.type_config import get_type_config
+from app.core.type_config import get_conflict_excluded_types, get_type_config
 from app.models.core import Connection, Item, Snapshot
 from app.schemas.imports import (
     ChangeItemResult,
@@ -410,7 +410,7 @@ async def _get_effective_snapshots_from_other_sources(
     contexts_result = await db.execute(select(Item).where(Item.id.in_(context_ids)))
     contexts = {c.id: c for c in contexts_result.scalars().all()}
 
-    workflow_types = {"change", "conflict", "decision", "note"}
+    excluded_types = get_conflict_excluded_types()
 
     # Group by source, filter to other document sources
     effective: dict[uuid.UUID, Snapshot] = {}
@@ -418,9 +418,9 @@ async def _get_effective_snapshots_from_other_sources(
         # Skip current source
         if snap.source_id == current_source_id:
             continue
-        # Skip workflow types
+        # Skip types excluded from conflict detection (per TypeConfig)
         src = sources.get(snap.source_id)
-        if not src or src.item_type in workflow_types:
+        if not src or src.item_type in excluded_types:
             continue
         # Check ordinal
         ctx = contexts.get(snap.context_id)
