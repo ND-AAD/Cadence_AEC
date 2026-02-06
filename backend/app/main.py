@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import items, connections, snapshots, health, config, navigation
+from app.api.routes import items, connections, snapshots, health, config, navigation, imports, comparison
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -30,4 +30,6 @@ app.include_router(config.router, prefix="/api/v1/config", tags=["config"])
 app.include_router(items.router, prefix="/api/v1/items", tags=["items"])
 app.include_router(connections.router, prefix="/api/v1/connections", tags=["connections"])
 app.include_router(snapshots.router, prefix="/api/v1/snapshots", tags=["snapshots"])
+app.include_router(comparison.router, prefix="/api/v1", tags=["comparison"])
 app.include_router(navigation.router, prefix="/api/v1", tags=["navigation"])
+app.include_router(imports.router, prefix="/api/v1", tags=["import"])
