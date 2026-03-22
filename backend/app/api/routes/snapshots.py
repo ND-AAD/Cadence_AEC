@@ -19,11 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.type_config import get_conflict_excluded_types, get_type_config
-from app.models.core import Item, Snapshot
+from app.models.core import Connection, Item, Snapshot
 from app.schemas.items import ItemSummary
 from app.schemas.snapshots import (
     EffectiveValue,
     PropertyResolution,
+    PropertyWorkflowRefs,
     ResolvedView,
     SnapshotCreate,
     SnapshotResponse,
@@ -336,6 +337,58 @@ async def get_resolved_view(
                 if rv is not None:
                     resolved_values[rp] = rv
 
+    # ── Workflow item discovery ──────────────────────────────────
+    # Find all workflow items (conflict, change, directive, decision)
+    # connected to this item. We need their IDs and the property
+    # they reference (stored in the workflow item's own properties).
+    workflow_types = {"conflict", "change", "directive", "decision"}
+
+    # Workflow items connected TO this item (workflow → item pattern)
+    workflow_as_target = await db.execute(
+        select(Item).join(
+            Connection, Connection.source_item_id == Item.id
+        ).where(
+            and_(
+                Connection.target_item_id == item_id,
+                Item.item_type.in_(workflow_types),
+            )
+        )
+    )
+    # Workflow items connected FROM this item (item → workflow, less common)
+    workflow_as_source = await db.execute(
+        select(Item).join(
+            Connection, Connection.target_item_id == Item.id
+        ).where(
+            and_(
+                Connection.source_item_id == item_id,
+                Item.item_type.in_(workflow_types),
+            )
+        )
+    )
+
+    all_workflow_items = list(workflow_as_target.scalars().all()) + \
+                         list(workflow_as_source.scalars().all())
+
+    # Deduplicate
+    seen_workflow: set[uuid.UUID] = set()
+    unique_workflow: list[Item] = []
+    for wi in all_workflow_items:
+        if wi.id not in seen_workflow:
+            seen_workflow.add(wi.id)
+            unique_workflow.append(wi)
+
+    # Index workflow items by property name
+    workflow_by_property: dict[str, dict[str, list[Item]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    for wi in unique_workflow:
+        prop_name = (
+            wi.properties.get("property_name")
+            or wi.properties.get("property_path")
+        )
+        if prop_name:
+            workflow_by_property[prop_name][wi.item_type].append(wi)
+
     # Collect all properties across all effective snapshots
     all_props: set[str] = set()
     for snap in effective_by_source.values():
@@ -378,11 +431,43 @@ async def get_resolved_view(
                 status = "conflicted"
                 value = None
 
+        # ── Build workflow refs for this property ──
+        prop_workflow = workflow_by_property.get(prop_name, {})
+        workflow_refs = None
+
+        if prop_workflow:
+            conflicts = prop_workflow.get("conflict", [])
+            changes = prop_workflow.get("change", [])
+            decisions = prop_workflow.get("decision", [])
+            directives = prop_workflow.get("directive", [])
+
+            # For resolution metadata, use the decision item's properties.
+            res_metadata = None
+            if decisions:
+                d = decisions[0]
+                d_props = d.properties or {}
+                res_metadata = {
+                    "decided_by": d_props.get("decided_by"),
+                    "resolved_at": d_props.get("resolved_at"),
+                    "method": d_props.get("method"),
+                    "rationale": d_props.get("rationale"),
+                    "chosen_source": d_props.get("chosen_source"),
+                }
+
+            workflow_refs = PropertyWorkflowRefs(
+                conflict_id=conflicts[0].id if conflicts else None,
+                change_ids=[c.id for c in changes],
+                decision_id=decisions[0].id if decisions else None,
+                directive_ids=[d.id for d in directives],
+                resolution_metadata=res_metadata,
+            )
+
         property_resolutions.append(PropertyResolution(
             property_name=prop_name,
             status=status,
             value=value,
             sources=source_values,
+            workflow=workflow_refs,
         ))
 
     return ResolvedView(

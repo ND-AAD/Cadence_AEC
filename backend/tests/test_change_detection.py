@@ -363,11 +363,12 @@ async def test_change_item_has_four_connections(
     client: AsyncClient, project_setup, db_session
 ):
     """
-    Change item has 4 connections:
+    Change item has 5 connections:
       - change → source
       - change → to_context
       - change → from_context
       - change → affected_item
+      - change → property_item (new in WP-PROP-3)
     """
     from sqlalchemy import and_, select
 
@@ -411,8 +412,8 @@ async def test_change_item_has_four_connections(
     )
     conns = conns_result.scalars().all()
 
-    # Should have exactly 4 connections
-    assert len(conns) == 4
+    # Should have exactly 5 connections (4 original + 1 property connection)
+    assert len(conns) == 5
 
     # Check target item types
     target_ids = {conn.target_item_id for conn in conns}
@@ -427,6 +428,14 @@ async def test_change_item_has_four_connections(
     )
     door = door_result.scalar_one()
     assert door.id in target_ids
+
+    # Check for property item connection
+    prop_result = await db_session.execute(
+        select(Item).where(Item.identifier == "door/finish")
+    )
+    prop_item = prop_result.scalar_one_or_none()
+    if prop_item:
+        assert prop_item.id in target_ids
 
 
 # ─── Tests: Normalized Comparison ─────────────────────────────

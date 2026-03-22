@@ -1,50 +1,52 @@
-import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import LoginPage from "@/pages/LoginPage";
+import ProjectListPage from "@/pages/ProjectListPage";
+import AppShell from "@/pages/AppShell";
+import DesignReference from "@/pages/DesignReference";
+import UniversalTemplate from "@/pages/UniversalTemplate";
 
-interface HealthStatus {
-  status: string;
-  service: string;
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-vellum" />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          loading ? <div className="min-h-screen bg-vellum" /> :
+          user ? <Navigate to="/projects" replace /> :
+          <LoginPage />
+        }
+      />
+      <Route path="/projects" element={
+        <ProtectedRoute><ProjectListPage /></ProtectedRoute>
+      } />
+      <Route path="/project/:projectId" element={
+        <ProtectedRoute><AppShell /></ProtectedRoute>
+      } />
+      {/* Dev routes — preserve during development */}
+      <Route path="/design" element={<DesignReference />} />
+      <Route path="/template" element={<UniversalTemplate />} />
+      <Route path="/" element={<Navigate to="/projects" replace />} />
+    </Routes>
+  );
 }
 
 function App() {
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/v1/items/types")
-      .then((res) => res.json())
-      .then(() => {
-        return fetch("/health");
-      })
-      .then((res) => res.json())
-      .then((data) => setHealth(data))
-      .catch((err) => setError(err.message));
-  }, []);
-
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-cadence-700 mb-4">Cadence</h1>
-        <p className="text-lg text-gray-600 mb-8">
-          Three tables. One triple. Every story.
-        </p>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-sm mx-auto">
-          {error ? (
-            <p className="text-red-500 text-sm">
-              API not reachable — start with{" "}
-              <code className="bg-gray-100 px-1 rounded">
-                docker compose up
-              </code>
-            </p>
-          ) : health ? (
-            <p className="text-green-600 text-sm">
-              Backend connected: {health.service} — {health.status}
-            </p>
-          ) : (
-            <p className="text-gray-400 text-sm">Connecting to backend...</p>
-          )}
-        </div>
-      </div>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

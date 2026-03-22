@@ -98,6 +98,9 @@ class ImportSummary(BaseModel):
     affected_items: int = 0
     new_conflicts: int = 0
     resolved_conflicts: int = 0
+    directives_fulfilled: int = 0
+    items_classified: int = 0
+    property_items_created: int = 0
 
 
 # ─── Change Detection ──────────────────────────────────────────
@@ -128,6 +131,17 @@ class ConflictItemResult(BaseModel):
     context_id: uuid.UUID
 
 
+class ClassificationItemResult(BaseModel):
+    """Result of classifying an element into a MasterFormat Division."""
+    item_id: uuid.UUID
+    item_identifier: str | None
+    section_id: uuid.UUID
+    section_identifier: str         # e.g., "08"
+    section_title: str              # e.g., "Openings"
+    confidence: str                 # "high", "medium", "low"
+    needs_review: bool = False
+
+
 class ImportResult(BaseModel):
     """Full response from the import endpoint."""
     batch_id: uuid.UUID
@@ -137,6 +151,7 @@ class ImportResult(BaseModel):
     unmatched: list[UnmatchedRow] = Field(default_factory=list)
     change_items: list[ChangeItemResult] = Field(default_factory=list)
     conflict_items: list[ConflictItemResult] = Field(default_factory=list)
+    classification_items: list[ClassificationItemResult] = Field(default_factory=list)
 
 
 # ─── Batch / Confirm Endpoints ────────────────────────────────
@@ -153,3 +168,61 @@ class ConfirmMatchResponse(BaseModel):
     matched_item_id: uuid.UUID
     snapshot_created: bool
     connection_created: bool
+
+
+# ─── Auto-Mapping Schemas (WP-6b) ───────────────────────────────
+
+class ColumnProposalResponse(BaseModel):
+    """Proposed mapping for a single column (API response)."""
+    column_name: str
+    proposed_property: str | None = None
+    confidence: float = 0.0
+    match_method: str = "none"
+    alternatives: list[str] = Field(default_factory=list)
+
+
+class ProposedMappingResponse(BaseModel):
+    """Complete auto-mapping proposal (API response)."""
+    proposal_id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        description="Unique ID for this proposal (used in confirm endpoint)",
+    )
+    header_row: int
+    header_row_confidence: float
+    target_item_type: str
+    type_confidence: float
+    identifier_column: str
+    identifier_confidence: float
+    columns: list[ColumnProposalResponse] = Field(default_factory=list)
+    unmatched_columns: list[str] = Field(default_factory=list)
+    proposed_config: ImportMappingConfig | None = None
+    overall_confidence: float = 0.0
+    needs_user_review: bool = True
+
+
+class MappingCorrectionRequest(BaseModel):
+    """User corrections to a proposed mapping."""
+    corrections: dict[str, str | None] = Field(
+        ...,
+        description="Mapping of column_name → corrected property name (or None to skip)",
+    )
+    identifier_column: str | None = Field(
+        None,
+        description="Override identifier column if auto-detection was wrong",
+    )
+    target_item_type: str | None = Field(
+        None,
+        description="Override target item type if auto-detection was wrong",
+    )
+    header_row: int | None = Field(
+        None,
+        ge=1,
+        description="Override header row if auto-detection was wrong",
+    )
+
+
+class MappingConfirmResponse(BaseModel):
+    """Response after confirming/correcting a mapping."""
+    confirmed_config: ImportMappingConfig
+    corrections_saved: int = 0
+    message: str = "Mapping confirmed"

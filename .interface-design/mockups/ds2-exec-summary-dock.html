@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-2: Exec Summary Dock — Right Panel (v1)</title>
+  <style>
+    :root {
+      --sheet: #FAF9F6;
+      --vellum: #F0EFEC;
+      --board: #E7E5E2;
+
+      --ink: #1C1B18;
+      --graphite: #57554F;
+      --trace: #9D9B95;
+
+      --rule: #DFDDD9;
+      --rule-emphasis: #CECCC7;
+
+      --pencil: #FA9442;
+      --pencil-muted: #FBB978;
+      --pencil-wash: #FFF5EA;
+      --pencil-ink: #B06218;
+
+      --redline: #E81A00;
+      --redline-muted: #EE6A53;
+      --redline-wash: #FFF0EB;
+      --redline-ink: #A61400;
+
+      --stamp: #3D7A4F;
+      --stamp-wash: #F0F7F2;
+      --stamp-ink: #2D5E3B;
+
+      --overlay: #002FA7;
+      --overlay-wash: #EFF2FB;
+      --overlay-border: #6A7EB5;
+
+      --filed: #7D7A75;
+      --filed-wash: #F5F4F3;
+
+      --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'GeistMono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+      --radius-sm: 2px;
+      --radius: 3px;
+      --radius-md: 4px;
+    }
+
+    @font-face {
+      font-family: 'Geist';
+      src: url('../../frontend/public/fonts/Geist-Variable.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'GeistMono';
+      src: url('../../frontend/public/fonts/GeistMono-Variable.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--vellum);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 20px;
+      padding: 40px;
+      max-width: 1100px;
+    }
+
+    /* ── Mockup chrome ── */
+    .mockup-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .mockup-note {
+      font-size: 12px;
+      color: var(--graphite);
+      margin-bottom: 16px;
+      line-height: 18px;
+      max-width: 720px;
+    }
+    .mockup-section { margin-bottom: 56px; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 56px 0;
+      color: var(--trace);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--rule);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       LAYOUT: Main + Right panel side by side
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      max-width: 900px;
+    }
+
+    .main-area {
+      background: var(--sheet);
+      min-height: 500px;
+    }
+
+    .right-panel {
+      background: var(--vellum);
+      border-left: 1px solid var(--rule);
+      display: flex;
+      flex-direction: column;
+      min-height: 500px;
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       MAIN AREA (simplified story panel)
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .breadcrumb {
+      background: var(--vellum);
+      padding: 8px 16px;
+      font-size: 12px;
+      line-height: 18px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breadcrumb .seg { color: var(--graphite); }
+    .breadcrumb .seg.current { color: var(--ink); font-weight: 500; }
+    .breadcrumb .chev { color: var(--trace); font-size: 10px; }
+
+    .item-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .item-name {
+      font-size: 16px;
+      line-height: 24px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .item-parent {
+      font-size: 12px;
+      color: var(--trace);
+    }
+    .item-source {
+      font-size: 12px;
+      color: var(--graphite);
+      font-family: var(--font-mono);
+      margin-left: auto;
+    }
+
+    .row-group {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      background: rgba(240, 239, 236, 0.5);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .prop-row {
+      border-bottom: 1px solid var(--rule);
+    }
+    .prop-row:last-child { border-bottom: none; }
+    .prop-row .main {
+      display: grid;
+      grid-template-columns: 120px 1fr 28px;
+      gap: 0 12px;
+      align-items: baseline;
+      padding: 7px 16px;
+      min-height: 34px;
+    }
+    .prop-name {
+      font-size: 12px;
+      color: var(--graphite);
+    }
+    .prop-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .indicator {
+      display: flex;
+      flex-direction: row-reverse;
+      align-items: center;
+      flex-shrink: 0;
+      padding-right: 2px;
+      overflow: visible;
+    }
+    .indicator > * {
+      flex: 0 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pip {
+      height: 14px;
+      cursor: pointer;
+    }
+    .pip::after {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .pip.present.redline::after  { background: var(--redline); }
+    .pip.present.pencil::after   { background: var(--pencil); }
+    .pip.adjacent.pencil::after  { border: 1.5px solid var(--pencil); background: none; }
+
+    .cairn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      color: var(--trace);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .cairn svg {
+      width: 10px;
+      height: 10px;
+    }
+    .cairn.present svg { fill: currentColor; }
+    .indicator .cairn { flex: 0 0 14px; width: 14px; }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       RIGHT PANEL — WORKFLOW TREE
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .workflow-tree {
+      flex: 1;
+      min-height: 200px;
+      overflow-y: auto;
+      border-bottom: 1px solid var(--rule-emphasis);
+    }
+
+    .dock-header {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dock-header .dock-count {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--redline-wash);
+      color: var(--redline-ink);
+    }
+
+    /* ── Category level ── */
+    .tree-category {
+      border-bottom: 1px solid var(--rule);
+    }
+    .tree-category:last-child { border-bottom: none; }
+
+    .cat-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .cat-header:hover {
+      background: var(--board);
+    }
+
+    .cat-chevron {
+      font-size: 9px;
+      color: var(--trace);
+      width: 12px;
+      text-align: center;
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+    .cat-chevron.expanded { transform: rotate(90deg); }
+
+    .cat-name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      flex: 1;
+    }
+    .cat-name.redline { color: var(--redline-ink); }
+    .cat-name.pencil  { color: var(--pencil-ink); }
+    .cat-name.overlay  { color: var(--overlay); }
+    .cat-name.stamp   { color: var(--graphite); }
+    .cat-name.notes   { color: var(--graphite); }
+
+    .cat-count {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+    }
+    .cat-count.redline { background: var(--redline-wash); color: var(--redline-ink); }
+    .cat-count.pencil  { background: var(--pencil-wash); color: var(--pencil-ink); }
+    .cat-count.overlay { background: var(--overlay-wash); color: var(--overlay); }
+    .cat-count.stamp   { background: var(--stamp-wash); color: var(--stamp-ink); }
+    .cat-count.notes   { background: var(--board); color: var(--graphite); }
+
+    .cat-border {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+    }
+    .tree-category {
+      position: relative;
+    }
+    .tree-category.redline-border::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--redline);
+    }
+    .tree-category.pencil-border::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--pencil);
+    }
+    .tree-category.overlay-border::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--overlay);
+    }
+    .tree-category.stamp-border::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 2px;
+      background: var(--stamp);
+    }
+
+    /* ── Type level ── */
+    .tree-type {
+      padding: 0;
+    }
+
+    .type-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px 4px 30px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .type-header:hover {
+      background: var(--board);
+    }
+
+    .type-chevron {
+      font-size: 8px;
+      color: var(--trace);
+      width: 10px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .type-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink);
+      flex: 1;
+    }
+
+    .type-count {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+    }
+
+    /* ── Instance level ── */
+    .tree-instance {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 12px 3px 48px;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    .tree-instance:hover {
+      background: var(--board);
+    }
+    .tree-instance .inst-name {
+      color: var(--graphite);
+    }
+    .tree-instance .inst-prop {
+      color: var(--trace);
+    }
+    .tree-instance .inst-arrow {
+      color: var(--trace);
+      margin-left: auto;
+      font-size: 10px;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .tree-instance:hover .inst-arrow { opacity: 1; }
+
+    /* Active instance (currently shown in main area) */
+    .tree-instance.active {
+      background: var(--sheet);
+    }
+    .tree-instance.active .inst-name {
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    /* ── Status badge within tree ── */
+    .tree-instance .inst-status {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      padding: 0 4px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+      margin-left: 4px;
+    }
+    .inst-status.in-review {
+      background: var(--redline-wash);
+      color: var(--redline-ink);
+    }
+    .inst-status.hold {
+      background: var(--filed-wash);
+      color: var(--filed);
+    }
+
+    .tree-more {
+      padding: 3px 12px 3px 48px;
+      font-size: 11px;
+      color: var(--trace);
+      cursor: pointer;
+    }
+    .tree-more:hover { color: var(--graphite); }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       RIGHT PANEL — NOTES AREA (bottom zone)
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .notes-zone {
+      flex: 0 1 auto;
+      max-height: 40%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notes-header {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .notes-header:hover {
+      color: var(--graphite);
+    }
+    .notes-header .notes-count {
+      font-weight: 500;
+    }
+    .notes-header .notes-chevron {
+      margin-left: auto;
+      font-size: 9px;
+      transition: transform 0.15s ease;
+    }
+    .notes-header .notes-chevron.expanded {
+      transform: rotate(90deg);
+    }
+
+    .notes-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .note-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .note-item:last-child { border-bottom: none; }
+
+    .note-cairn {
+      flex-shrink: 0;
+      width: 14px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--trace);
+    }
+    .note-cairn svg {
+      width: 10px;
+      height: 10px;
+    }
+    .note-cairn.present svg { fill: currentColor; }
+    .note-cairn.adjacent svg { fill: none; stroke: currentColor; stroke-width: 1.2; }
+
+    .note-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .note-content {
+      font-size: 12px;
+      line-height: 18px;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+    .note-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+    }
+
+    .notes-input {
+      padding: 8px 12px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--rule);
+    }
+    .notes-input textarea {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      line-height: 18px;
+      color: var(--ink);
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+      width: 100%;
+      min-height: 40px;
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+    .notes-input textarea:focus {
+      border-color: var(--rule-emphasis);
+    }
+    .notes-input textarea::placeholder {
+      color: var(--trace);
+    }
+    .notes-input .input-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 3px 10px;
+      border-radius: var(--radius);
+      border: 1px solid;
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .btn.add-note {
+      background: transparent;
+      color: var(--graphite);
+      border-color: var(--rule-emphasis);
+    }
+    .btn.add-note:hover {
+      background: var(--board);
+      border-color: var(--graphite);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       KERNEL (collapsed right panel)
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .kernel-demo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--vellum);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      position: relative;
+    }
+    .kernel-demo:hover {
+      background: var(--board);
+    }
+    .kernel-demo .kernel-icon {
+      font-size: 16px;
+      color: var(--graphite);
+    }
+    .kernel-demo .kernel-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 8px;
+      background: var(--redline);
+      color: white;
+      min-width: 16px;
+      text-align: center;
+      line-height: 14px;
+    }
+
+    /* ── Empty state ── */
+    .notes-empty {
+      padding: 12px;
+      font-size: 11px;
+      color: var(--trace);
+      text-align: center;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div style="margin-bottom: 40px;">
+    <div style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px;">DS-2: Exec Summary Dock (v1)</div>
+    <div style="font-size: 12px; color: var(--graphite);">
+      Right panel: workflow tree (top) + notes area (bottom).<br>
+      The exec summary dock IS the right panel — DS-2 §10.
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       FULL LAYOUT: Main story panel + Right panel
+       Door 101 selected, viewed from Door Schedule.
+       Two notes on the item. Conflicts and changes
+       visible in the workflow tree.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Full layout — main area + right panel (Door 101 viewed)</div>
+    <div class="mockup-note">
+      Door 101 is the current item in the main story panel. The right panel
+      shows the workflow tree (all active items across the project) and the
+      notes area (notes specific to Door 101). The notes area auto-expanded
+      because Door 101 has two notes.
+    </div>
+
+    <div class="layout">
+      <!-- ── Main story panel (simplified) ── -->
+      <div class="main-area">
+        <div class="breadcrumb">
+          <span class="seg">Project</span>
+          <span class="chev">›</span>
+          <span class="seg">CD</span>
+          <span class="chev">›</span>
+          <span class="seg">Room 103</span>
+          <span class="chev">›</span>
+          <span class="seg current">Door 101</span>
+        </div>
+
+        <div class="item-header">
+          <span class="item-name">Door 101</span>
+          <span class="item-parent">Room 103</span>
+          <span class="item-source">Door Schedule</span>
+        </div>
+
+        <div class="row-group">Properties</div>
+
+        <div class="prop-row">
+          <div class="main">
+            <span class="prop-name">mark</span>
+            <span class="prop-val">101</span>
+            <span class="indicator"></span>
+          </div>
+        </div>
+
+        <div class="prop-row" style="border-left: 2px solid var(--redline);">
+          <div class="main">
+            <span class="prop-name">Fire Rating</span>
+            <span class="prop-val">60 min</span>
+            <span class="indicator">
+              <span class="pip present redline"></span>
+              <span class="cairn present">
+                <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                  <path d="M2 10 L6 2 L10 10 Z"/>
+                </svg>
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <div class="prop-row">
+          <div class="main">
+            <span class="prop-name">hardware set</span>
+            <span class="prop-val">HW-5</span>
+            <span class="indicator"></span>
+          </div>
+        </div>
+
+        <div class="prop-row">
+          <div class="main">
+            <span class="prop-name">width</span>
+            <span class="prop-val">3'-0"</span>
+            <span class="indicator">
+              <span class="pip adjacent pencil"></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="prop-row">
+          <div class="main">
+            <span class="prop-name">height</span>
+            <span class="prop-val">7'-0"</span>
+            <span class="indicator"></span>
+          </div>
+        </div>
+
+        <div class="prop-row">
+          <div class="main">
+            <span class="prop-name">finish</span>
+            <span class="prop-val">P-5</span>
+            <span class="indicator"></span>
+          </div>
+        </div>
+
+        <div class="row-group">Connections</div>
+
+        <div style="padding: 7px 16px; font-size: 12px; color: var(--graphite); border-bottom: 1px solid var(--rule); font-family: var(--font-mono);">
+          Room 103 <span style="color: var(--trace); margin-left: 8px; font-size: 11px;">container</span>
+        </div>
+        <div style="padding: 7px 16px; font-size: 12px; color: var(--graphite); font-family: var(--font-mono);">
+          HW-5 <span style="color: var(--trace); margin-left: 8px; font-size: 11px;">hardware set</span>
+        </div>
+      </div>
+
+      <!-- ── Right panel ── -->
+      <div class="right-panel">
+
+        <!-- WORKFLOW TREE (top zone) -->
+        <div class="workflow-tree">
+          <div class="dock-header">
+            <span>Workflow</span>
+            <span class="dock-count">10</span>
+          </div>
+
+          <!-- Conflicts -->
+          <div class="tree-category redline-border">
+            <div class="cat-header">
+              <span class="cat-chevron expanded">▶</span>
+              <span class="cat-name redline">Conflicts</span>
+              <span class="cat-count redline">3</span>
+            </div>
+
+            <div class="tree-type">
+              <div class="type-header">
+                <span class="type-chevron">▼</span>
+                <span class="type-name">Doors</span>
+                <span class="type-count">2</span>
+              </div>
+              <div class="tree-instance active">
+                <span class="inst-name">Door 101</span>
+                <span class="inst-prop">· fire rating</span>
+                <span class="inst-arrow">›</span>
+              </div>
+              <div class="tree-instance">
+                <span class="inst-name">Door 103</span>
+                <span class="inst-prop">· finish</span>
+                <span class="inst-status in-review">IN REVIEW</span>
+                <span class="inst-arrow">›</span>
+              </div>
+            </div>
+
+            <div class="tree-type">
+              <div class="type-header">
+                <span class="type-chevron">▶</span>
+                <span class="type-name">Hardware</span>
+                <span class="type-count">1</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Changes -->
+          <div class="tree-category pencil-border">
+            <div class="cat-header">
+              <span class="cat-chevron expanded">▶</span>
+              <span class="cat-name pencil">Changes</span>
+              <span class="cat-count pencil">5</span>
+            </div>
+
+            <div class="tree-type">
+              <div class="type-header">
+                <span class="type-chevron">▼</span>
+                <span class="type-name">Doors</span>
+                <span class="type-count">3</span>
+              </div>
+              <div class="tree-instance">
+                <span class="inst-name">Door 101</span>
+                <span class="inst-prop">· width</span>
+                <span class="inst-arrow">›</span>
+              </div>
+              <div class="tree-instance">
+                <span class="inst-name">Door 102</span>
+                <span class="inst-prop">· material</span>
+                <span class="inst-arrow">›</span>
+              </div>
+              <div class="tree-more">+ 1 more</div>
+            </div>
+
+            <div class="tree-type">
+              <div class="type-header">
+                <span class="type-chevron">▶</span>
+                <span class="type-name">Hardware</span>
+                <span class="type-count">2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Directives -->
+          <div class="tree-category overlay-border">
+            <div class="cat-header">
+              <span class="cat-chevron">▶</span>
+              <span class="cat-name overlay">Directives</span>
+              <span class="cat-count overlay">2</span>
+            </div>
+          </div>
+
+          <!-- Resolved -->
+          <div class="tree-category stamp-border">
+            <div class="cat-header">
+              <span class="cat-chevron">▶</span>
+              <span class="cat-name stamp">Resolved</span>
+              <span class="cat-count stamp">4</span>
+            </div>
+          </div>
+
+          <!-- Notes (tree category) -->
+          <div class="tree-category">
+            <div class="cat-header">
+              <span class="cat-chevron">▶</span>
+              <span class="cat-name notes">Notes</span>
+              <span class="cat-count notes">6</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTES AREA (bottom zone) — contextual to Door 101 -->
+        <div class="notes-zone">
+          <div class="notes-header">
+            <span>Notes</span>
+            <span class="notes-count">· 2</span>
+            <span class="notes-chevron expanded">▶</span>
+          </div>
+
+          <div class="notes-list">
+            <div class="note-item">
+              <div class="note-cairn present">
+                <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                  <path d="M2 10 L6 2 L10 10 Z"/>
+                </svg>
+              </div>
+              <div class="note-body">
+                <div class="note-content">Confirmed with site visit — north wing doors all verified 60 min.</div>
+                <div class="note-meta">J. Martinez · 2026-01-20</div>
+              </div>
+            </div>
+
+            <div class="note-item">
+              <div class="note-cairn present">
+                <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                  <path d="M2 10 L6 2 L10 10 Z"/>
+                </svg>
+              </div>
+              <div class="note-body">
+                <div class="note-content">Spec §08 references 2019 code edition, verify against current.</div>
+                <div class="note-meta">A. Chen · 2026-01-18</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="notes-input">
+            <textarea placeholder="Add a note..."></textarea>
+            <div class="input-row">
+              <button class="btn add-note">Add</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Notes area — empty state</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       NOTES AREA: Empty state (item with no notes)
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Notes area — item with no notes</div>
+    <div class="mockup-note">
+      Door 102 has no notes. The notes area shows the header with count 0
+      and the add note input. Collapsed by default when no notes exist —
+      shown expanded here for illustration.
+    </div>
+
+    <div style="width: 280px; background: var(--vellum); border: 1px solid var(--rule); border-radius: var(--radius-md); overflow: hidden;">
+      <div class="notes-header">
+        <span>Notes</span>
+        <span class="notes-count">· 0</span>
+        <span class="notes-chevron expanded">▶</span>
+      </div>
+      <div class="notes-input">
+        <textarea placeholder="Add a note..."></textarea>
+        <div class="input-row">
+          <button class="btn add-note">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       NOTES AREA: Project level empty state
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Notes area — project level (no item selected)</div>
+    <div class="mockup-note">
+      At the project/dashboard level, no specific item is in the main panel.
+      The notes area shows a muted message.
+    </div>
+
+    <div style="width: 280px; background: var(--vellum); border: 1px solid var(--rule); border-radius: var(--radius-md); overflow: hidden;">
+      <div class="notes-header">
+        <span>Notes</span>
+        <span class="notes-chevron expanded">▶</span>
+      </div>
+      <div class="notes-empty">Navigate to an item to see notes.</div>
+    </div>
+  </div>
+
+
+  <div class="divider">Collapsed kernel</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       KERNEL: Collapsed right panel
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Kernel — collapsed right panel</div>
+    <div class="mockup-note">
+      When the right panel is collapsed, it reduces to a kernel icon with a
+      badge showing the count of open (non-Accepted) workflow items. The badge
+      uses redline if any items need review, stamp if all are resolved. Clicking
+      expands the panel.
+    </div>
+
+    <div style="display: flex; gap: 24px; align-items: flex-start;">
+      <div>
+        <div style="font-size: 11px; color: var(--trace); margin-bottom: 6px; font-family: var(--font-mono);">Active items</div>
+        <div class="kernel-demo">
+          <span class="kernel-icon">☰</span>
+          <span class="kernel-badge">10</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 11px; color: var(--trace); margin-bottom: 6px; font-family: var(--font-mono);">All resolved</div>
+        <div class="kernel-demo">
+          <span class="kernel-icon">☰</span>
+          <span class="kernel-badge" style="background: var(--stamp); color: white;">✓</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Notes area — collapsed</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       NOTES AREA: Collapsed (header only)
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Notes area — collapsed (header only)</div>
+    <div class="mockup-note">
+      When collapsed, the notes area reduces to just the section header (~28px).
+      The workflow tree takes the full panel height. The count still shows how
+      many notes exist. Click the header to expand.
+    </div>
+
+    <div style="width: 280px; background: var(--vellum); border: 1px solid var(--rule); border-radius: var(--radius-md); overflow: hidden;">
+      <div class="notes-header" style="border-top: 1px solid var(--rule-emphasis);">
+        <span>Notes</span>
+        <span class="notes-count">· 2</span>
+        <span class="notes-chevron">▶</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Design notes</div>
+
+
+  <div class="mockup-section">
+    <div class="mockup-title">Design decisions captured in this mockup (v1)</div>
+    <div class="mockup-note" style="max-width: 720px; line-height: 20px;">
+      <strong>1. Two zones, one panel.</strong> The right panel contains two
+      zones: workflow tree (top, flex priority) and notes area (bottom, up to
+      40%). Each scrolls independently. The tree shows project-wide workflow
+      state; the notes area shows context for the current item.<br><br>
+
+      <strong>2. Workflow tree = exec summary.</strong> Three-level navigable
+      tree: category (Conflicts, Changes, Directives, Resolved, Notes) → type
+      (Doors, Hardware) → instance (Door 101 · fire rating). Category borders
+      use spectrum colors. Clicking an instance triggers a page turn to the
+      main area.<br><br>
+
+      <strong>3. Notes tree vs. notes area.</strong> The "Notes" category in
+      the workflow tree is a <strong>global rollup</strong> — all cairns across
+      the project. The notes area at the bottom is <strong>contextual</strong> —
+      notes for the one item currently in the main panel. Both reference the
+      same cairn items in the graph.<br><br>
+
+      <strong>4. Notes area tracks the main panel.</strong> When you navigate
+      to Door 101, its notes appear. When you page-turn to a conflict item,
+      those notes appear. At project/dashboard level, the empty state shows.
+      The bottom zone follows the story panel's focus.<br><br>
+
+      <strong>5. Auto-expand/collapse.</strong> The notes area auto-expands
+      when navigating to an item that has notes. It collapses by default when
+      the current item has no notes. The user can manually toggle either way.<br><br>
+
+      <strong>6. Kernel badge.</strong> When collapsed, the panel shows a
+      badge with the count of open workflow items. Redline badge if items need
+      review. Stamp badge (checkmark) when everything is resolved. The user
+      always knows the project state.<br><br>
+
+      <strong>7. Active instance highlight.</strong> The currently-viewed item
+      gets a subtle highlight (sheet background) in the workflow tree, so you
+      can see where you are in the project context.<br><br>
+
+      <strong>8. Status in tree.</strong> In-review and hold status show as
+      small inline badges on instances. This makes the exec summary the primary
+      status management surface — you can see who's reviewing what without
+      leaving the dock.
+    </div>
+  </div>
+
+</body>
+</html>

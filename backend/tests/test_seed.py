@@ -474,3 +474,88 @@ async def test_doors_distributed_across_rooms(db_session):
         )
         count = door_result.scalar()
         assert count == 5, f"Room {room.identifier} has {count} doors, expected 5"
+
+
+# ─── Property Items (WP-PROP-4) ────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_seed_creates_property_items(db_session):
+    """Seed data includes property items for door and room types."""
+    await seed_project(db_session)
+
+    result = await db_session.execute(
+        select(Item).where(Item.item_type == "property")
+    )
+    prop_items = result.scalars().all()
+    assert len(prop_items) > 0
+
+    # Check both parent types are represented
+    parent_types = {p.properties.get("parent_type") for p in prop_items}
+    assert "door" in parent_types
+    assert "room" in parent_types
+
+
+@pytest.mark.asyncio
+async def test_property_items_connected_to_doors(db_session):
+    """All door property items are connected to all 50 doors."""
+    await seed_project(db_session)
+
+    # Get all door property items
+    door_props_result = await db_session.execute(
+        select(Item).where(
+            Item.item_type == "property",
+            Item.identifier.like("door/%"),
+        )
+    )
+    door_props = door_props_result.scalars().all()
+
+    # Get all doors
+    doors_result = await db_session.execute(
+        select(Item).where(Item.item_type == "door")
+    )
+    doors = doors_result.scalars().all()
+
+    # Each door should be connected to each property item
+    for door in doors:
+        for prop_item in door_props:
+            conn_result = await db_session.execute(
+                select(Connection).where(
+                    Connection.source_item_id == prop_item.id,
+                    Connection.target_item_id == door.id,
+                )
+            )
+            conn = conn_result.scalar_one_or_none()
+            assert conn is not None, f"Property {prop_item.identifier} not connected to door {door.identifier}"
+
+
+@pytest.mark.asyncio
+async def test_property_items_connected_to_rooms(db_session):
+    """All room property items are connected to all 10 rooms."""
+    await seed_project(db_session)
+
+    # Get all room property items
+    room_props_result = await db_session.execute(
+        select(Item).where(
+            Item.item_type == "property",
+            Item.identifier.like("room/%"),
+        )
+    )
+    room_props = room_props_result.scalars().all()
+
+    # Get all rooms
+    rooms_result = await db_session.execute(
+        select(Item).where(Item.item_type == "room")
+    )
+    rooms = rooms_result.scalars().all()
+
+    # Each room should be connected to each property item
+    for room in rooms:
+        for prop_item in room_props:
+            conn_result = await db_session.execute(
+                select(Connection).where(
+                    Connection.source_item_id == prop_item.id,
+                    Connection.target_item_id == room.id,
+                )
+            )
+            conn = conn_result.scalar_one_or_none()
+            assert conn is not None, f"Property {prop_item.identifier} not connected to room {room.identifier}"

@@ -22,7 +22,12 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class PropertyDef:
-    """Definition of an expected property on an item type."""
+    """Definition of an expected property on an item type.
+
+    The `aliases` and `normalization` fields support auto-mapping (WP-6b):
+      - aliases: alternative column header names that map to this property
+      - normalization: default normalization type applied during import
+    """
     name: str
     label: str
     data_type: str = "string"  # string, number, boolean, date, enum
@@ -30,6 +35,10 @@ class PropertyDef:
     enum_values: list[str] | None = None
     unit: str | None = None
     description: str = ""
+    # WP-6b: Additional column header names for auto-mapping
+    aliases: tuple[str, ...] | None = None
+    # WP-6b: Default normalization type (e.g., "dimension", "numeric")
+    normalization: str | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +72,10 @@ class TypeConfig:
     # When True, snapshots from items of this type are not used as
     # comparison sources in cross-source conflict analysis.
     exclude_from_conflicts: bool = False
+    # WP-17: MasterFormat divisions that govern this type.
+    # Used to assemble extraction vocabulary: Division "08" → doors, windows.
+    # Empty tuple means this type is not governed by any MasterFormat division.
+    masterformat_divisions: tuple[str, ...] = ()
 
 
 # ─── Type Registry ─────────────────────────────────────────────
@@ -89,6 +102,92 @@ def get_types_by_category(category: str) -> list[TypeConfig]:
 def get_conflict_excluded_types() -> set[str]:
     """Get type names that are excluded from conflict detection."""
     return {t.name for t in ITEM_TYPES.values() if t.exclude_from_conflicts}
+
+
+def get_importable_types() -> list[TypeConfig]:
+    """Get item types that have properties defined (candidates for import)."""
+    return [
+        t for t in ITEM_TYPES.values()
+        if t.properties and t.category in ("spatial",)
+    ]
+
+
+def build_label_map(type_name: str) -> dict[str, str]:
+    """
+    Build a mapping from lowercased property labels and aliases to property names.
+
+    Used by the auto-mapping service (WP-6b) for Layer 2 matching:
+    type-derived matching from PropertyDef labels.
+
+    Returns: dict mapping cleaned label → property name.
+    Example: {"fire rating": "fire_rating", "fr": "fire_rating", ...}
+    """
+    tc = get_type_config(type_name)
+    if not tc:
+        return {}
+
+    label_map: dict[str, str] = {}
+    for prop in tc.properties:
+        # Exact label (lowercased)
+        label_map[prop.label.lower()] = prop.name
+        # Property name itself (already canonical, but useful for matching)
+        label_map[prop.name] = prop.name
+        # All aliases from the PropertyDef
+        if prop.aliases:
+            for alias in prop.aliases:
+                label_map[alias.lower()] = prop.name
+
+    return label_map
+
+
+def get_dimension_properties(type_name: str) -> set[str]:
+    """Get property names that have a unit set (dimension properties)."""
+    tc = get_type_config(type_name)
+    if not tc:
+        return set()
+    return {prop.name for prop in tc.properties if prop.unit}
+
+
+def get_vocabulary_for_division(division: str) -> dict[str, list[PropertyDef]]:
+    """
+    Return all PropertyDefs for element types governed by a MasterFormat division.
+
+    WP-17: Used to assemble the extraction vocabulary for a given spec section.
+    The division code (e.g., "08") maps to spatial types that declare that
+    division in their masterformat_divisions tuple.
+
+    Args:
+        division: Two-digit MasterFormat division code (e.g., "08").
+
+    Returns:
+        Dict mapping type_name → list of PropertyDef.
+        Example: {"door": [PropertyDef(name="material", ...), ...]}
+        Empty dict if no types are mapped to the division.
+    """
+    result: dict[str, list[PropertyDef]] = {}
+    for type_name, config in ITEM_TYPES.items():
+        if division in config.masterformat_divisions:
+            result[type_name] = list(config.properties)
+    return result
+
+
+def get_types_for_division(division: str) -> list[str]:
+    """
+    Return type names governed by a MasterFormat division.
+
+    WP-17: Convenience function for determining which element types
+    are relevant to a given spec section's division.
+
+    Args:
+        division: Two-digit MasterFormat division code (e.g., "08").
+
+    Returns:
+        List of type names (e.g., ["door", "window"]).
+    """
+    return [
+        config.name for config in ITEM_TYPES.values()
+        if division in config.masterformat_divisions
+    ]
 
 
 # ─── Organization Types ────────────────────────────────────────
@@ -174,13 +273,48 @@ register_type(TypeConfig(
     render_mode="cards",
     default_sort="number",
     search_fields=["name", "number"],
+    masterformat_divisions=("09",),  # Division 09: Finishes
     properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("number", "Room Number"),
-        PropertyDef("area", "Area", data_type="number", unit="sf"),
-        PropertyDef("finish_floor", "Floor Finish"),
-        PropertyDef("finish_wall", "Wall Finish"),
-        PropertyDef("finish_ceiling", "Ceiling Finish"),
+        PropertyDef("name", "Name", required=True,
+                     aliases=("room_name", "rm_name")),
+        PropertyDef("number", "Room Number",
+                     aliases=("room_number", "rm_no", "rm_#")),
+        PropertyDef("area", "Area", data_type="number", unit="sf",
+                     aliases=("sf", "sqft", "sq_ft", "area_sf")),
+        PropertyDef("finish_floor", "Floor Finish",
+                     aliases=("floor_finish", "flr_finish")),
+        PropertyDef("finish_wall", "Wall Finish",
+                     aliases=("wall_finish", "wl_finish")),
+        PropertyDef("finish_ceiling", "Ceiling Finish",
+                     aliases=("ceiling_finish", "clg_finish")),
+        PropertyDef("ceiling_height", "Ceiling Height", data_type="number", unit="in",
+                     normalization="dimension",
+                     aliases=("clg_height", "ceiling_ht")),
+    ],
+))
+
+register_type(TypeConfig(
+    name="frame",
+    label="Frame",
+    plural_label="Frames",
+    category="spatial",
+    valid_targets=[],
+    navigable=True,
+    render_mode="list",
+    default_sort="identifier",
+    search_fields=["material", "type"],
+    masterformat_divisions=("08",),  # Division 08: Openings (same as door)
+    properties=[
+        PropertyDef("material", "Material",
+                     description="Frame material (e.g., hollow metal, aluminum)"),
+        PropertyDef("gauge", "Gauge",
+                     description="Metal gauge (e.g., 16 gauge)"),
+        PropertyDef("finish", "Finish",
+                     description="Applied finish or coating"),
+        PropertyDef("fire_rating", "Fire Rating",
+                     description="UL fire rating label"),
+        PropertyDef("type", "Frame Type",
+                     description="Frame profile type (e.g., knocked-down, welded)"),
     ],
 ))
 
@@ -194,15 +328,56 @@ register_type(TypeConfig(
     render_mode="table",
     default_sort="mark",
     search_fields=["mark", "type", "hardware_set"],
+    masterformat_divisions=("08",),  # Division 08: Openings
     properties=[
-        PropertyDef("mark", "Mark", required=True),
-        PropertyDef("width", "Width", data_type="number", unit="in"),
-        PropertyDef("height", "Height", data_type="number", unit="in"),
-        PropertyDef("type", "Door Type"),
-        PropertyDef("hardware_set", "Hardware Set"),
-        PropertyDef("fire_rating", "Fire Rating"),
-        PropertyDef("frame_type", "Frame Type"),
-        PropertyDef("glazing", "Glazing"),
+        PropertyDef("mark", "Mark", required=True,
+                     aliases=("number", "door_mark", "door_number", "door_no")),
+        PropertyDef("level", "Level",
+                     aliases=("floor", "story", "flr")),
+        PropertyDef("width", "Width", data_type="number", unit="in",
+                     normalization="dimension",
+                     aliases=("w", "door_width", "clear_width")),
+        PropertyDef("height", "Height", data_type="number", unit="in",
+                     normalization="dimension",
+                     aliases=("h", "door_height", "clear_height")),
+        PropertyDef("thickness", "Thickness", data_type="number", unit="in",
+                     normalization="dimension",
+                     aliases=("t", "door_thickness", "thk")),
+        PropertyDef("type", "Door Type",
+                     aliases=("door_type", "dt", "style")),
+        PropertyDef("material", "Material",
+                     aliases=("door_material", "mat", "mtl")),
+        PropertyDef("finish", "Finish",
+                     aliases=("fnsh", "door_finish", "surface_finish")),
+        PropertyDef("hardware_set", "Hardware Set",
+                     aliases=("hw", "hw_set", "hardware", "hardware_group", "hdw")),
+        PropertyDef("fire_rating", "Fire Rating",
+                     aliases=("fr", "fire_rate", "rating", "f.r.", "fire_rated")),
+        PropertyDef("frame_type", "Frame Type",
+                     aliases=("frame",)),
+        PropertyDef("frame_material", "Frame Material"),
+        PropertyDef("frame_finish", "Frame Finish"),
+        PropertyDef("glazing", "Glazing",
+                     aliases=("glass", "gl", "glass_type", "lite", "vision_panel")),
+        PropertyDef("location", "Location",
+                     aliases=("room", "room_name", "rm")),
+        PropertyDef("location_to", "Location To",
+                     aliases=("to",)),
+        PropertyDef("handing", "Handing",
+                     aliases=("hand",)),
+        PropertyDef("swing", "Swing"),
+        PropertyDef("closer", "Closer",
+                     aliases=("door_closer", "cl")),
+        PropertyDef("lock_function", "Lock Function",
+                     aliases=("lock", "lockset", "lock_type")),
+        PropertyDef("rebate_width", "Rebate Width", data_type="number", unit="in",
+                     normalization="dimension",
+                     aliases=("rabbet_width", "rebate_w")),
+        PropertyDef("rebate_height", "Rebate Height", data_type="number", unit="in",
+                     normalization="dimension",
+                     aliases=("rabbet_height", "rebate_h")),
+        PropertyDef("panel_type", "Panel Type",
+                     aliases=("panel",)),
     ],
 ))
 
@@ -263,6 +438,25 @@ register_type(TypeConfig(
     ],
 ))
 
+register_type(TypeConfig(
+    name="spec_section",
+    label="Specification Section",
+    plural_label="Specification Sections",
+    category="document",
+    valid_targets=["spec_section", "door", "room"],
+    navigable=True,
+    render_mode="list",
+    default_sort="identifier",
+    search_fields=["title", "identifier"],
+    exclude_from_conflicts=True,
+    properties=[
+        PropertyDef("title", "Title", required=True),
+        PropertyDef("division", "Division"),
+        PropertyDef("level", "Level", data_type="number",
+                     description="0=Division, 1=Group, 2=Section, 3=Subsection"),
+    ],
+))
+
 
 # ─── Temporal Types ────────────────────────────────────────────
 
@@ -316,6 +510,49 @@ register_type(TypeConfig(
         PropertyDef("row_count", "Row Count", data_type="number"),
         PropertyDef("status", "Status", data_type="enum",
                      enum_values=["pending", "processing", "completed", "failed"]),
+    ],
+))
+
+register_type(TypeConfig(
+    name="preprocess_batch",
+    label="Preprocess Batch",
+    plural_label="Preprocess Batches",
+    category="temporal",
+    navigable=False,
+    render_mode="list",
+    default_sort="created_at",
+    search_fields=["original_filename"],
+    exclude_from_conflicts=True,
+    properties=[
+        PropertyDef("original_filename", "Filename", required=True),
+        PropertyDef("status", "Status", data_type="enum",
+                     enum_values=["preprocessing", "identified", "confirmed", "failed"]),
+        PropertyDef("page_count", "Page Count", data_type="number"),
+        PropertyDef("sections_identified", "Sections Identified", data_type="number"),
+        PropertyDef("sections_matched", "Sections Matched", data_type="number"),
+    ],
+))
+
+register_type(TypeConfig(
+    name="extraction_batch",
+    label="Extraction Batch",
+    plural_label="Extraction Batches",
+    category="temporal",
+    navigable=False,
+    render_mode="list",
+    default_sort="created_at",
+    search_fields=[],
+    exclude_from_conflicts=True,
+    properties=[
+        PropertyDef("status", "Status", data_type="enum", required=True,
+                     enum_values=["pending", "extracting", "extracted",
+                                  "confirmed", "failed"]),
+        PropertyDef("specification_item_id", "Specification", data_type="string"),
+        PropertyDef("preprocess_batch_id", "Preprocess Batch", data_type="string"),
+        PropertyDef("context_id", "Context Milestone", data_type="string"),
+        PropertyDef("sections_total", "Total Sections", data_type="number"),
+        PropertyDef("sections_extracted", "Sections Extracted", data_type="number"),
+        PropertyDef("sections_failed", "Sections Failed", data_type="number"),
     ],
 ))
 
@@ -382,6 +619,29 @@ register_type(TypeConfig(
 ))
 
 register_type(TypeConfig(
+    name="directive",
+    label="Directive",
+    plural_label="Directives",
+    category="workflow",
+    valid_targets=["door", "room", "floor", "building"],
+    navigable=True,
+    render_mode="table",
+    default_sort="created_at",
+    search_fields=["property_name", "status"],
+    exclude_from_conflicts=True,
+    properties=[
+        PropertyDef("property_name", "Property", required=True),
+        PropertyDef("target_value", "Target Value"),
+        PropertyDef("target_source_id", "Target Source", required=True),
+        PropertyDef("decision_item_id", "Decision"),
+        PropertyDef("affected_item_id", "Affected Item"),
+        PropertyDef("status", "Status", data_type="enum",
+                     enum_values=["pending", "fulfilled", "superseded"],
+                     required=True),
+    ],
+))
+
+register_type(TypeConfig(
     name="note",
     label="Note",
     plural_label="Notes",
@@ -394,5 +654,28 @@ register_type(TypeConfig(
     exclude_from_conflicts=True,
     properties=[
         PropertyDef("content", "Content", required=True),
+    ],
+))
+
+
+# ─── Definition types ──────────────────────────────────────────
+
+register_type(TypeConfig(
+    name="property",
+    label="Property",
+    plural_label="Properties",
+    category="definition",
+    icon="tag",
+    navigable=True,
+    render_mode="list",
+    default_sort="identifier",
+    search_fields=["property_name", "label"],
+    exclude_from_conflicts=True,
+    properties=[
+        PropertyDef("property_name", "Property Name", required=True),
+        PropertyDef("parent_type", "Parent Type", required=True),
+        PropertyDef("label", "Display Label", required=True),
+        PropertyDef("data_type", "Data Type"),
+        PropertyDef("unit", "Unit"),
     ],
 ))

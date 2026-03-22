@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-2: Review UX — Action Surfaces (v3)</title>
+  <style>
+    :root {
+      --sheet: #FAF9F6;
+      --vellum: #F0EFEC;
+      --board: #E7E5E2;
+
+      --ink: #1C1B18;
+      --graphite: #57554F;
+      --trace: #9D9B95;
+
+      --rule: #DFDDD9;
+      --rule-emphasis: #CECCC7;
+
+      --pencil: #FA9442;
+      --pencil-muted: #FBB978;
+      --pencil-wash: #FFF5EA;
+      --pencil-ink: #B06218;
+
+      --redline: #E81A00;
+      --redline-muted: #EE6A53;
+      --redline-wash: #FFF0EB;
+      --redline-ink: #A61400;
+
+      --stamp: #3D7A4F;
+      --stamp-wash: #F0F7F2;
+      --stamp-ink: #2D5E3B;
+
+      --overlay: #002FA7;
+      --overlay-wash: #EFF2FB;
+      --overlay-border: #6A7EB5;
+
+      --filed: #7D7A75;
+      --filed-wash: #F5F4F3;
+
+      --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'GeistMono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+      --radius-sm: 2px;
+      --radius: 3px;
+      --radius-md: 4px;
+    }
+
+    @font-face {
+      font-family: 'Geist';
+      src: url('../../frontend/public/fonts/Geist-Variable.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'GeistMono';
+      src: url('../../frontend/public/fonts/GeistMono-Variable.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--vellum);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 20px;
+      padding: 40px;
+      max-width: 900px;
+    }
+
+    /* ── Mockup chrome ── */
+    .mockup-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .mockup-note {
+      font-size: 12px;
+      color: var(--graphite);
+      margin-bottom: 16px;
+      line-height: 18px;
+      max-width: 720px;
+    }
+    .mockup-section { margin-bottom: 56px; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 56px 0;
+      color: var(--trace);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--rule);
+    }
+
+    /* ── Template frame ── */
+    .template {
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      max-width: 720px;
+    }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb {
+      background: var(--vellum);
+      padding: 8px 16px;
+      font-size: 12px;
+      line-height: 18px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breadcrumb .seg { color: var(--graphite); }
+    .breadcrumb .seg.current { color: var(--ink); font-weight: 500; }
+    .breadcrumb .chev { color: var(--trace); font-size: 10px; }
+    .breadcrumb .breadcrumb-rel { color: var(--trace); margin: 0 2px; }
+    .breadcrumb .breadcrumb-source { cursor: pointer; }
+    .breadcrumb .breadcrumb-source:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .breadcrumb .breadcrumb-source.redline { color: var(--redline-ink); }
+
+    /* ── Item header ── */
+    .item-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .item-identity {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .item-name {
+      font-size: 16px;
+      line-height: 24px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .item-parent {
+      font-size: 12px;
+      color: var(--trace);
+    }
+    .item-source {
+      font-size: 12px;
+      color: var(--graphite);
+      font-family: var(--font-mono);
+    }
+    .item-header .item-meta {
+      margin-left: auto;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .item-header .item-type {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .item-header .item-type.redline { color: var(--redline-ink); }
+    .item-header .item-type.stamp   { color: var(--stamp-ink); }
+    .item-header .item-type.pencil  { color: var(--pencil-ink); }
+    .item-header .item-type.filed   { color: var(--filed); }
+
+    /* ── Row group ── */
+    .row-group {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      background: rgba(240, 239, 236, 0.5);
+      border-bottom: 1px solid var(--rule);
+    }
+
+
+    /* ── Property row ── */
+    .prop-row {
+      border-bottom: 1px solid var(--rule);
+    }
+    .prop-row:last-child { border-bottom: none; }
+
+    .prop-row .main {
+      display: grid;
+      grid-template-columns: 120px 1fr 28px;
+      gap: 0 12px;
+      align-items: baseline;
+      padding: 7px 16px;
+      min-height: 34px;
+    }
+
+    .prop-name {
+      font-size: 12px;
+      color: var(--graphite);
+      cursor: pointer;
+    }
+    .prop-name:hover {
+      color: var(--ink);
+      text-decoration: underline;
+      text-decoration-color: var(--rule-emphasis);
+      text-underline-offset: 2px;
+    }
+
+    .prop-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .prop-row:hover {
+      background: rgba(231, 229, 226, 0.25);
+    }
+
+
+    /* ── Indicator lane ── */
+    .indicator {
+      display: flex;
+      flex-direction: row-reverse;
+      align-items: center;
+      flex-shrink: 0;
+      padding-right: 2px;
+      overflow: visible;
+    }
+    .indicator > * {
+      flex: 0 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    }
+
+    /* ── Pip ── */
+    .indicator .pip {
+      height: 14px;
+      background: none;
+      border-radius: 0;
+      cursor: pointer;
+    }
+    .indicator .pip::after {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    .indicator .pip:hover::after {
+      transform: scale(1.3);
+    }
+
+    .pip.present.pencil::after   { background: var(--pencil); }
+    .pip.present.redline::after  { background: var(--redline); }
+    .pip.present.overlay::after  { background: var(--overlay); }
+
+    .pip.adjacent.pencil::after  { border: 1.5px solid var(--pencil); }
+    .pip.adjacent.redline::after { border: 1.5px solid var(--redline); }
+    .pip.adjacent.overlay::after { border: 1.5px solid var(--overlay); }
+
+    /* Filed pip — held items */
+    .pip.present.filed::after { background: var(--filed); }
+
+
+    /* ── Cairn ── */
+    .cairn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      color: var(--trace);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .cairn:hover {
+      color: var(--graphite);
+      background: var(--board);
+    }
+    .cairn svg {
+      width: 10px;
+      height: 10px;
+      transition: transform 0.15s ease;
+    }
+    .cairn.present svg { fill: currentColor; }
+    .cairn.adjacent svg { fill: none; }
+    .cairn.active svg {
+      fill: currentColor;
+      transform: rotate(180deg);
+    }
+    .indicator .cairn {
+      flex: 0 0 14px;
+      width: 14px;
+    }
+
+
+    /* ── Status badge ── */
+    .badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      padding: 1px 8px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+    .badge.redline { background: var(--redline-wash); color: var(--redline-ink); }
+    .badge.stamp   { background: var(--stamp-wash); color: var(--stamp-ink); }
+    .badge.pencil  { background: var(--pencil-wash); color: var(--pencil-ink); }
+    .badge.overlay { background: var(--overlay-wash); color: var(--overlay); }
+    .badge.filed   { background: var(--filed-wash); color: var(--filed); }
+
+
+    /* ── Source-colored column headers ── */
+    .col-headers {
+      display: grid;
+      grid-template-columns: 120px repeat(var(--num-contexts, 2), 1fr) 28px;
+      gap: 0 12px;
+      padding: 5px 16px;
+      border-bottom: 1px solid color-mix(in srgb, var(--redline) 20%, var(--rule));
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--redline-ink);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .col-headers.settled {
+      color: var(--graphite);
+      border-bottom-color: var(--rule);
+    }
+
+    /* ── Comparison property row ── */
+    .prop-row.dual .main {
+      grid-template-columns: 120px repeat(var(--num-contexts, 2), 1fr) 28px;
+      gap: 0 12px;
+    }
+    .prop-row.dual.redline {
+      border-left: 2px solid var(--redline);
+    }
+    .prop-row.dual.redline .prop-val.conflict {
+      color: var(--redline-ink);
+      font-weight: 500;
+    }
+    .prop-row.dual.settled {
+      border-left: 2px solid transparent;
+    }
+    .prop-row.dual.settled .prop-val {
+      color: var(--trace);
+    }
+    /* Non-chosen source value retains faint redline — "this value is noted as wrong" */
+    .prop-row.dual.settled .prop-val.stale {
+      color: var(--redline-muted);
+    }
+
+
+    /* ── Row expansion ── */
+    .row-detail {
+      display: none;
+      padding: 6px 16px 8px 132px;
+      font-size: 12px;
+      line-height: 18px;
+      border-top: none;
+      background-image: linear-gradient(var(--rule), var(--rule));
+      background-size: calc(100% - 48px - 16px) 1px;
+      background-position: 48px 0;
+      background-repeat: no-repeat;
+    }
+    .row-detail.open { display: block; }
+
+    .row-detail .detail-status {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .row-detail .detail-status.redline { color: var(--redline-ink); }
+    .row-detail .detail-status.stamp   { color: var(--stamp-ink); }
+    .row-detail .detail-status.pencil  { color: var(--pencil-ink); }
+    .row-detail .detail-status.filed   { color: var(--filed); }
+
+    .row-detail .sub-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      cursor: pointer;
+    }
+    .row-detail .sub-row:hover .sub-name {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .row-detail .sub-row .sub-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .row-detail .sub-row .sub-name.overlay { color: var(--overlay); }
+    .row-detail .sub-row .sub-type {
+      font-size: 11px;
+      color: var(--trace);
+    }
+    .row-detail .sub-row .sub-arrow {
+      color: var(--trace);
+      font-size: 12px;
+      margin-left: auto;
+    }
+
+    /* Mini-resolution inside expansion */
+    .row-detail .mini-res {
+      padding: 4px 0 6px;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 4px;
+    }
+    .row-detail .mini-res .res-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--stamp-ink);
+      font-weight: 500;
+    }
+    .row-detail .mini-res .res-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+    .row-detail .mini-res .res-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      margin-top: 2px;
+    }
+
+    /* Inline pip within expansion */
+    .row-detail .pip {
+      flex-shrink: 0;
+    }
+
+    /* ── Connection row ── */
+    .conn-row {
+      display: flex;
+      align-items: center;
+      padding: 7px 16px;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+      min-height: 34px;
+    }
+    .conn-row:hover { background: rgba(231, 229, 226, 0.4); }
+    .conn-row:last-child { border-bottom: none; }
+    .conn-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .conn-type {
+      font-size: 11px;
+      color: var(--trace);
+      margin-left: 8px;
+    }
+    .conn-arrow {
+      color: var(--trace);
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .conn-row:hover .conn-arrow { opacity: 1; }
+
+    .conn-row.conflict-source .conn-name { color: var(--redline-ink); }
+    .conn-row.conflict-source .conn-type { color: var(--redline-muted); }
+    .conn-row.directive-conn .conn-name  { color: var(--overlay); }
+    .conn-row.directive-conn .conn-type  { color: var(--overlay-border); }
+
+
+    /* ── Resolution section (full, on workflow item) ── */
+    .resolution {
+      padding: 10px 16px;
+      background: var(--stamp-wash);
+      border-left: 2px solid var(--stamp);
+      border-bottom: 1px solid var(--rule);
+    }
+    .resolution-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--stamp-ink);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .resolution-chosen {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .resolution-chosen .chosen-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--stamp-ink);
+    }
+    .resolution-chosen .chosen-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+    .resolution-rationale {
+      font-size: 12px;
+      line-height: 18px;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+    .resolution-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       ACTION FORMS
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+    .action-area {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .action-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    /* ── Value selection ── */
+    .value-options {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 10px;
+    }
+
+    .value-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .value-option:hover {
+      background: var(--vellum);
+    }
+    .value-option.selected {
+      background: var(--stamp-wash);
+    }
+
+    .value-option .radio {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1.5px solid var(--trace);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.1s;
+    }
+    .value-option:hover .radio {
+      border-color: var(--graphite);
+    }
+    .value-option.selected .radio {
+      border-color: var(--stamp);
+    }
+    .value-option.selected .radio::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--stamp);
+    }
+
+    .value-option .option-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+      min-width: 100px;
+    }
+    .value-option .option-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .value-option.selected .option-source {
+      color: var(--stamp-ink);
+    }
+    .value-option.selected .option-val {
+      color: var(--stamp-ink);
+    }
+
+    .value-option .option-input {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 0 0 1px;
+      outline: none;
+      width: 120px;
+      transition: border-color 0.15s;
+    }
+    .value-option .option-input::placeholder {
+      color: var(--trace);
+      font-weight: 400;
+    }
+    .value-option .option-input:focus {
+      border-bottom-color: var(--stamp);
+    }
+
+    /* ── Text input ── */
+    .form-field {
+      margin-bottom: 8px;
+    }
+    .form-field .field-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      margin-bottom: 3px;
+    }
+    .form-field .field-input {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      line-height: 18px;
+      color: var(--ink);
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--rule);
+      padding: 2px 0;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-field .field-input:focus {
+      border-bottom-color: var(--graphite);
+    }
+    .form-field .field-input::placeholder {
+      color: var(--trace);
+    }
+    .form-field .field-input.filled {
+      border-bottom-color: var(--rule-emphasis);
+    }
+
+    /* ── Note area (workflow item view only) ── */
+    .note-area {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--rule);
+    }
+    .note-area .note-input {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      line-height: 18px;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+      width: 100%;
+      min-height: 48px;
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+    .note-area .note-input:focus {
+      border-color: var(--rule-emphasis);
+    }
+    .note-area .note-input::placeholder {
+      color: var(--trace);
+    }
+    .note-area .note-hint {
+      font-size: 11px;
+      color: var(--trace);
+      margin-top: 3px;
+    }
+
+    /* ── Action buttons ── */
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 4px 12px;
+      border-radius: var(--radius);
+      border: 1px solid;
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+    }
+
+    .btn.resolve {
+      background: var(--stamp-wash);
+      color: var(--stamp-ink);
+      border-color: var(--stamp);
+    }
+    .btn.resolve:hover {
+      background: color-mix(in srgb, var(--stamp-wash) 60%, var(--stamp));
+      color: white;
+    }
+
+    .btn.hold {
+      background: transparent;
+      color: var(--filed);
+      border-color: var(--rule-emphasis);
+    }
+    .btn.hold:hover {
+      background: var(--filed-wash);
+      border-color: var(--filed);
+    }
+
+    .btn.acknowledge {
+      background: var(--pencil-wash);
+      color: var(--pencil-ink);
+      border-color: var(--pencil);
+    }
+    .btn.acknowledge:hover {
+      background: color-mix(in srgb, var(--pencil-wash) 60%, var(--pencil));
+      color: white;
+    }
+
+    .btn.start-review {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--rule-emphasis);
+    }
+    .btn.start-review:hover {
+      background: var(--vellum);
+      border-color: var(--graphite);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       HOLD STATE
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .prop-row.held {
+      background: var(--filed-wash);
+      border-left: 2px solid var(--filed);
+    }
+    .prop-row.held:hover {
+      background: color-mix(in srgb, var(--filed-wash) 80%, var(--board));
+    }
+    .prop-row.held .prop-val {
+      color: var(--filed);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       FULL RESOLVE FORM (workflow item view)
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .resolve-section {
+      padding: 12px 16px 16px;
+      background: var(--sheet);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .resolve-section .action-label {
+      margin-bottom: 10px;
+    }
+
+    .resolve-section .value-options {
+      margin-bottom: 12px;
+    }
+
+    .resolve-section .value-option {
+      padding: 5px 10px;
+    }
+
+    .resolve-section .form-row {
+      display: grid;
+      grid-template-columns: 1fr 140px;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .resolve-section .action-buttons {
+      margin-top: 12px;
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       STATUS MAPPING TABLE
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .status-table {
+      width: 100%;
+      max-width: 600px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .status-table th {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: left;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--rule-emphasis);
+    }
+    .status-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: top;
+    }
+    .status-table .backend-val {
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+
+    /* ── Conflict detail in expansion (the other source) ── */
+    .conflict-reveal {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 3px 0;
+      margin-bottom: 2px;
+    }
+    .conflict-reveal .reveal-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--redline-ink);
+      cursor: pointer;
+    }
+    .conflict-reveal .reveal-source:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .conflict-reveal .reveal-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--redline-ink);
+      font-weight: 500;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div style="margin-bottom: 40px;">
+    <div style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px;">DS-2: Review UX (v3)</div>
+    <div style="font-size: 12px; color: var(--graphite);">
+      Action surfaces for resolving conflicts, acknowledging changes, and managing workflow items.<br>
+      v3: Start Review button on Surface 2, in_review + directive hold in status table.
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       SURFACE 1: ROW EXPANSION — RESOLVE CONFLICT
+       Perspective-dependent: main row shows YOUR
+       source's value + red pip. Expanding reveals
+       the other source and the action area.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Surface 1 — Row expansion: resolve conflict (via Door Schedule)</div>
+    <div class="mockup-note">
+      Door 101 viewed from the <strong>Door Schedule</strong> perspective. Fire rating
+      shows <strong>60 min</strong> (the Door Schedule's value) with a filled red pip
+      signaling a conflict exists. Click the row to expand — the expansion
+      reveals the other side: "Finish Schedule says 90 min." The action area
+      offers Resolve (pick a value) and Hold. No note field here — notes
+      belong on the workflow item view (Surface 2).<br><br>
+      The main row always shows YOUR source's value. The pip tells you there's
+      a story. The expansion tells you what the story is.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg current">Door 101</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Door 101</span>
+          <span class="item-parent">Room 103</span>
+        </div>
+        <span class="item-source">Door Schedule</span>
+      </div>
+
+      <div class="row-group">Properties</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- Active conflict — YOUR value shown, red pip.
+           Expand to see the other source + action area. -->
+      <div class="prop-row" style="border-left: 2px solid var(--redline);">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val" style="color: var(--ink);">60 min</span>
+          <span class="indicator">
+            <span class="pip redline present"></span>
+          </span>
+        </div>
+        <div class="row-detail open">
+          <div class="detail-status redline">Conflict · Needs Review · <span style="font-weight: 400; opacity: 0.7;">CD</span></div>
+
+          <!-- The other side revealed -->
+          <div class="conflict-reveal">
+            <span class="reveal-source">Finish Schedule</span>
+            <span class="reveal-val">90 min</span>
+          </div>
+
+          <div class="sub-row">
+            <span class="sub-name">Door 101</span>
+            <span class="sub-type">affected item</span>
+            <span class="sub-arrow">›</span>
+          </div>
+
+          <!-- ── ACTION AREA ── -->
+          <div class="action-area">
+            <div class="action-label">Resolve</div>
+
+            <div class="value-options">
+              <div class="value-option selected">
+                <span class="radio"></span>
+                <span class="option-source">Door Schedule</span>
+                <span class="option-val">60 min</span>
+              </div>
+              <div class="value-option">
+                <span class="radio"></span>
+                <span class="option-source">Finish Schedule</span>
+                <span class="option-val">90 min</span>
+              </div>
+              <div class="value-option">
+                <span class="radio"></span>
+                <span class="option-source" style="color: var(--trace);">custom</span>
+                <input class="option-input" type="text" placeholder="enter value">
+              </div>
+            </div>
+
+            <div class="action-buttons">
+              <button class="btn resolve">Resolve</button>
+              <button class="btn hold">Hold</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       SURFACE 1b: ROW EXPANSION — ACKNOWLEDGE CHANGE
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Surface 1b — Row expansion: acknowledge change</div>
+    <div class="mockup-note">
+      Changes are simpler — the system detected a value difference between
+      milestones. Expand to see what changed, then <strong>Acknowledge</strong>
+      (one click) or <strong>Hold</strong>. Acknowledgment returns the row to
+      silence immediately — no cairn, no pip. The user said "I see it," done.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="prop-row" style="background: var(--pencil-wash); border-left: 2px solid var(--pencil);">
+        <div class="main">
+          <span class="prop-name">material</span>
+          <span class="prop-val" style="color: var(--pencil-ink); font-weight: 500;">wood</span>
+          <span class="indicator">
+            <span class="pip pencil present"></span>
+          </span>
+        </div>
+        <div class="row-detail open">
+          <div class="detail-status pencil">Change · Needs Review · <span style="font-weight: 400; opacity: 0.7;">DD → CD</span></div>
+          <div class="sub-row" style="cursor: default;">
+            <span class="sub-name" style="color: var(--trace);">DD</span>
+            <span class="sub-type" style="color: var(--trace);">hollow metal</span>
+          </div>
+          <div class="sub-row" style="cursor: default;">
+            <span class="sub-name" style="color: var(--pencil-ink);">CD</span>
+            <span class="sub-type" style="color: var(--pencil-ink);">wood</span>
+          </div>
+          <div class="sub-row">
+            <span class="sub-name">Door 101</span>
+            <span class="sub-type">affected item</span>
+            <span class="sub-arrow">›</span>
+          </div>
+
+          <div class="action-area">
+            <div class="action-buttons">
+              <button class="btn acknowledge">Acknowledge</button>
+              <button class="btn hold">Hold</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Hold state</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       HOLD STATE — conflict parked
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Hold state — conflict parked</div>
+    <div class="mockup-note">
+      Clicking Hold parks the conflict. The row shifts to the filed color
+      family — grey, muted, no urgency. Your source's value is still shown
+      (perspective-dependent), but in filed color. The pip shifts to filed.
+      The expansion shows Hold status and a Resume button to reactivate.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="prop-row held">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="pip present filed"></span>
+          </span>
+        </div>
+        <div class="row-detail open">
+          <div class="detail-status filed">Conflict · Hold · <span style="font-weight: 400; opacity: 0.7;">CD</span></div>
+
+          <div class="conflict-reveal" style="opacity: 0.6;">
+            <span class="reveal-source" style="color: var(--filed);">Finish Schedule</span>
+            <span class="reveal-val" style="color: var(--filed);">90 min</span>
+          </div>
+
+          <div class="action-area">
+            <div class="action-buttons">
+              <button class="btn resolve">Resume Review</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Resolved — directive pending (cairn)</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       RESOLVED + DIRECTIVE PENDING — cairn
+       The conflict is resolved, a directive exists
+       for the non-chosen source. The pip is gone —
+       replaced by a cairn: "there's an active story
+       that doesn't need action." The directive IS
+       the story. When fulfilled, cairn drops.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Resolved + directive pending — cairn marks active story</div>
+    <div class="mockup-note">
+      After resolution, the red pip disappears — no active workflow item needs
+      attention. But a directive is pending: Finish Schedule needs to update
+      its fire rating to 60 min. The cairn marks this active-but-not-actionable
+      story. Expand to see the resolution stamp + pending directive. When the
+      directive is fulfilled (source updates), the cairn drops. Full silence.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- Resolved with pending directive — cairn (active/expanded) -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="cairn active" title="Resolved conflict, directive pending">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+        <div class="row-detail open">
+          <div class="detail-status stamp">✓ Conflict · Accepted · <span style="font-weight: 400; opacity: 0.7;">CD</span></div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">Finish Schedule</span>
+            <span class="sub-type" style="color: var(--trace);">90 min</span>
+          </div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">Door Schedule</span>
+            <span class="sub-type" style="color: var(--trace);">60 min</span>
+          </div>
+          <div class="mini-res">
+            <div>
+              <span class="res-val">60 min</span>
+              <span class="res-source">from Door Schedule</span>
+            </div>
+            <div class="res-meta">J. Martinez · field verification · 2026-01-20</div>
+          </div>
+          <div class="sub-row">
+            <span class="pip overlay present" style="flex: 0 0 14px;"></span>
+            <span class="sub-name overlay">Finish Schedule → update to 60 min</span>
+            <span class="sub-type">directive · pending</span>
+            <span class="sub-arrow">›</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       DIRECTIVE FULFILLED — full silence
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Directive fulfilled — full silence</div>
+    <div class="mockup-note">
+      Finish Schedule has updated. The directive is fulfilled. The cairn drops.
+      No pip, no cairn, no decoration. The lifecycle is complete. Full silence.
+      Expanding the row would show source attribution (the standard silent expansion).
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Workflow item view — full action surface</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       SURFACE 2: WORKFLOW ITEM — RESOLVE + NOTE
+       Page turn from pip click. Full template.
+       Includes note area (cairn creation).
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Surface 2 — Conflict item: full resolve form + note</div>
+    <div class="mockup-note">
+      Page turn from the red pip. The workflow item view has more room for a
+      deliberate resolution. The resolve form (value picker, rationale, decided-by)
+      sits below the disagreement. Below that: a <strong>note area</strong> for
+      adding a cairn. Notes are orthogonal to status — you can resolve and add a
+      note, hold and add a note, or just add a note without changing status.
+    </div>
+
+    <div class="template">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg">Door 101</span>
+        <span class="chev">›</span>
+        <span class="seg current">Fire Rating:</span>
+        <span class="breadcrumb-source redline">Finish Schedule</span>
+        <span class="breadcrumb-rel">↔</span>
+        <span class="breadcrumb-source redline">Door Schedule</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Fire Rating</span>
+        </div>
+        <span class="item-source">CD · Door 101</span>
+        <div class="item-meta">
+          <span class="item-type redline">Conflict</span>
+          <span class="badge redline">Needs Review</span>
+        </div>
+      </div>
+
+      <div class="col-headers" style="--num-contexts: 2;">
+        <span></span>
+        <span>Finish Schedule</span>
+        <span>Door Schedule</span>
+        <span></span>
+      </div>
+
+      <div class="row-group">Disagreement</div>
+
+      <div class="prop-row dual redline">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val conflict">90 min</span>
+          <span class="prop-val conflict">60 min</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- ── FULL RESOLVE FORM ── -->
+      <div class="resolve-section">
+        <div class="action-label">Resolve this conflict</div>
+
+        <div class="value-options">
+          <div class="value-option">
+            <span class="radio"></span>
+            <span class="option-source">Finish Schedule</span>
+            <span class="option-val">90 min</span>
+          </div>
+          <div class="value-option selected">
+            <span class="radio"></span>
+            <span class="option-source">Door Schedule</span>
+            <span class="option-val">60 min</span>
+          </div>
+          <div class="value-option">
+            <span class="radio"></span>
+            <span class="option-source" style="color: var(--trace);">custom value</span>
+            <input class="option-input" type="text" placeholder="enter value">
+          </div>
+        </div>
+
+        <div class="resolve-section form-row" style="padding: 0; background: none; border: none;">
+          <div class="form-field">
+            <div class="field-label">rationale</div>
+            <input class="field-input filled" type="text" value="Field measurement confirms 60 min per code requirements.">
+          </div>
+          <div class="form-field">
+            <div class="field-label">decided by</div>
+            <input class="field-input filled" type="text" value="J. Martinez">
+          </div>
+        </div>
+
+        <!-- ── NOTE AREA (cairn creation) ── -->
+        <div class="note-area">
+          <div class="action-label">Note <span style="text-transform: none; letter-spacing: normal; color: var(--trace); font-weight: 400;">(optional — creates a cairn)</span></div>
+          <textarea class="note-input" placeholder="Add context, reference a conversation, link to field documentation..."></textarea>
+          <div class="note-hint">Notes persist independently of resolution status.</div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn start-review">Start Review</button>
+          <button class="btn resolve">Resolve</button>
+          <button class="btn hold">Hold</button>
+        </div>
+      </div>
+
+      <div class="row-group">Connections</div>
+
+      <div class="conn-row">
+        <span class="conn-name">Door 101</span>
+        <span class="conn-type">affected item</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Finish Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Door Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       SURFACE 2b: AFTER RESOLUTION
+       Non-chosen source value in redline-muted —
+       "this value is noted as wrong."
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Surface 2b — Conflict item: after resolution</div>
+    <div class="mockup-note">
+      After clicking Resolve. Status → <strong>Accepted</strong> (stamp). The
+      disagreement is preserved as history: the chosen source's value in trace,
+      the non-chosen source's value in <strong>faint redline</strong> — a whisper
+      of "this value is noted as wrong, it hasn't updated yet." Resolution stamp
+      below. Directive connection appears for the non-chosen source.
+    </div>
+
+    <div class="template">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg">Door 101</span>
+        <span class="chev">›</span>
+        <span class="seg current">Fire Rating:</span>
+        <span class="breadcrumb-source redline">Finish Schedule</span>
+        <span class="breadcrumb-rel">↔</span>
+        <span class="breadcrumb-source redline">Door Schedule</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Fire Rating</span>
+        </div>
+        <span class="item-source">CD · Door 101</span>
+        <div class="item-meta">
+          <span class="item-type stamp">Conflict</span>
+          <span class="badge stamp">Accepted</span>
+        </div>
+      </div>
+
+      <div class="col-headers settled" style="--num-contexts: 2;">
+        <span></span>
+        <span>Finish Schedule</span>
+        <span>Door Schedule</span>
+        <span></span>
+      </div>
+
+      <div class="row-group">Disagreement</div>
+
+      <!-- Non-chosen source (Finish Schedule) in redline-muted.
+           Chosen source (Door Schedule) in trace. -->
+      <div class="prop-row dual settled">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val stale">90 min</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="resolution">
+        <div class="resolution-label">
+          <span>✓</span>
+          <span>Resolved</span>
+        </div>
+        <div class="resolution-chosen">
+          <span class="chosen-val">60 min</span>
+          <span class="chosen-source">from Door Schedule</span>
+        </div>
+        <div class="resolution-rationale">
+          Field measurement confirms 60 min per code requirements.
+        </div>
+        <div class="resolution-meta">
+          J. Martinez · field verification · 2026-01-20
+        </div>
+      </div>
+
+      <div class="row-group">Connections</div>
+
+      <div class="conn-row">
+        <span class="conn-name">Door 101</span>
+        <span class="conn-type">affected item</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Finish Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Door Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row directive-conn">
+        <span class="conn-name">Finish Schedule → update Fire Rating to 60 min</span>
+        <span class="conn-type">directive · pending</span>
+        <span class="conn-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Lifecycle flow</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       LIFECYCLE: Five states
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Lifecycle — conflict row through five states</div>
+    <div class="mockup-note">
+      The same fire rating property through its lifecycle on Door 101
+      (viewed from Door Schedule). Read top to bottom:<br>
+      <strong>1. Needs Review</strong> — your value + red pip. Story requires attention.<br>
+      <strong>2. Hold</strong> — your value + filed pip. Parked, not resolved.<br>
+      <strong>3. Accepted, directive pending</strong> — resolved value + cairn. Decision made, source hasn't updated.<br>
+      <strong>4. Directive fulfilled</strong> — resolved value, no indicator. Full silence. Lifecycle complete.<br>
+      <strong>5. Acknowledged change</strong> — (for comparison) value, no indicator. Silence immediately after acknowledgment.
+    </div>
+
+    <div class="template" style="max-width: 500px;">
+      <div class="row-group">1. Needs Review</div>
+
+      <div class="prop-row" style="border-left: 2px solid var(--redline);">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="pip redline present"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="row-group">2. Hold</div>
+
+      <div class="prop-row held">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="pip present filed"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="row-group">3. Accepted (directive pending)</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="cairn present" title="Resolved conflict, directive pending">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <div class="row-group">4. Directive fulfilled (silence)</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="row-group">5. Acknowledged change (silence)</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">material</span>
+          <span class="prop-val">wood</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Status mapping</div>
+
+
+  <div class="mockup-section">
+    <div class="mockup-title">Status mapping — backend ↔ UX vocabulary</div>
+    <div class="mockup-note">
+      How backend status values map to UX labels, visual treatments, and
+      indicator lane state. Key change from v1: no ghost pips. Pips are
+      active workflow items only. Cairns mark resolved-but-directive-pending.
+      Acknowledged changes go directly to silence.
+    </div>
+
+    <table class="status-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Backend</th>
+          <th>UX Status</th>
+          <th>Indicator</th>
+          <th>Visual</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td rowspan="5">Conflict</td>
+          <td class="backend-val">detected</td>
+          <td><span class="badge redline">Needs Review</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">red pip</td>
+          <td style="font-size: 11px; color: var(--graphite);">redline border, your value shown</td>
+        </tr>
+        <tr>
+          <td class="backend-val">in_review</td>
+          <td><span class="badge redline">In Review</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">red pip</td>
+          <td style="font-size: 11px; color: var(--graphite);">unchanged from detected — intensity stays full</td>
+        </tr>
+        <tr>
+          <td class="backend-val">hold</td>
+          <td><span class="badge filed">Hold</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">filed pip</td>
+          <td style="font-size: 11px; color: var(--graphite);">filed wash + border</td>
+        </tr>
+        <tr>
+          <td class="backend-val">resolved<br><span style="font-size: 10px; color: var(--trace);">(directive pending)</span></td>
+          <td><span class="badge stamp">Accepted</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">cairn</td>
+          <td style="font-size: 11px; color: var(--graphite);">silent row, cairn marks active story</td>
+        </tr>
+        <tr>
+          <td class="backend-val">resolved<br><span style="font-size: 10px; color: var(--trace);">(directive fulfilled)</span></td>
+          <td><span class="badge stamp">Accepted</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">none</td>
+          <td style="font-size: 11px; color: var(--graphite);">full silence</td>
+        </tr>
+        <tr style="border-top: 2px solid var(--rule-emphasis);">
+          <td rowspan="4">Change</td>
+          <td class="backend-val">detected</td>
+          <td><span class="badge pencil">Needs Review</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">amber pip</td>
+          <td style="font-size: 11px; color: var(--graphite);">pencil wash + border</td>
+        </tr>
+        <tr>
+          <td class="backend-val">in_review</td>
+          <td><span class="badge pencil">In Review</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">amber pip</td>
+          <td style="font-size: 11px; color: var(--graphite);">unchanged from detected — intensity stays full</td>
+        </tr>
+        <tr>
+          <td class="backend-val">hold</td>
+          <td><span class="badge filed">Hold</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">filed pip</td>
+          <td style="font-size: 11px; color: var(--graphite);">filed wash + border</td>
+        </tr>
+        <tr>
+          <td class="backend-val">acknowledged</td>
+          <td><span class="badge stamp">Accepted</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">none</td>
+          <td style="font-size: 11px; color: var(--graphite);">full silence</td>
+        </tr>
+        <tr style="border-top: 2px solid var(--rule-emphasis);">
+          <td rowspan="3">Directive</td>
+          <td class="backend-val">pending</td>
+          <td><span class="badge overlay">Pending</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">blue pip<br><span style="font-size: 10px; color: var(--trace);">(in expansion only)</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">overlay connection row</td>
+        </tr>
+        <tr>
+          <td class="backend-val">hold</td>
+          <td><span class="badge filed">Hold</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">none</td>
+          <td style="font-size: 11px; color: var(--graphite);">hidden — functionally removed from view</td>
+        </tr>
+        <tr>
+          <td class="backend-val">fulfilled</td>
+          <td><span class="badge stamp">Fulfilled</span></td>
+          <td style="font-size: 11px; color: var(--graphite);">none</td>
+          <td style="font-size: 11px; color: var(--graphite);">gone (silence)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <div class="divider">Design notes</div>
+
+
+  <div class="mockup-section">
+    <div class="mockup-title">Design decisions captured in this mockup (v2)</div>
+    <div class="mockup-note" style="max-width: 720px; line-height: 20px;">
+      <strong>1. Perspective-dependent conflict display.</strong> The main row
+      shows YOUR source's value + a red pip. The pip says "there's a story."
+      Expanding reveals the other side: the conflicting source and its value.
+      Only the conflict item view (pip click → page turn) shows both sources
+      side by side in the comparison grid. This corrects the v1 mockup which
+      showed both sources inline on the main row regardless of perspective.<br><br>
+
+      <strong>2. Notes on workflow item view, not inline expansion.</strong> The inline
+      expansion (Surface 1) is for quick triage: Resolve or Hold, nothing more.
+      Notes (cairn creation) belong on the workflow item view (Surface 2) where
+      there's room and intent. Notes are orthogonal to status — you can resolve
+      and add a note, hold and add a note, or just add a note.<br><br>
+
+      <strong>3. Pips = active workflow items only.</strong> No ghost pips. When a
+      workflow item resolves, its pip disappears. Pips are filled (present) or
+      hollow (adjacent), never faded.<br><br>
+
+      <strong>4. Cairn = active story without action.</strong> A resolved conflict with
+      a pending directive gets a cairn — the decision was made (human voice),
+      the world hasn't caught up yet (directive pending). When the directive is
+      fulfilled, the cairn drops. Full silence. Acknowledged changes go directly
+      to silence — no story left to track.<br><br>
+
+      <strong>5. Non-chosen source value in redline-muted.</strong> On the conflict item
+      view (Surface 2b), after resolution, the non-chosen source's value is
+      shown in faint redline (redline-muted) instead of neutral trace. A whisper
+      of "this value is noted as wrong, it hasn't updated yet." The chosen
+      source's value stays in trace. This subtle color difference signals which
+      side was the outlier without reactivating the conflict.<br><br>
+
+      <strong>6. Hold is a color shift.</strong> Same as v1: holding shifts the visual
+      treatment from spectrum color to filed grey. All information preserved,
+      urgency removed. Resume reverses it.<br><br>
+
+      <strong>7. Backend status gap: "hold".</strong> Same as v1: the backend needs a
+      "hold" status added to conflict and change items. POST /items/{id}/hold
+      and POST /items/{id}/resume-review endpoints needed.<br><br>
+
+      <strong>8. Buttons use the spectrum.</strong> Resolve → stamp. Hold → filed.
+      Acknowledge → pencil. Resume → stamp. Every action carries the visual
+      weight of what it produces.<br><br>
+
+      <strong>9. Start Review is neutral.</strong> The "Start Review" button on
+      Surface 2 transitions detected → in_review without resolving. It uses
+      neutral styling (ink/rule-emphasis, no spectrum color) because it's a
+      preliminary signal, not a resolution. It disappears once the item is
+      already in_review. Visual treatment doesn't change between detected
+      and in_review — intensity stays full. The status change is visible in the
+      exec summary dock, signaling to other team members that someone is
+      actively examining the item.
+    </div>
+  </div>
+
+</body>
+</html>

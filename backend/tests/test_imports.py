@@ -478,8 +478,14 @@ async def test_import_reuses_stored_mapping(client: AsyncClient, project_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_no_mapping_returns_400(client: AsyncClient, project_setup):
-    """Import without mapping and no stored mapping → 400."""
+async def test_import_no_mapping_auto_mapping_fallback(client: AsyncClient, project_setup):
+    """WP-6b: Import without mapping triggers auto-mapping fallback.
+
+    With auto-mapping (WP-6b), the import endpoint no longer returns 400
+    when no mapping is provided. Instead it runs auto-mapping:
+      - High confidence → proceeds with import (201)
+      - Below threshold → returns proposed mapping for review (422)
+    """
     setup = project_setup
     file_bytes = make_door_schedule_excel(5)
 
@@ -491,8 +497,8 @@ async def test_import_no_mapping_returns_400(client: AsyncClient, project_setup)
         },
         files={"file": ("schedule.xlsx", file_bytes, "application/octet-stream")},
     )
-    assert resp.status_code == 400
-    assert "No mapping configuration" in resp.json()["detail"]
+    # Auto-mapping should either succeed (201) or propose mapping (422)
+    assert resp.status_code in (201, 422)
 
 
 @pytest.mark.asyncio

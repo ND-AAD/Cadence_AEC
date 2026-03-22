@@ -1,6 +1,7 @@
 """Navigation API routes — WP-4: Bounce-back navigation with breadcrumb tracking."""
 
 import uuid
+from collections import deque
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,8 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.core import Connection, Item
+from app.core.type_config import get_type_config
+from app.models.core import Connection, Item, Snapshot
 
 router = APIRouter()
 
@@ -39,29 +41,190 @@ async def _is_connected(
     item_b_id: uuid.UUID,
 ) -> bool:
     """
-    Check if two items are connected in either direction.
+    Check if two items are navigably adjacent.
 
-    A connection exists if:
-    - item_a → item_b (outgoing from a to b)
-    - item_b → item_a (incoming to a from b)
+    Adjacency means either:
+    1. A Connection row exists between them (either direction), OR
+    2. One item is a context type (is_context_type=true) and the other
+       has a snapshot with context_id pointing to the context item.
+
+    Case 2 aligns the navigate endpoint with the connected items
+    endpoint (items.py get_connected_items), which already surfaces
+    snapshot-described items for context types. If you can see it in
+    the panel, you can navigate to it.
     """
-    result = await db.execute(
-        select(Connection).where(
+    # Check 1: Connection table (bidirectional).
+    conn_result = await db.execute(
+        select(Connection.id).where(
             or_(
                 and_(Connection.source_item_id == item_a_id, Connection.target_item_id == item_b_id),
                 and_(Connection.source_item_id == item_b_id, Connection.target_item_id == item_a_id),
             )
         ).limit(1)
     )
-    return result.scalar_one_or_none() is not None
+    if conn_result.scalar_one_or_none() is not None:
+        return True
+
+    # Check 2: Snapshot-based adjacency for context types.
+    # Load both items' types to check is_context_type.
+    a_result = await db.execute(select(Item.item_type).where(Item.id == item_a_id))
+    a_type = a_result.scalar_one_or_none()
+    b_result = await db.execute(select(Item.item_type).where(Item.id == item_b_id))
+    b_type = b_result.scalar_one_or_none()
+
+    if not a_type or not b_type:
+        return False
+
+    # item_a is context type: check if item_b is described at item_a
+    # or is a source that submitted at item_a.
+    a_cfg = get_type_config(a_type)
+    if a_cfg and a_cfg.is_context_type:
+        snap_result = await db.execute(
+            select(Snapshot.id).where(
+                and_(
+                    Snapshot.context_id == item_a_id,
+                    or_(
+                        Snapshot.item_id == item_b_id,
+                        Snapshot.source_id == item_b_id,
+                    ),
+                )
+            ).limit(1)
+        )
+        if snap_result.scalar_one_or_none() is not None:
+            return True
+
+    # item_b is context type: check if item_a is described at item_b
+    # or is a source that submitted at item_b.
+    b_cfg = get_type_config(b_type)
+    if b_cfg and b_cfg.is_context_type:
+        snap_result = await db.execute(
+            select(Snapshot.id).where(
+                and_(
+                    Snapshot.context_id == item_b_id,
+                    or_(
+                        Snapshot.item_id == item_a_id,
+                        Snapshot.source_id == item_a_id,
+                    ),
+                )
+            ).limit(1)
+        )
+        if snap_result.scalar_one_or_none() is not None:
+            return True
+
+    return False
 
 
 async def _item_exists(db: AsyncSession, item_id: uuid.UUID) -> bool:
     """Check if an item exists in the database."""
     result = await db.execute(
-        select(Item).where(Item.id == item_id).limit(1)
+        select(Item.id).where(Item.id == item_id).limit(1)
     )
     return result.scalar_one_or_none() is not None
+
+
+async def _get_neighbors(
+    db: AsyncSession,
+    item_id: uuid.UUID,
+    exclude: set[uuid.UUID] | None = None,
+) -> list[uuid.UUID]:
+    """
+    Get all navigably adjacent items for BFS traversal.
+
+    Returns neighbors via both Connection rows and snapshot-based
+    adjacency for context types, minus any items in the exclude set.
+    """
+    neighbors: set[uuid.UUID] = set()
+    excl = exclude or set()
+
+    # Connection-based neighbors (bidirectional).
+    conn_result = await db.execute(
+        select(Connection.source_item_id, Connection.target_item_id).where(
+            or_(
+                Connection.source_item_id == item_id,
+                Connection.target_item_id == item_id,
+            )
+        )
+    )
+    for row in conn_result.all():
+        neighbor = row[1] if row[0] == item_id else row[0]
+        if neighbor not in excl:
+            neighbors.add(neighbor)
+
+    # Snapshot-based neighbors for context types.
+    type_result = await db.execute(
+        select(Item.item_type).where(Item.id == item_id)
+    )
+    item_type = type_result.scalar_one_or_none()
+    if item_type:
+        cfg = get_type_config(item_type)
+        if cfg and cfg.is_context_type:
+            # Items described at this context.
+            described = await db.execute(
+                select(Snapshot.item_id)
+                .where(Snapshot.context_id == item_id)
+                .distinct()
+            )
+            for row in described.all():
+                if row[0] not in excl:
+                    neighbors.add(row[0])
+
+            # Sources that submitted at this context.
+            sources = await db.execute(
+                select(Snapshot.source_id)
+                .where(Snapshot.context_id == item_id)
+                .distinct()
+            )
+            for row in sources.all():
+                if row[0] not in excl:
+                    neighbors.add(row[0])
+
+    return list(neighbors)
+
+
+async def _find_path_bfs(
+    db: AsyncSession,
+    start_id: uuid.UUID,
+    target_id: uuid.UUID,
+    breadcrumb_ids: set[uuid.UUID] | None = None,
+    max_depth: int = 10,
+) -> list[uuid.UUID] | None:
+    """
+    BFS through the navigable graph to find shortest path from start to target.
+
+    Returns list of item IDs from start (exclusive) to target (inclusive),
+    or None if no path found within max_depth.
+
+    The breadcrumb_ids set excludes already-traversed items from the search
+    to prevent routing through ancestors (which would violate the breadcrumb
+    invariant: you cannot reach an ancestor without backtracking).
+    """
+    visited: set[uuid.UUID] = {start_id}
+    if breadcrumb_ids:
+        # Exclude all breadcrumb items except the start (already added)
+        # and the target (which we're trying to reach).
+        visited |= (breadcrumb_ids - {start_id, target_id})
+
+    queue: deque[tuple[uuid.UUID, list[uuid.UUID]]] = deque()
+    queue.append((start_id, []))
+
+    while queue:
+        current_id, path = queue.popleft()
+
+        if len(path) >= max_depth:
+            continue
+
+        neighbors = await _get_neighbors(db, current_id, exclude=visited)
+
+        for neighbor_id in neighbors:
+            new_path = path + [neighbor_id]
+
+            if neighbor_id == target_id:
+                return new_path
+
+            visited.add(neighbor_id)
+            queue.append((neighbor_id, new_path))
+
+    return None
 
 
 # ─── Navigation Endpoint ───────────────────────────────────────────
@@ -76,22 +239,25 @@ async def navigate(
 
     Given a breadcrumb path and a target item, compute the new breadcrumb:
 
-    1. If target is already in breadcrumb, pop breadcrumb to the target (treat as sibling)
+    1. If target is already in breadcrumb, pop breadcrumb to the target
     2. If target is directly connected to the current item (last in breadcrumb)
-       AND target is not already in breadcrumb → push (append target)
+       AND target is not already in breadcrumb, push (append target)
     3. Otherwise, walk backward through breadcrumb ancestors
     4. Find the most recent ancestor connected to target
     5. Pop breadcrumb to that ancestor, push target
-    6. If no ancestor connects to target → return error with "no_path" status
+    6. BFS fallback (excludes breadcrumb items from traversal)
+    7. If no path found, return "no_path"
 
-    Per Decision 4: "connected" means a Connection row exists in EITHER direction.
+    "Connected" means navigably adjacent: a Connection row in either
+    direction, OR snapshot-based adjacency for context types. This
+    matches the connected items endpoint so that if you can see an
+    item in the panel, you can click it.
     """
 
     # Validate inputs
     if not request.breadcrumb:
         raise HTTPException(status_code=400, detail="Breadcrumb cannot be empty")
 
-    # Validate that all items in breadcrumb exist
     for item_id in request.breadcrumb:
         if not await _item_exists(db, item_id):
             raise HTTPException(
@@ -99,17 +265,14 @@ async def navigate(
                 detail=f"Item in breadcrumb not found: {item_id}",
             )
 
-    # Validate target exists
     if not await _item_exists(db, request.target):
         raise HTTPException(status_code=404, detail="Target item not found")
 
     current_item = request.breadcrumb[-1]
 
-    # Early exit: if target is already in breadcrumb, pop to it
+    # Step 1: If target is already in breadcrumb, pop to it.
     if request.target in request.breadcrumb:
-        # Find the index of the target in the breadcrumb
         target_index = request.breadcrumb.index(request.target)
-        # Pop breadcrumb to (and including) the target
         new_breadcrumb = request.breadcrumb[:target_index + 1]
         return NavigateResponse(
             breadcrumb=new_breadcrumb,
@@ -117,9 +280,8 @@ async def navigate(
             bounced_from=None,
         )
 
-    # Step 1: Check if target is directly connected to current item
+    # Step 2: Check if target is directly connected to current item.
     if await _is_connected(db, current_item, request.target):
-        # Push: append target to breadcrumb
         new_breadcrumb = request.breadcrumb + [request.target]
         return NavigateResponse(
             breadcrumb=new_breadcrumb,
@@ -127,13 +289,11 @@ async def navigate(
             bounced_from=None,
         )
 
-    # Step 2: Walk backward through breadcrumb, looking for a connected ancestor
-    # Start from second-to-last item and walk backwards
+    # Step 3: Walk backward through breadcrumb, looking for a connected ancestor.
     for i in range(len(request.breadcrumb) - 2, -1, -1):
         ancestor_item = request.breadcrumb[i]
 
         if await _is_connected(db, ancestor_item, request.target):
-            # Found a connected ancestor: pop breadcrumb to this ancestor and push target
             new_breadcrumb = request.breadcrumb[:i + 1] + [request.target]
             bounced_from = request.breadcrumb[i + 1] if i + 1 < len(request.breadcrumb) else None
 
@@ -143,7 +303,20 @@ async def navigate(
                 bounced_from=bounced_from,
             )
 
-    # Step 3: No ancestor connects to target
+    # Step 4: BFS path-finding, excluding breadcrumb items from traversal.
+    breadcrumb_set = set(request.breadcrumb)
+    path = await _find_path_bfs(
+        db, current_item, request.target,
+        breadcrumb_ids=breadcrumb_set,
+    )
+    if path:
+        new_breadcrumb = request.breadcrumb + path
+        return NavigateResponse(
+            breadcrumb=new_breadcrumb,
+            action="push",
+        )
+
+    # Step 5: No path found.
     return NavigateResponse(
         breadcrumb=request.breadcrumb,
         action="no_path",

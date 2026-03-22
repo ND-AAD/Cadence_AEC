@@ -37,7 +37,7 @@ class ItemSummary(BaseModel):
     id: uuid.UUID
     item_type: str
     identifier: str | None
-    action_counts: dict = Field(default_factory=lambda: {"changes": 0, "conflicts": 0})
+    action_counts: dict = Field(default_factory=lambda: {"changes": 0, "conflicts": 0, "directives": 0})
 
     model_config = {"from_attributes": True}
 

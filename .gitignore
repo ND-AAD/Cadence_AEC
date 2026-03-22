@@ -4,6 +4,9 @@ Archive/
 # Reference documents (spec, workplan, onboarding - local only)
 reference/
 
+# Claude docs with proprietary information (spec, workplan, onboarding - local only)
+.claude/
+
 # Python
 __pycache__/
 *.py[cod]

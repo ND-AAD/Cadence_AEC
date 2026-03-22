@@ -27,8 +27,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.type_config import get_conflict_excluded_types, get_type_config
 from app.models.core import Connection, Item, Snapshot
+from app.core.config import settings
 from app.schemas.imports import (
     ChangeItemResult,
+    ClassificationItemResult,
     ConflictItemResult,
     ConfirmMatchResponse,
     ImportMappingConfig,
@@ -40,10 +42,21 @@ from app.schemas.imports import (
 from app.services.normalization import (
     normalize_case,
     normalize_dimension_to_inches,
+    normalize_dimension_to_mm,
     normalize_identifier,
     normalize_numeric,
     normalize_whitespace,
     values_match,
+)
+from app.services.property_service import (
+    get_or_create_property_item,
+    ensure_property_connection,
+)
+from app.services.conflict_detection import (
+    detect_conflicts_for_item,
+)
+from app.services.directive_fulfillment import (
+    check_directive_fulfillment,
 )
 
 
@@ -52,6 +65,7 @@ from app.services.normalization import (
 SYSTEM_NORMALIZATIONS = {
     "lowercase_trim": lambda v: normalize_case(normalize_whitespace(str(v))),
     "imperial_door_dimensions": lambda v: str(normalize_dimension_to_inches(str(v)) or v),
+    "dimension": lambda v: str(normalize_dimension_to_mm(str(v)) or v),
     "numeric": lambda v: normalize_numeric(str(v)),
 }
 
@@ -335,122 +349,6 @@ async def _find_prior_context(
     return valid_contexts[0][1]
 
 
-# ─── Conflict Detection Helpers ───────────────────────────────
-
-async def _get_or_create_conflict(
-    db: AsyncSession,
-    affected_item: Item,
-    property_path: str,
-) -> tuple[Item, bool]:
-    """
-    Get or create a conflict item for (affected_item, property).
-
-    Per Decision 5: one conflict per property per item.
-    Returns (conflict_item, is_new).
-    """
-    identifier = f"{affected_item.identifier} / {property_path}"
-
-    # Look for existing conflict with matching identifier
-    result = await db.execute(
-        select(Item).where(
-            and_(
-                Item.item_type == "conflict",
-                Item.identifier == identifier,
-            )
-        )
-    )
-    existing = result.scalar_one_or_none()
-    if existing:
-        return existing, False
-
-    # Create new conflict item
-    conflict = Item(
-        item_type="conflict",
-        identifier=identifier,
-        properties={
-            "property_name": property_path,
-            "status": "detected",
-            "affected_item": str(affected_item.id),
-        },
-    )
-    db.add(conflict)
-    await db.flush()
-    await db.refresh(conflict)
-    return conflict, True
-
-
-async def _get_effective_snapshots_from_other_sources(
-    db: AsyncSession,
-    item_id: uuid.UUID,
-    current_source_id: uuid.UUID,
-    context_ordinal: int,
-) -> dict[uuid.UUID, Snapshot]:
-    """
-    Get the effective snapshot from each OTHER source for an item.
-
-    For each source (excluding the current importing source and workflow types),
-    find the most recent snapshot at or before the context ordinal.
-    """
-    # Get all snapshots for this item
-    result = await db.execute(
-        select(Snapshot).where(Snapshot.item_id == item_id)
-    )
-    all_snaps = result.scalars().all()
-
-    # Load source items to filter workflow types
-    source_ids = {s.source_id for s in all_snaps}
-    if not source_ids:
-        return {}
-
-    sources_result = await db.execute(select(Item).where(Item.id.in_(source_ids)))
-    sources = {s.id: s for s in sources_result.scalars().all()}
-
-    # Load context items for ordinal lookup
-    context_ids = {s.context_id for s in all_snaps}
-    contexts_result = await db.execute(select(Item).where(Item.id.in_(context_ids)))
-    contexts = {c.id: c for c in contexts_result.scalars().all()}
-
-    excluded_types = get_conflict_excluded_types()
-
-    # Group by source, filter to other document sources
-    effective: dict[uuid.UUID, Snapshot] = {}
-    for snap in all_snaps:
-        # Skip current source
-        if snap.source_id == current_source_id:
-            continue
-        # Skip types excluded from conflict detection (per TypeConfig)
-        src = sources.get(snap.source_id)
-        if not src or src.item_type in excluded_types:
-            continue
-        # Check ordinal
-        ctx = contexts.get(snap.context_id)
-        if not ctx:
-            continue
-        snap_ordinal = ctx.properties.get("ordinal", 0) if ctx.properties else 0
-        try:
-            snap_ordinal = int(snap_ordinal)
-        except (ValueError, TypeError):
-            continue
-        if snap_ordinal > context_ordinal:
-            continue
-
-        existing = effective.get(snap.source_id)
-        if existing is None:
-            effective[snap.source_id] = snap
-        else:
-            existing_ctx = contexts.get(existing.context_id)
-            existing_ord = 0
-            if existing_ctx and existing_ctx.properties:
-                try:
-                    existing_ord = int(existing_ctx.properties.get("ordinal", 0))
-                except (ValueError, TypeError):
-                    pass
-            if snap_ordinal > existing_ord:
-                effective[snap.source_id] = snap
-
-    return effective
-
-
 # ─── Core Import Logic ────────────────────────────────────────
 
 async def run_import(
@@ -616,6 +514,28 @@ async def run_import(
         ))
         await db.flush()
 
+    # Step 2.5: Ensure property items exist and connect to imported instances
+    # Creates one property item per mapped property key on the target type.
+    # Connects property → instance for all imports, regardless of value presence.
+    property_items_created = 0
+    for row in parsed_rows:
+        raw_id = row["_identifier"]
+        matched_item = row_to_item.get(raw_id)
+        if not matched_item:
+            continue
+
+        # All mapped property keys — includes empty/null values
+        props = {k: v for k, v in row.items() if not k.startswith("_")}
+        for prop_name in props.keys():
+            prop_item, is_new = await get_or_create_property_item(
+                db, mapping.target_item_type, prop_name
+            )
+            if is_new:
+                property_items_created += 1
+            await ensure_property_connection(db, prop_item, matched_item)
+
+    summary.property_items_created = property_items_created
+
     # Step 3: Change Detection
     # Find the most recent prior context where this source has snapshots
     prior_context = await _find_prior_context(db, source_item.id, time_context, {})
@@ -721,6 +641,27 @@ async def run_import(
                     db.add(conn)
                 await db.flush()
 
+                # Connect change to property items for each changed property
+                for changed_prop_name in changes.keys():
+                    prop_item, _ = await get_or_create_property_item(
+                        db, matched_item.item_type, changed_prop_name
+                    )
+                    existing_prop_conn = await db.execute(
+                        select(Connection).where(
+                            and_(
+                                Connection.source_item_id == change_item.id,
+                                Connection.target_item_id == prop_item.id,
+                            )
+                        )
+                    )
+                    if not existing_prop_conn.scalar_one_or_none():
+                        db.add(Connection(
+                            source_item_id=change_item.id,
+                            target_item_id=prop_item.id,
+                            properties={},
+                        ))
+                        await db.flush()
+
                 summary.source_changes += len(changes)
                 affected_items_set.add(matched_item.id)
 
@@ -741,23 +682,9 @@ async def run_import(
 
         summary.affected_items = len(affected_items_set)
 
-    # Step 4: Conflict Detection
+    # Step 4: Conflict Detection (delegated to shared conflict_detection module)
     # For each imported item, compare this source's values against other sources'
     # effective values. Create conflict items where they disagree.
-    context_ordinal = time_context.properties.get("ordinal", 0) if time_context.properties else 0
-    try:
-        context_ordinal = int(context_ordinal)
-    except (ValueError, TypeError):
-        context_ordinal = 0
-
-    # Load source items for identifiers
-    all_source_ids_in_snaps = set()
-    for row in parsed_rows:
-        raw_id = row["_identifier"]
-        matched_item = row_to_item.get(raw_id)
-        if matched_item:
-            all_source_ids_in_snaps.add(source_item.id)
-
     for row in parsed_rows:
         raw_id = row["_identifier"]
         matched_item = row_to_item.get(raw_id)
@@ -766,148 +693,73 @@ async def run_import(
 
         current_props = {k: v for k, v in row.items() if not k.startswith("_")}
 
-        # Get effective snapshots from other sources
-        other_effective = await _get_effective_snapshots_from_other_sources(
-            db, matched_item.id, source_item.id, context_ordinal
+        conflicts, auto_resolutions = await detect_conflicts_for_item(
+            db, matched_item, source_item.id, time_context, current_props
         )
 
-        if not other_effective:
-            continue
+        for cr in conflicts:
+            if cr.is_new:
+                summary.new_conflicts += 1
+            conflict_items_result.append(ConflictItemResult(
+                conflict_item_id=cr.conflict_item.id,
+                affected_item_id=cr.affected_item_id,
+                affected_item_identifier=cr.affected_item_identifier,
+                property_name=cr.property_name,
+                values=cr.values,
+                context_id=cr.context_id,
+            ))
 
-        # Load source items for identifier display
-        other_source_ids = set(other_effective.keys())
-        other_sources_result = await db.execute(
-            select(Item).where(Item.id.in_(other_source_ids))
-        )
-        other_sources = {s.id: s for s in other_sources_result.scalars().all()}
+        summary.resolved_conflicts += len(auto_resolutions)
 
-        for other_source_id, other_snap in other_effective.items():
-            other_source = other_sources.get(other_source_id)
-            other_source_identifier = other_source.identifier if other_source else str(other_source_id)
+    # Step 4b: LLM Classification (WP-15)
+    # Classify imported elements into MasterFormat Divisions.
+    # Additive — skipped gracefully when API key is absent.
+    classification_items_result: list[ClassificationItemResult] = []
+    if settings.CLASSIFICATION_ENABLED and settings.ANTHROPIC_API_KEY:
+        try:
+            from app.services.classification_service import classify_elements
 
-            for prop_name, new_value in current_props.items():
-                other_value = other_snap.properties.get(prop_name)
+            # Build properties map for classification
+            classification_props: dict[uuid.UUID, dict] = {}
+            for raw_id, item in row_to_item.items():
+                for row in parsed_rows:
+                    if row["_identifier"] == raw_id:
+                        classification_props[item.id] = {
+                            k: v for k, v in row.items() if not k.startswith("_")
+                        }
+                        break
 
-                if other_value is None:
-                    continue  # Other source doesn't address this property
+            classification_results = await classify_elements(
+                db, list(row_to_item.values()), classification_props,
+            )
 
-                if not values_match(str(new_value), str(other_value), property_name=prop_name):
-                    # Disagreement — create or get conflict item
-                    conflict_item, is_new = await _get_or_create_conflict(
-                        db, matched_item, prop_name
-                    )
+            for cr in classification_results:
+                summary.items_classified += 1
+                classification_items_result.append(ClassificationItemResult(
+                    item_id=cr.item_id,
+                    item_identifier=cr.item_identifier,
+                    section_id=cr.section_id,
+                    section_identifier=cr.section_identifier,
+                    section_title=cr.section_title,
+                    confidence=cr.confidence,
+                    needs_review=cr.needs_review,
+                ))
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Classification step failed: {e}")
 
-                    # Upsert conflict snapshot: (what=conflict, when=milestone, who=conflict)
-                    existing_conflict_snap = await db.execute(
-                        select(Snapshot).where(
-                            and_(
-                                Snapshot.item_id == conflict_item.id,
-                                Snapshot.context_id == time_context.id,
-                                Snapshot.source_id == conflict_item.id,
-                            )
-                        )
-                    )
-                    existing_cs = existing_conflict_snap.scalar_one_or_none()
-                    conflict_snap_props = {
-                        "status": "DETECTED",
-                        "property_path": prop_name,
-                        "values": {
-                            str(source_item.identifier or source_item.id): str(new_value),
-                            str(other_source_identifier): str(other_value),
-                        },
-                        "affected_item": str(matched_item.id),
-                    }
-                    if existing_cs:
-                        existing_cs.properties = conflict_snap_props
-                        await db.flush()
-                    else:
-                        db.add(Snapshot(
-                            item_id=conflict_item.id,
-                            context_id=time_context.id,
-                            source_id=conflict_item.id,
-                            properties=conflict_snap_props,
-                        ))
-                        await db.flush()
-
-                    # Ensure connections: conflict → affected_item, conflict → both sources, conflict → milestone
-                    for target_id in [matched_item.id, source_item.id, other_source_id, time_context.id]:
-                        existing_conn = await db.execute(
-                            select(Connection).where(
-                                and_(
-                                    Connection.source_item_id == conflict_item.id,
-                                    Connection.target_item_id == target_id,
-                                )
-                            )
-                        )
-                        if not existing_conn.scalar_one_or_none():
-                            db.add(Connection(
-                                source_item_id=conflict_item.id,
-                                target_item_id=target_id,
-                                properties={},
-                            ))
-                            await db.flush()
-
-                    if is_new:
-                        summary.new_conflicts += 1
-
-                    conflict_items_result.append(ConflictItemResult(
-                        conflict_item_id=conflict_item.id,
-                        affected_item_id=matched_item.id,
-                        affected_item_identifier=matched_item.identifier,
-                        property_name=prop_name,
-                        values={
-                            str(source_item.identifier or source_item.id): str(new_value),
-                            str(other_source_identifier): str(other_value),
-                        },
-                        context_id=time_context.id,
-                    ))
-
-                else:
-                    # Agreement — check if this resolves an existing conflict
-                    existing_conflict_result = await db.execute(
-                        select(Item).where(
-                            and_(
-                                Item.item_type == "conflict",
-                                Item.identifier == f"{matched_item.identifier} / {prop_name}",
-                            )
-                        )
-                    )
-                    existing_conflict = existing_conflict_result.scalar_one_or_none()
-                    if existing_conflict:
-                        # Check if it's currently DETECTED (not already resolved)
-                        if existing_conflict.properties.get("status") == "detected":
-                            # Auto-resolve: create resolution snapshot
-                            resolution_snap_result = await db.execute(
-                                select(Snapshot).where(
-                                    and_(
-                                        Snapshot.item_id == existing_conflict.id,
-                                        Snapshot.context_id == time_context.id,
-                                        Snapshot.source_id == existing_conflict.id,
-                                    )
-                                )
-                            )
-                            existing_res = resolution_snap_result.scalar_one_or_none()
-                            resolution_props = {
-                                "status": "RESOLVED_BY_AGREEMENT",
-                                "property_path": prop_name,
-                                "agreed_value": str(new_value),
-                            }
-                            if existing_res:
-                                existing_res.properties = resolution_props
-                            else:
-                                db.add(Snapshot(
-                                    item_id=existing_conflict.id,
-                                    context_id=time_context.id,
-                                    source_id=existing_conflict.id,
-                                    properties=resolution_props,
-                                ))
-                            # Update conflict status
-                            existing_conflict.properties = {
-                                **existing_conflict.properties,
-                                "status": "resolved_by_agreement",
-                            }
-                            await db.flush()
-                            summary.resolved_conflicts += 1
+    # Step 5: Directive Fulfillment Check (Decision 10)
+    # Delegated to shared directive_fulfillment module.
+    # For items being imported, check if any pending directives target this source.
+    for raw_id, item in row_to_item.items():
+        for row in parsed_rows:
+            if row["_identifier"] == raw_id:
+                props = {k: str(v) for k, v in row.items() if not k.startswith("_")}
+                fulfilled_count = await check_directive_fulfillment(
+                    db, source_item.id, item.id, props
+                )
+                summary.directives_fulfilled += fulfilled_count
+                break
 
     # Update batch status
     batch_item.properties = {**batch_item.properties, "status": "completed"}
@@ -922,6 +774,7 @@ async def run_import(
         unmatched=unmatched_rows,
         change_items=change_items_result,
         conflict_items=conflict_items_result,
+        classification_items=classification_items_result,
     )
 
 

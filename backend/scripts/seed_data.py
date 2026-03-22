@@ -135,37 +135,38 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     ids["project"] = project.id
 
     # ── Phases & Milestones ────────────────────────────────
+    # Standard AEC phase progression: Concept(100) → SD(200) → DD(300) → CD(400)
+    sd_phase = make_item("phase", "Schematic Design", {
+        "name": "Schematic Design",
+        "abbreviation": "SD",
+    })
     dd_phase = make_item("phase", "Design Development", {
         "name": "Design Development",
         "abbreviation": "DD",
     })
-    cd_phase = make_item("phase", "Construction Documents", {
-        "name": "Construction Documents",
-        "abbreviation": "CD",
-    })
     await db.flush()
 
-    dd_milestone = make_item("milestone", "DD", {
+    sd_milestone = make_item("milestone", "100% SD", {
+        "name": "Schematic Design",
+        "ordinal": 200,
+        "phase": "SD",
+    })
+    dd_milestone = make_item("milestone", "100% DD", {
         "name": "Design Development",
         "ordinal": 300,
         "phase": "DD",
     })
-    cd_milestone = make_item("milestone", "CD", {
-        "name": "Construction Documents",
-        "ordinal": 400,
-        "phase": "CD",
-    })
     await db.flush()
+    ids["sd_phase"] = sd_phase.id
     ids["dd_phase"] = dd_phase.id
-    ids["cd_phase"] = cd_phase.id
+    ids["sd_milestone"] = sd_milestone.id
     ids["dd_milestone"] = dd_milestone.id
-    ids["cd_milestone"] = cd_milestone.id
 
     # Phase connections
+    connect(project, sd_phase)
     connect(project, dd_phase)
-    connect(project, cd_phase)
+    connect(sd_phase, sd_milestone)
     connect(dd_phase, dd_milestone)
-    connect(cd_phase, cd_milestone)
 
     # ── Sources ────────────────────────────────────────────
     schedule = make_item("schedule", "Finish Schedule", {
@@ -244,15 +245,43 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
 
     await db.flush()
 
+    # ─── Property items for all spatial types ──────────────────
+    from app.services.property_service import seed_property_items_from_config, ensure_property_connection
+
+    property_item_count = 0
+
+    # Door properties
+    door_prop_items = await seed_property_items_from_config(db, "door")
+    property_item_count += len(door_prop_items)
+    for door, _room in doors:
+        for prop_item in door_prop_items:
+            await ensure_property_connection(db, prop_item, door)
+
+    # Room properties
+    room_prop_items = await seed_property_items_from_config(db, "room")
+    property_item_count += len(room_prop_items)
+    for room, _floor in rooms:
+        for prop_item in room_prop_items:
+            await ensure_property_connection(db, prop_item, room)
+
+    await db.flush()
+
+    # ── MasterFormat Hierarchy (WP-14) ────────────────────────
+    from scripts.seed_masterformat import seed_masterformat
+    mf_ids = await seed_masterformat(db, specification_id=spec.id)
+    ids.update(mf_ids)
+
     print(f"Seeded Project Alpha:")
     print(f"  Project:     {ids['project']}")
     print(f"  Building:    1")
     print(f"  Floors:      {len(floors)}")
     print(f"  Rooms:       {len(rooms)}")
     print(f"  Doors:       {len(doors)}")
-    print(f"  Milestones:  DD ({ids['dd_milestone']}), CD ({ids['cd_milestone']})")
+    print(f"  Milestones:  SD ({ids['sd_milestone']}), DD ({ids['dd_milestone']})")
     print(f"  Sources:     Schedule ({ids['schedule']}), Spec ({ids['spec']})")
-    print(f"  Connections: ~{len(doors) * 3 + len(rooms) + len(floors) + 6}")
+    print(f"  Properties:  {property_item_count} ({len(door_prop_items)} door + {len(room_prop_items)} room)")
+    print(f"  MasterFormat: {len(mf_ids)} sections")
+    print(f"  Connections: ~{len(doors) * 3 + len(rooms) + len(floors) + 6 + len(mf_ids)}")
 
     return ids
 

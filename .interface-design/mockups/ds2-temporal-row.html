@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-2: Temporal Property Row — v5</title>
+  <style>
+    :root {
+      --sheet: #FAF9F6;
+      --vellum: #F0EFEC;
+      --board: #E7E5E2;
+
+      --ink: #1C1B18;
+      --graphite: #57554F;
+      --trace: #9D9B95;
+
+      --rule: #DFDDD9;
+      --rule-emphasis: #CECCC7;
+
+      --pencil: #FA9442;
+      --pencil-muted: #FBB978;
+      --pencil-wash: #FFF5EA;
+      --pencil-ink: #B06218;
+
+      --redline: #E81A00;
+      --redline-muted: #EE6A53;
+      --redline-wash: #FFF0EB;
+      --redline-ink: #A61400;
+
+      --stamp: #3D7A4F;
+      --stamp-wash: #F0F7F2;
+      --stamp-ink: #2D5E3B;
+
+      --overlay: #002FA7;
+      --overlay-wash: #EFF2FB;
+      --overlay-border: #6A7EB5;
+
+      --filed: #7D7A75;
+
+      --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'GeistMono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+      --radius-sm: 2px;
+      --radius: 3px;
+      --radius-md: 4px;
+    }
+
+    @font-face {
+      font-family: 'Geist';
+      src: url('../../frontend/public/fonts/Geist-Variable.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'GeistMono';
+      src: url('../../frontend/public/fonts/GeistMono-Variable.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--vellum);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 20px;
+      padding: 40px;
+      max-width: 900px;
+    }
+
+    /* ── Mockup chrome ── */
+    .mockup-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .mockup-note {
+      font-size: 12px;
+      color: var(--graphite);
+      margin-bottom: 16px;
+      line-height: 18px;
+      max-width: 720px;
+    }
+    .mockup-section { margin-bottom: 56px; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 56px 0;
+      color: var(--trace);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--rule);
+    }
+
+    /* ── Template frame ── */
+    .template {
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      max-width: 720px;
+    }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb {
+      background: var(--vellum);
+      padding: 8px 16px;
+      font-size: 12px;
+      line-height: 18px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breadcrumb .seg { color: var(--graphite); }
+    .breadcrumb .seg.current { color: var(--ink); font-weight: 500; }
+    .breadcrumb .chev { color: var(--trace); font-size: 10px; }
+
+    /* ── Item header ── */
+    .item-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .item-identity {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .item-name {
+      font-size: 16px;
+      line-height: 24px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .item-parent {
+      font-size: 12px;
+      color: var(--trace);
+    }
+
+    .time-control {
+      margin-left: auto;
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .time-tag {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--graphite);
+      padding: 2px 8px;
+      background: var(--vellum);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+    }
+    .time-add {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .time-add:hover {
+      color: var(--graphite);
+      border-color: var(--rule-emphasis);
+      background: var(--vellum);
+    }
+
+    .item-source {
+      font-size: 12px;
+      color: var(--graphite);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Row group ── */
+    .row-group {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      background: rgba(240, 239, 236, 0.5);
+      border-bottom: 1px solid var(--rule);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       PROPERTY ROW — single-context
+       Three proximity states govern rendering:
+
+       PRESENT  → perspective-dependent: YOUR source's
+                  value + red pip. Expand to see the
+                  other side. Pip click → page turn.
+       ADJACENT → pip on right edge, hover for detail
+       SILENT   → value only, no decoration
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .prop-row {
+      border-bottom: 1px solid var(--rule);
+    }
+    .prop-row:last-child { border-bottom: none; }
+
+    .prop-row .main {
+      display: grid;
+      grid-template-columns: 120px 1fr 28px;
+      gap: 0 12px;
+      align-items: baseline;
+      padding: 7px 16px;
+      min-height: 34px;
+    }
+
+    .prop-name {
+      font-size: 12px;
+      color: var(--graphite);
+      cursor: pointer;
+    }
+    .prop-name:hover {
+      color: var(--ink);
+      text-decoration: underline;
+      text-decoration-color: var(--rule-emphasis);
+      text-underline-offset: 2px;
+    }
+
+    .prop-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    /* Row hover — subtle background */
+    .prop-row:hover {
+      background: rgba(231, 229, 226, 0.25);
+    }
+
+
+    /* ── PRESENT: Directive inline ──
+       Pencil wash + overlay blue border.
+       Obligation visible inline. */
+    .prop-row.present.directive {
+      background: var(--pencil-wash);
+      border-left: 2px solid var(--overlay);
+    }
+    .prop-row.present.directive:hover {
+      background: color-mix(in srgb, var(--pencil-wash) 80%, var(--board));
+    }
+
+    .directive-inline {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .directive-line {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 12px;
+      line-height: 18px;
+    }
+    .directive-line .directive-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--overlay);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .directive-line .directive-source:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .directive-line .directive-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--pencil-ink);
+      font-weight: 500;
+    }
+    .directive-line .directive-meta {
+      font-size: 11px;
+      color: var(--trace);
+    }
+
+
+    /* ── Indicator lane ──
+       Equal center-to-center distance between all icons,
+       regardless of size. Each child is a 14px-wide cell;
+       icons center within it. The lane is a reversed flex
+       container — first child in DOM is rightmost (datum).
+
+       Ordering (right to left, highest priority first):
+       1. Cairn (if present)
+       2. Present pips: directive → conflict → change
+       3. Adjacent pips: directive → conflict → change
+
+       Filled = present (at your context).
+       Hollow = adjacent (nearby, not aligned).
+       One visual rule for the entire indicator lane. */
+    .indicator {
+      display: flex;
+      flex-direction: row-reverse;
+      align-items: center;
+      flex-shrink: 0;
+      padding-right: 2px;
+      overflow: visible;
+    }
+    .indicator > * {
+      flex: 0 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    }
+
+    /* ── Pip ──
+       7px dot centered in a 14px cell.
+       Present = filled. Adjacent = hollow (stroke only).
+       Color carries the spectrum: pencil/redline/overlay. */
+    .indicator .pip {
+      height: 14px;
+      background: none;
+      border-radius: 0;
+      cursor: pointer;
+    }
+    .indicator .pip::after {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    .indicator .pip:hover::after {
+      transform: scale(1.3);
+    }
+
+    /* Present pip — filled dot */
+    .pip.present.pencil::after   { background: var(--pencil); }
+    .pip.present.redline::after  { background: var(--redline); }
+    .pip.present.overlay::after  { background: var(--overlay); }
+
+    /* Adjacent pip — hollow ring */
+    .pip.adjacent.pencil::after  { border: 1.5px solid var(--pencil); }
+    .pip.adjacent.redline::after { border: 1.5px solid var(--redline); }
+    .pip.adjacent.overlay::after { border: 1.5px solid var(--overlay); }
+
+    /* Hover detail for adjacent items */
+    .prop-row .detail {
+      display: none;
+      padding: 0 16px 7px 132px;
+      font-size: 11px;
+      line-height: 16px;
+      font-family: var(--font-mono);
+    }
+    .prop-row:hover .detail { display: block; }
+
+    .detail .detail-val { font-weight: 500; }
+    .detail .detail-val.pencil-text  { color: var(--pencil-ink); }
+    .detail .detail-val.redline-text { color: var(--redline-ink); }
+    .detail .detail-val.overlay-text { color: var(--overlay); }
+    .detail .detail-meta { color: var(--trace); }
+    .detail .detail-ctx { color: var(--graphite); }
+
+
+    /* ── CAIRN: Note indicator ──
+       A quiet, persistent marker. Not a pip — different
+       visual register from disagreements. Uses graphite,
+       not a disagreement color.
+
+       Three states:
+       PRESENT  (filled △) — note at your exact context
+       ADJACENT (hollow △) — note nearby but not aligned
+       ACTIVE   (filled ▽) — selected, row expands below  */
+    .cairn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      color: var(--trace);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .cairn:hover {
+      color: var(--graphite);
+      background: var(--board);
+    }
+    .cairn svg {
+      width: 10px;
+      height: 10px;
+      transition: transform 0.15s ease;
+    }
+
+    /* Present cairn — filled triangle */
+    .cairn.present svg { fill: currentColor; }
+
+    /* Adjacent cairn — hollow triangle (stroke only) */
+    .cairn.adjacent svg { fill: none; }
+
+    /* Active cairn — inverted, filled. Same color as present —
+       geometry change + animation is sufficient feedback. */
+    .cairn.active svg {
+      fill: currentColor;
+      transform: rotate(180deg);
+    }
+
+    /* Cairn in indicator lane — fixed cell width for
+       equal center-to-center spacing with pips.
+       16px cairn in 14px cell overflows by 1px
+       per side; overflow:visible handles it. */
+    .indicator .cairn {
+      flex: 0 0 14px;
+      width: 14px;
+    }
+
+    /* Cairn expanded note content */
+    .cairn-detail {
+      display: none;
+      padding: 6px 16px 8px 132px;
+      font-size: 12px;
+      line-height: 18px;
+      border-top: 1px solid var(--rule);
+    }
+    .cairn-detail.open { display: block; }
+    .cairn-detail .cairn-context {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      margin-bottom: 2px;
+    }
+    .cairn-detail .cairn-author {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+    .cairn-detail .cairn-text {
+      color: var(--ink);
+    }
+
+
+    /* ── Connection row ── */
+    .conn-row {
+      display: flex;
+      align-items: center;
+      padding: 7px 16px;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+      min-height: 34px;
+    }
+    .conn-row:hover { background: rgba(231, 229, 226, 0.4); }
+    .conn-row:last-child { border-bottom: none; }
+    .conn-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .conn-type {
+      font-size: 11px;
+      color: var(--trace);
+      margin-left: 8px;
+    }
+    .conn-arrow {
+      color: var(--trace);
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .conn-row:hover .conn-arrow { opacity: 1; }
+
+    /* Conflict source connection — red string */
+    .conn-row.conflict-source .conn-name {
+      color: var(--redline-ink);
+    }
+    .conn-row.conflict-source .conn-type {
+      color: var(--redline-muted);
+    }
+
+
+    /* ── "+" DROPDOWN ── */
+    .dropdown-illustration {
+      max-width: 200px;
+      background: var(--sheet);
+      border: 1px solid var(--rule-emphasis);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px rgba(28, 27, 24, 0.08), 0 1px 2px rgba(28, 27, 24, 0.04);
+      overflow: hidden;
+      margin-top: 8px;
+      margin-left: 400px;
+    }
+    .dropdown-item {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--rule);
+    }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover { background: var(--vellum); color: var(--ink); }
+    .dropdown-item.active {
+      color: var(--trace);
+      cursor: default;
+    }
+    .dropdown-item.active::after {
+      content: '✓';
+      color: var(--trace);
+    }
+    .dropdown-item .ordinal {
+      color: var(--trace);
+      font-size: 10px;
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       COMPARISON MODE
+       Full template gets overlay wash.
+       The environment changes, not individual rows.
+       Left border + text color carry the spectrum.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .template.compare {
+      border: 2px solid var(--overlay-border);
+      background: var(--overlay-wash);
+    }
+    .template.compare .breadcrumb {
+      background: color-mix(in srgb, var(--overlay-wash) 50%, var(--vellum));
+      border-bottom-color: var(--overlay-border);
+    }
+    .template.compare .item-header {
+      background: var(--overlay-wash);
+      border-bottom-color: color-mix(in srgb, var(--overlay-border) 30%, var(--rule));
+    }
+    .template.compare .row-group {
+      background: color-mix(in srgb, var(--overlay-wash) 70%, var(--vellum));
+    }
+
+    /* Time tags in compare mode */
+    .time-tag.compare-active {
+      color: var(--overlay);
+      background: rgba(0, 47, 167, 0.06);
+      border-color: var(--overlay-border);
+    }
+    .time-tag.compare-active .tag-x {
+      font-size: 9px;
+      color: var(--overlay-border);
+      margin-left: 4px;
+      cursor: pointer;
+    }
+
+    /* Column headers */
+    .col-headers {
+      display: grid;
+      grid-template-columns: 120px repeat(var(--num-contexts, 2), 1fr) 28px;
+      /* Last column matches single-context indicator lane width */
+      gap: 0 12px;
+      padding: 5px 16px;
+      border-bottom: 1px solid color-mix(in srgb, var(--overlay-border) 40%, var(--rule));
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--overlay-border);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    /* Comparison property row */
+    .prop-row.dual .main {
+      grid-template-columns: 120px repeat(var(--num-contexts, 2), 1fr) 28px;
+      /* Last column matches single-context indicator lane width */
+      gap: 0 12px;
+    }
+
+    /* Pencil in comparison — change is PRESENT (both columns visible) */
+    .prop-row.dual.pencil {
+      border-left: 2px solid var(--pencil);
+    }
+    .prop-row.dual.pencil .prop-val.prior {
+      color: var(--trace);
+    }
+    .prop-row.dual.pencil .prop-val.current {
+      color: var(--pencil-ink);
+      font-weight: 500;
+    }
+    .prop-row.dual.pencil .prop-val.absent {
+      color: var(--trace);
+      font-style: italic;
+    }
+
+    /* Redline in comparison — conflict is still visible */
+    .prop-row.dual.redline {
+      border-left: 2px solid var(--redline);
+    }
+    .prop-row.dual.redline .prop-val.conflict {
+      color: var(--redline-ink);
+      font-weight: 500;
+    }
+
+    /* Silence in comparison */
+    .prop-row.dual.silence {
+      border-left: 2px solid transparent;
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       WORKFLOW ITEM — conflict page-turn destination
+       Reuses comparison grid + spectrum treatment.
+       Sources as columns instead of time contexts.
+       The breadcrumb encodes the relationship participants.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+    /* ── Status badge ── */
+    .badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      padding: 1px 8px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+    .badge.redline { background: var(--redline-wash); color: var(--redline-ink); }
+    .badge.stamp   { background: var(--stamp-wash); color: var(--stamp-ink); }
+    .badge.pencil  { background: var(--pencil-wash); color: var(--pencil-ink); }
+    .badge.overlay { background: var(--overlay-wash); color: var(--overlay); }
+
+    /* ── Breadcrumb: relationship encoding ──
+       The workflow item's breadcrumb segment encodes
+       its participants — the primary key rendered as
+       navigation. Source names carry the spectrum color
+       and are navigable (red strings → Z-axis shifts). */
+    .breadcrumb .breadcrumb-rel {
+      color: var(--trace);
+      margin: 0 2px;
+    }
+    .breadcrumb .breadcrumb-source {
+      cursor: pointer;
+    }
+    .breadcrumb .breadcrumb-source:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .breadcrumb .breadcrumb-source.redline  { color: var(--redline-ink); }
+    .breadcrumb .breadcrumb-source.pencil   { color: var(--pencil-ink); }
+    .breadcrumb .breadcrumb-source.overlay  { color: var(--overlay); }
+
+    /* ── Source-colored column headers ── */
+    .col-headers.redline {
+      color: var(--redline-ink);
+      border-bottom-color: color-mix(in srgb, var(--redline) 20%, var(--rule));
+    }
+    .col-headers.settled {
+      color: var(--graphite);
+      border-bottom-color: var(--rule);
+    }
+
+    /* ── Settled disagreement (resolved) ──
+       Values preserved as history but tension is gone.
+       Trace-colored values, no left border accent. */
+    .prop-row.dual.settled {
+      border-left: 2px solid transparent;
+    }
+    .prop-row.dual.settled .prop-val {
+      color: var(--trace);
+    }
+
+    /* ── Resolution section ──
+       Stamp treatment below the settled disagreement.
+       Shows chosen value, rationale, decided by.
+       Same expanding-detail gesture as cairn, but
+       always visible — the decision IS the story. */
+    .resolution {
+      padding: 10px 16px;
+      background: var(--stamp-wash);
+      border-left: 2px solid var(--stamp);
+      border-bottom: 1px solid var(--rule);
+    }
+    .resolution-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--stamp-ink);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .resolution-chosen {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .resolution-chosen .chosen-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--stamp-ink);
+    }
+    .resolution-chosen .chosen-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+    .resolution-rationale {
+      font-size: 12px;
+      line-height: 18px;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+    .resolution-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+    }
+
+    /* ── Directive connection row ── */
+    .conn-row.directive-conn .conn-name  { color: var(--overlay); }
+    .conn-row.directive-conn .conn-type  { color: var(--overlay-border); }
+
+
+    /* ── Conflict detail in expansion ──
+       The other source revealed when expanding a
+       perspective-dependent conflict row. */
+    .conflict-reveal {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 3px 0;
+      margin-bottom: 2px;
+    }
+    .conflict-reveal .reveal-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--redline-ink);
+      cursor: pointer;
+    }
+    .conflict-reveal .reveal-source:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .conflict-reveal .reveal-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--redline-ink);
+      font-weight: 500;
+    }
+
+    /* ── Stale value (non-chosen source, post-resolution) ── */
+    .prop-row.dual.settled .prop-val.stale {
+      color: var(--redline-muted);
+    }
+
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       UNIVERSAL ROW EXPANSION
+       Any property row can expand in-place to show
+       its story. Click row → expand (cairn gesture).
+       Click pip → page turn (navigation gesture).
+       Two targets on one row, two distinct actions.
+
+       Content depends on what's there:
+       SILENT   → source attribution
+       ACTIVE   → conflict/change detail + connections
+       RESOLVED → resolution + directive sub-rows
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+    .row-detail {
+      display: none;
+      padding: 6px 16px 8px 132px;
+      font-size: 12px;
+      line-height: 18px;
+      /* Inset rule — starts well left of content (48px) but
+         NOT at the row edge. Held off the right edge (16px).
+         This line is wider than any sub-content borders
+         (which start at 132px), establishing hierarchy:
+         expansion rule > mini-res border > content. */
+      border-top: none;
+      background-image: linear-gradient(var(--rule), var(--rule));
+      background-size: calc(100% - 48px - 16px) 1px;
+      background-position: 48px 0;
+      background-repeat: no-repeat;
+    }
+    .row-detail.open { display: block; }
+
+    .row-detail .detail-status {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .row-detail .detail-status.redline { color: var(--redline-ink); }
+    .row-detail .detail-status.stamp   { color: var(--stamp-ink); }
+    .row-detail .detail-status.pencil  { color: var(--pencil-ink); }
+
+    /* Resolved row — returns to silent appearance.
+       Single value shown (the resolved value), no wash,
+       no border accent. Cairn marks pending directive;
+       silence when fully resolved. Story in expansion. */
+    .prop-row.resolved {
+      background: transparent;
+      border-left: 2px solid transparent;
+    }
+
+    /* Sub-row inside expansion (directive with pip) */
+    .row-detail .sub-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      cursor: pointer;
+    }
+    .row-detail .sub-row:hover .sub-name {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .row-detail .sub-row .sub-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .row-detail .sub-row .sub-name.overlay { color: var(--overlay); }
+    .row-detail .sub-row .sub-type {
+      font-size: 11px;
+      color: var(--trace);
+    }
+    .row-detail .sub-row .sub-arrow {
+      color: var(--trace);
+      font-size: 12px;
+      margin-left: auto;
+    }
+
+    /* Mini-resolution inside expansion (compact stamp) */
+    .row-detail .mini-res {
+      padding: 4px 0 6px;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 4px;
+    }
+    .row-detail .mini-res .res-label {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--stamp-ink);
+      margin-bottom: 2px;
+    }
+    .row-detail .mini-res .res-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--stamp-ink);
+      font-weight: 500;
+    }
+    .row-detail .mini-res .res-source {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+    .row-detail .mini-res .res-meta {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--trace);
+      margin-top: 2px;
+    }
+
+    /* Source attribution in silent expansion */
+    .row-detail .sources-list {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--graphite);
+    }
+    .row-detail .sources-list .src {
+      cursor: pointer;
+    }
+    .row-detail .sources-list .src:hover {
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* Inline pip within expansion sub-row.
+       Smaller context — reuses .pip but inline. */
+    .row-detail .pip {
+      flex-shrink: 0;
+    }
+
+    /* ── Workflow item header — revised layout ──
+       Name left, type + status right. Consistent
+       with indicator lane convention (right = status). */
+    .item-header .item-meta {
+      margin-left: auto;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .item-header .item-type {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .item-header .item-type.redline { color: var(--redline-ink); }
+    .item-header .item-type.stamp   { color: var(--stamp-ink); }
+    .item-header .item-type.pencil  { color: var(--pencil-ink); }
+    .item-header .item-type.overlay { color: var(--overlay); }
+
+  </style>
+</head>
+<body>
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       VIEW 1: SINGLE CONTEXT — Door 101 at CD
+       Present / Adjacent / Silent in action.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Single context — Door 101 at CD</div>
+    <div class="mockup-note">
+      Three proximity states govern how information renders:<br>
+      <strong>Present</strong> — your perspective affords a direct view. Fire rating has
+      a conflict: your source's value shown with red pip. Expand to see the
+      other source. Pip click → page turn to conflict item.<br>
+      <strong>Adjacent</strong> — shares context but not fully aligned. Material and finish
+      have amber pips: changes happened at DD, visible only as membrane pressure.
+      Hover to see detail. Click pip → change item.<br>
+      <strong>Silent</strong> — aligned. Value only, no decoration.<br>
+      <strong>Cairn</strong> — a note exists near this context. Filled △ when present,
+      hollow △ when adjacent. Click to activate: ▽ inverts, row expands.<br>
+      Property names are always navigable → cross-instance view. No dead ends.
+    </div>
+
+    <div class="template">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Level 1</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg current">Door 101</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Door 101</span>
+          <span class="item-parent">Room 103</span>
+        </div>
+        <div class="time-control">
+          <span class="time-tag">CD</span>
+          <button class="time-add">+</button>
+        </div>
+        <span class="item-source">Finish Schedule</span>
+      </div>
+
+      <div class="row-group">Properties</div>
+
+      <!-- SILENT — no pip, no decoration.
+           Property name still navigable: click "mark" → all items with marks. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- PRESENT CAIRN — note exists at CD (our exact context).
+           Filled triangle. Click to expand. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">width</span>
+          <span class="prop-val">3'-0"</span>
+          <span class="indicator">
+            <span class="cairn present" title="Note at CD">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <!-- ACTIVE CAIRN — same note, selected. Triangle inverts,
+           row expands to show note content + context. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">height</span>
+          <span class="prop-val">7'-0"</span>
+          <span class="indicator">
+            <span class="cairn active" title="Note at CD (expanded)">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+        <div class="cairn-detail open">
+          <div class="cairn-context">CD · 2026-01-15</div>
+          <div class="cairn-text">Verify 7'-0" — field measurement showed 6'-11½" at rough opening. May need shimming.</div>
+          <div class="cairn-author">— J. Martinez</div>
+        </div>
+      </div>
+
+      <!-- ADJACENT — pencil pip (hollow). Change happened at DD, not visible here.
+           Click pip → change item. Click "material" → all materials. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">material</span>
+          <span class="prop-val">wood</span>
+          <span class="indicator"><span class="pip pencil adjacent"></span></span>
+        </div>
+      </div>
+
+      <!-- ADJACENT — pencil pip (hollow). Hover state shown (detail visible). -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">finish</span>
+          <span class="prop-val">stain</span>
+          <span class="indicator"><span class="pip pencil adjacent"></span></span>
+        </div>
+        <div class="detail" style="display: block;">
+          <span class="detail-ctx">DD</span>
+          <span class="detail-meta">·</span>
+          <span class="detail-val pencil-text">paint</span>
+          <span class="detail-meta">· changed · Finish Schedule</span>
+        </div>
+      </div>
+
+      <!-- ─── PRESENT: Conflict (perspective-dependent) ───
+           Fire rating has a conflict at CD — two sources disagree.
+           Since we're viewing from Finish Schedule, the main row
+           shows Finish Schedule's value (90 min) + red pip.
+           Expanding reveals the other side. Pip → page turn to
+           the conflict item where both sources are shown side
+           by side. Click row → expand. Click pip → page turn. -->
+      <div class="prop-row" style="border-left: 2px solid var(--redline);">
+        <div class="main">
+          <span class="prop-name">fire rating</span>
+          <span class="prop-val">90 min</span>
+          <span class="indicator">
+            <span class="pip redline present"></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- SILENT — aligned. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="row-group">Connections</div>
+
+      <div class="conn-row">
+        <span class="conn-name">Room 103</span>
+        <span class="conn-type">room</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row">
+        <span class="conn-name">HW-5</span>
+        <span class="conn-type">hardware set</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <!-- Source connections — Finish Schedule is involved in a conflict,
+           so it gets redline text (red string). Door Schedule also present. -->
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Finish Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Door Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       VIEW 1b: PRESENT DIRECTIVE — Door 101 at CD
+       A directive is present when targeting your source.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Present directive — alternate scenario</div>
+    <div class="mockup-note">
+      If a decision was made about fire rating and a directive exists
+      targeting the Finish Schedule (our current source), it's present —
+      shown inline with pencil wash + blue border. The decision source
+      is a navigable blue string.
+    </div>
+
+    <div class="template">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Level 1</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg current">Door 101</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Door 101</span>
+          <span class="item-parent">Room 103</span>
+        </div>
+        <div class="time-control">
+          <span class="time-tag">CD</span>
+          <button class="time-add">+</button>
+        </div>
+        <span class="item-source">Finish Schedule</span>
+      </div>
+
+      <div class="row-group">Properties</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- PRESENT: Directive inline.
+           A decision says fire rating should be 60 min, but
+           Finish Schedule still shows 90 min. The obligation
+           is present because it targets our current source.
+           No opaque IDs — the source of the decision is the
+           conflict resolution, rendered as its participants. -->
+      <div class="prop-row present directive">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="directive-inline">
+            <span class="directive-line">
+              <span class="prop-val" style="color: var(--ink);">90 min</span>
+              <span class="directive-meta">current</span>
+            </span>
+            <span class="directive-line">
+              <span class="directive-source">Door Schedule</span>
+              <span class="directive-val">60 min</span>
+              <span class="directive-meta">· expected</span>
+            </span>
+          </span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       "+" DROPDOWN — milestone picker
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Pressing [+] opens the milestone picker</div>
+    <div class="mockup-note">
+      Select a milestone to add as a comparison column.
+      The active context (CD) is already checked.
+      Selecting DD adds it — the template shifts to comparison mode.
+    </div>
+
+    <div class="dropdown-illustration">
+      <div class="dropdown-item">
+        <span>SD</span>
+        <span class="ordinal">100</span>
+      </div>
+      <div class="dropdown-item" style="background: var(--vellum); color: var(--ink);">
+        <span>DD</span>
+        <span class="ordinal">200</span>
+      </div>
+      <div class="dropdown-item active">
+        <span>CD</span>
+        <span class="ordinal">300</span>
+      </div>
+      <div class="dropdown-item">
+        <span>IFC</span>
+        <span class="ordinal">400</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">DD selected — comparison mode activates</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       VIEW 2: COMPARISON MODE — DD + CD active
+       Changes become PRESENT (both columns visible).
+       Conflicts remain visible. Environment transforms.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Comparison mode — DD + CD active</div>
+    <div class="mockup-note">
+      Full template gets overlay wash — the environment transforms.
+      Changes that were adjacent (pips) become <strong>present</strong> — both
+      values now visible in columns with pencil left border.
+      The conflict on fire rating is still present (inline at CD column).
+      Cairn persists — notes don't change proximity in comparison mode.
+    </div>
+
+    <div class="template compare" style="--num-contexts: 2;">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Level 1</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg current">Door 101</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Door 101</span>
+          <span class="item-parent">Room 103</span>
+        </div>
+        <div class="time-control">
+          <span class="time-tag compare-active">DD<span class="tag-x">×</span></span>
+          <span class="time-tag compare-active">CD<span class="tag-x">×</span></span>
+          <button class="time-add">+</button>
+        </div>
+        <span class="item-source">Finish Schedule</span>
+      </div>
+
+      <div class="col-headers">
+        <span></span>
+        <span>DD</span>
+        <span>CD</span>
+        <span></span>
+      </div>
+
+      <div class="row-group">Properties</div>
+
+      <!-- Silence — same at both -->
+      <div class="prop-row dual silence">
+        <div class="main">
+          <span class="prop-name">mark</span>
+          <span class="prop-val">101</span>
+          <span class="prop-val">101</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- Cairn persists in comparison mode. Still present
+           (note is at CD, one of our active contexts). -->
+      <div class="prop-row dual silence">
+        <div class="main">
+          <span class="prop-name">width</span>
+          <span class="prop-val">3'-0"</span>
+          <span class="prop-val">3'-0"</span>
+          <span class="indicator">
+            <span class="cairn present" title="Note at CD">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <div class="prop-row dual silence">
+        <div class="main">
+          <span class="prop-name">height</span>
+          <span class="prop-val">7'-0"</span>
+          <span class="prop-val">7'-0"</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- Pencil — material changed DD→CD.
+           Was adjacent (hollow pip) in single-context. Now PRESENT:
+           both values visible in columns. Pip fills in. -->
+      <div class="prop-row dual pencil">
+        <div class="main">
+          <span class="prop-name">material</span>
+          <span class="prop-val prior">hollow metal</span>
+          <span class="prop-val current">wood</span>
+          <span class="indicator"><span class="pip pencil present"></span></span>
+        </div>
+      </div>
+
+      <!-- Pencil — finish changed DD→CD. Now present (filled). -->
+      <div class="prop-row dual pencil">
+        <div class="main">
+          <span class="prop-name">finish</span>
+          <span class="prop-val prior">paint</span>
+          <span class="prop-val current">stain</span>
+          <span class="indicator"><span class="pip pencil present"></span></span>
+        </div>
+      </div>
+
+      <!-- Fire rating: change (DD→CD) AND conflict (at CD).
+           Both present — filled pips. Ordered right-to-left
+           by priority: redline (conflict) before pencil (change).
+           First child in DOM = rightmost (row-reverse).
+           The comparison layout shows the temporal change,
+           the red pip signals the spatial conflict persists. -->
+      <div class="prop-row dual pencil">
+        <div class="main">
+          <span class="prop-name">fire rating</span>
+          <span class="prop-val absent">—</span>
+          <span class="prop-val current">90 min</span>
+          <span class="indicator">
+            <span class="pip redline present"></span>
+            <span class="pip pencil present"></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Silence — aligned at both -->
+      <div class="prop-row dual silence">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="row-group">Connections</div>
+
+      <div class="conn-row">
+        <span class="conn-name">Room 103</span>
+        <span class="conn-type">room</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row">
+        <span class="conn-name">HW-5</span>
+        <span class="conn-type">hardware set</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Finish Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Door Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Row expansion — lifecycle</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       ROW EXPANSION: ACTIVE CONFLICT
+       Click the row (not the pip) to expand in-place.
+       The cairn gesture is universal — every property
+       row can unfold to show its story. For an active
+       conflict, expansion shows status + connections.
+       The pip remains as navigation handle — click it
+       to page turn to the conflict item.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Row expansion — active conflict</div>
+    <div class="mockup-note">
+      Click the row to expand (cairn gesture). Click the pip to page turn
+      (navigation gesture). Two targets, two actions. The main row shows
+      YOUR source's value + red pip. Expanding reveals the other source,
+      the conflict status, and connections. The pip navigates to the full
+      conflict item where both sources appear side by side.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <!-- Active conflict — expanded (perspective-dependent).
+           Main row: YOUR value (Finish Schedule = 90 min) + red pip.
+           Expansion reveals the other source + conflict details. -->
+      <div class="prop-row" style="border-left: 2px solid var(--redline);">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">90 min</span>
+          <span class="indicator">
+            <span class="pip redline present"></span>
+          </span>
+        </div>
+        <div class="row-detail open">
+          <div class="detail-status redline">Conflict · Needs Review · <span style="font-weight: 400; opacity: 0.7;">CD</span></div>
+          <!-- The other side revealed -->
+          <div class="conflict-reveal">
+            <span class="reveal-source">Door Schedule</span>
+            <span class="reveal-val">60 min</span>
+          </div>
+          <div class="sub-row">
+            <span class="sub-name">Door 101</span>
+            <span class="sub-type">affected item</span>
+            <span class="sub-arrow">›</span>
+          </div>
+          <div class="sub-row">
+            <span class="sub-name" style="color: var(--redline-ink);">Finish Schedule</span>
+            <span class="sub-type">source</span>
+            <span class="sub-arrow">›</span>
+          </div>
+          <div class="sub-row">
+            <span class="sub-name" style="color: var(--redline-ink);">Door Schedule</span>
+            <span class="sub-type">source</span>
+            <span class="sub-arrow">›</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Silent — for context -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       ROW EXPANSION: RESOLVED CONFLICT (DIRECTIVE PENDING)
+       Same property after resolution. Main row returns
+       to silent appearance — single value, no wash, no
+       border. A cairn marks the active-but-not-actionable
+       story: the directive is pending. When fulfilled,
+       the cairn drops. Full silence.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Row expansion — resolved conflict (directive pending)</div>
+    <div class="mockup-note">
+      Same property after resolution. The main row shows only the resolved
+      value (60 min) — the conflict is over, alignment is restored. A cairn
+      marks the active story: the directive is pending (Finish Schedule needs
+      to update). Expand to read it: the original disagreement (both sources,
+      trace-colored), resolution stamp, directive sub-row with blue pip.
+      When the directive is fulfilled, the cairn drops. Full silence.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <!-- Resolved conflict with pending directive — cairn.
+           Main row: single value + cairn (active story,
+           not actionable). No pip — pips are active only. -->
+      <div class="prop-row resolved">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="cairn active" title="Resolved conflict, directive pending">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+        <div class="row-detail open">
+          <!-- The original disagreement — trace colored, historical -->
+          <div class="detail-status stamp">✓ Conflict · Accepted · <span style="font-weight: 400; opacity: 0.7;">CD</span></div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">Finish Schedule</span>
+            <span class="sub-type" style="color: var(--trace);">90 min</span>
+          </div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">Door Schedule</span>
+            <span class="sub-type" style="color: var(--trace);">60 min</span>
+          </div>
+          <div class="mini-res">
+            <div>
+              <span class="res-val">60 min</span>
+              <span class="res-source">from Door Schedule</span>
+            </div>
+            <div class="res-meta">J. Martinez · field verification · 2026-01-20</div>
+          </div>
+          <!-- Directive sub-row — blue pip inside expansion.
+               This is the obligation spawned by resolution.
+               Click the blue pip → page turn to directive item.
+               Not a pip on the main row — lives inside the story. -->
+          <div class="sub-row">
+            <span class="pip overlay present" style="flex: 0 0 14px;"></span>
+            <span class="sub-name overlay">Finish Schedule → update to 60 min</span>
+            <span class="sub-type">directive · pending</span>
+            <span class="sub-arrow">›</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Silent — for context -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       ROW EXPANSION: FULLY RESOLVED (SILENCE)
+       A property that has been through multiple stories:
+       the material changed (DD→CD) AND had a conflict
+       (both now resolved, directives fulfilled). No pips,
+       no cairns — full silence. But the graph is still
+       accessible. Expand to read the completed stories.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Row expansion — fully resolved (silence)</div>
+    <div class="mockup-note">
+      Door 101's material had a busy lifecycle: it changed between DD and CD
+      (amber story) and the schedule disagreed with the spec about it (red
+      story). Both are now resolved, directives fulfilled. No pips, no cairns
+      — full silence. But the graph is always accessible: expand to see both
+      completed stories stacked in the detail area. Source attribution always
+      available through the cairn gesture, even on silent rows.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <!-- Multiple resolved stories — full silence.
+           No pips, no cairns. The indicator lane is empty.
+           Row expansion reveals both completed stories. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Material</span>
+          <span class="prop-val">hollow metal</span>
+          <span class="indicator"></span>
+        </div>
+        <div class="row-detail open">
+          <!-- Conflict story — resolved -->
+          <div class="detail-status stamp">✓ Conflict · Accepted · <span style="font-weight: 400; opacity: 0.7;">CD</span></div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">Finish Schedule</span>
+            <span class="sub-type" style="color: var(--trace);">wood</span>
+          </div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">Door Schedule</span>
+            <span class="sub-type" style="color: var(--trace);">hollow metal</span>
+          </div>
+          <div class="mini-res">
+            <div>
+              <span class="res-val">hollow metal</span>
+              <span class="res-source">from Door Schedule</span>
+            </div>
+            <div class="res-meta">K. Chen · specification review · 2026-01-18</div>
+          </div>
+          <!-- Change story — resolved -->
+          <div class="detail-status stamp" style="margin-top: 8px;">✓ Change · Accepted · <span style="font-weight: 400; opacity: 0.7;">DD → CD</span></div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">DD</span>
+            <span class="sub-type" style="color: var(--trace);">wood</span>
+          </div>
+          <div class="sub-row" style="cursor: default; opacity: 0.6;">
+            <span class="sub-name" style="color: var(--trace);">CD</span>
+            <span class="sub-type" style="color: var(--trace);">hollow metal</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fully resolved — cairn present (directive still pending) -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator">
+            <span class="cairn present" title="Resolved conflict, directive pending">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Fully silent — no stories at all -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-5</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       ROW EXPANSION: SILENT PROPERTY
+       Door 102's fire rating — no conflict, no change.
+       But it's still defined by sources. Expand to see
+       source attribution. Every property is connected;
+       expansion makes the graph accessible.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Row expansion — silent property (Door 102)</div>
+    <div class="mockup-note">
+      Door 102 has no conflicts, no changes. But it's still defined by
+      sources — Spec Section 08 and the Door Schedule both assert values
+      for this door. Expand any silent property to see its source attribution.
+      The graph is always accessible, even when everything is aligned.
+    </div>
+
+    <div class="template" style="max-width: 720px;">
+      <div class="row-group">Properties</div>
+
+      <!-- Silent property — expanded.
+           No pip, no decoration. Just source attribution
+           accessible via the cairn gesture. -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">90 min</span>
+          <span class="indicator"></span>
+        </div>
+        <div class="row-detail open">
+          <div class="detail-status" style="color: var(--trace);">Sources</div>
+          <div class="sub-row">
+            <span class="sub-name">Spec Section 08 71 00</span>
+            <span class="sub-type">specification</span>
+            <span class="sub-arrow">›</span>
+          </div>
+          <div class="sub-row">
+            <span class="sub-name">Door Schedule</span>
+            <span class="sub-type">schedule</span>
+            <span class="sub-arrow">›</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">material</span>
+          <span class="prop-val">hollow metal</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name">hardware set</span>
+          <span class="prop-val">HW-3</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Workflow item — conflict (page turn from pip)</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       VIEW 3: CONFLICT ITEM — unresolved
+       Page turn from Door 101's red pip on fire rating.
+       The breadcrumb encodes the relationship: property +
+       source pair. Sources become column headers — same
+       comparison grid, different axis. The conflict is a
+       junction: connections navigate through to sources.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Conflict item — unresolved (needs_review)</div>
+    <div class="mockup-note">
+      Page turn from Door 101's red pip on fire rating. The breadcrumb
+      extends with the conflict's identity: property: source ↔ source.
+      That combination is unique by definition (Decision 9). Source names
+      in the breadcrumb are red strings — clickable Z-axis shifts. The
+      comparison grid uses sources as columns instead of milestones.
+      Same visual language, different axis. Header layout: name left,
+      type + status right — consistent with indicator lane convention.
+    </div>
+
+    <div class="template">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg">Door 101</span>
+        <span class="chev">›</span>
+        <span class="seg current">Fire Rating:</span>
+        <span class="breadcrumb-source redline">Finish Schedule</span>
+        <span class="breadcrumb-rel">↔</span>
+        <span class="breadcrumb-source redline">Door Schedule</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Fire Rating</span>
+        </div>
+        <span class="item-source">CD · Door 101</span>
+        <div class="item-meta">
+          <span class="item-type redline">Conflict</span>
+          <span class="badge redline">Needs Review</span>
+        </div>
+      </div>
+
+      <div class="col-headers redline" style="--num-contexts: 2;">
+        <span></span>
+        <span>Finish Schedule</span>
+        <span>Door Schedule</span>
+        <span></span>
+      </div>
+
+      <div class="row-group">Disagreement</div>
+
+      <!-- The disagreement: same property, two source values.
+           Redline treatment — both values in conflict color.
+           This is the same grid as comparison mode, but the
+           axis is sources (spatial) not milestones (temporal). -->
+      <div class="prop-row dual redline">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val conflict">90 min</span>
+          <span class="prop-val conflict">60 min</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <div class="row-group">Connections</div>
+
+      <!-- Affected item — navigable back to Door 101 -->
+      <div class="conn-row">
+        <span class="conn-name">Door 101</span>
+        <span class="conn-type">affected item</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <!-- Sources — red strings, navigable Z-axis shifts.
+           This is the critical flow: pip → conflict → source.
+           The conflict is the waypoint you navigate through. -->
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Finish Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Door Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       VIEW 4: CONFLICT ITEM — resolved
+       Same conflict after resolution. Status → accepted.
+       Disagreement preserved as history (settled treatment).
+       Resolution section shows decision with stamp treatment.
+       Spawned directives appear as overlay-colored connections.
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Conflict item — resolved (accepted)</div>
+    <div class="mockup-note">
+      Same conflict after resolution. Type stays "Conflict" — status shifts
+      to <strong>Accepted</strong> (stamp). The disagreement is preserved as
+      history in trace color. Resolution section shows the decision inline —
+      no separate "decision item" in the UI. The decision's identity IS the
+      resolution on this conflict. Directive appears as overlay connection.
+    </div>
+
+    <div class="template">
+      <div class="breadcrumb">
+        <span class="seg">Project</span>
+        <span class="chev">›</span>
+        <span class="seg">CD</span>
+        <span class="chev">›</span>
+        <span class="seg">Room 103</span>
+        <span class="chev">›</span>
+        <span class="seg">Door 101</span>
+        <span class="chev">›</span>
+        <span class="seg current">Fire Rating:</span>
+        <span class="breadcrumb-source redline">Finish Schedule</span>
+        <span class="breadcrumb-rel">↔</span>
+        <span class="breadcrumb-source redline">Door Schedule</span>
+      </div>
+
+      <div class="item-header">
+        <div class="item-identity">
+          <span class="item-name">Fire Rating</span>
+        </div>
+        <span class="item-source">CD · Door 101</span>
+        <div class="item-meta">
+          <span class="item-type stamp">Conflict</span>
+          <span class="badge stamp">Accepted</span>
+        </div>
+      </div>
+
+      <div class="col-headers settled" style="--num-contexts: 2;">
+        <span></span>
+        <span>Finish Schedule</span>
+        <span>Door Schedule</span>
+        <span></span>
+      </div>
+
+      <div class="row-group">Disagreement</div>
+
+      <!-- Settled disagreement — values preserved as history.
+           Trace color, no accent border. The tension is gone. -->
+      <div class="prop-row dual settled">
+        <div class="main">
+          <span class="prop-name">Fire Rating</span>
+          <span class="prop-val">90 min</span>
+          <span class="prop-val">60 min</span>
+          <span class="indicator"></span>
+        </div>
+      </div>
+
+      <!-- Resolution — stamp treatment.
+           The decision is rendered in-place on the conflict.
+           No separate "decision item" in the connections —
+           the resolution section IS the decision. -->
+      <div class="resolution">
+        <div class="resolution-label">
+          <span class="stamp-check">✓</span>
+          <span>Resolved</span>
+        </div>
+        <div class="resolution-chosen">
+          <span class="chosen-val">60 min</span>
+          <span class="chosen-source">from Door Schedule</span>
+        </div>
+        <div class="resolution-rationale">
+          Field measurement confirms 60 min per code requirements.
+        </div>
+        <div class="resolution-meta">
+          J. Martinez · field verification · 2026-01-20
+        </div>
+      </div>
+
+      <div class="row-group">Connections</div>
+
+      <div class="conn-row">
+        <span class="conn-name">Door 101</span>
+        <span class="conn-type">affected item</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Finish Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <div class="conn-row conflict-source">
+        <span class="conn-name">Door Schedule</span>
+        <span class="conn-type">source</span>
+        <span class="conn-arrow">›</span>
+      </div>
+      <!-- Directive spawned by resolution — overlay treatment.
+           The lifecycle continues: conflict → decision → directive.
+           Clicking navigates to the directive item. -->
+      <div class="conn-row directive-conn">
+        <span class="conn-name">Finish Schedule → update Fire Rating to 60 min</span>
+        <span class="conn-type">directive · pending</span>
+        <span class="conn-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Cairn states — reference</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       CAIRN STATES — isolated reference
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Cairn — three states</div>
+    <div class="mockup-note">
+      Cairns follow the same present/adjacent language as
+      the disagreement system, with a different visual register.<br>
+      <strong>Present</strong> (filled △) — note at your exact context.<br>
+      <strong>Adjacent</strong> (hollow △) — note nearby but not aligned.<br>
+      <strong>Active</strong> (filled ▽) — selected, row expands to show content.
+    </div>
+
+    <div class="template" style="max-width: 500px;">
+      <div class="row-group">Cairn states</div>
+
+      <!-- Present — filled -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">present</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">note at your context</span>
+          <span class="indicator">
+            <span class="cairn present">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Adjacent — hollow -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">adjacent</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">note nearby, not aligned</span>
+          <span class="indicator">
+            <span class="cairn adjacent">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Active — filled, inverted -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">active</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">selected, content expanded</span>
+          <span class="indicator">
+            <span class="cairn active">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+        <div class="cairn-detail open">
+          <div class="cairn-context">CD · 2026-01-15</div>
+          <div class="cairn-text">Verify 7'-0" — field measurement showed 6'-11½" at rough opening.</div>
+          <div class="cairn-author">— J. Martinez</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="divider">Pip states — reference</div>
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       PIP STATES — isolated reference
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="mockup-section">
+    <div class="mockup-title">Pips — filled / hollow (active only)</div>
+    <div class="mockup-note">
+      Same visual rule as cairns: filled = present, hollow = adjacent.<br>
+      <strong>Present</strong> (filled ●) — active workflow item at your exact context.<br>
+      <strong>Adjacent</strong> (hollow ○) — active workflow item nearby, not aligned.<br>
+      Color carries the spectrum: pencil (change), redline (conflict), overlay (directive).<br>
+      <strong>No ghost/resolved state.</strong> When a workflow item resolves, its pip
+      disappears. Cairns mark resolved-but-pending stories. Full silence
+      when lifecycle completes.
+    </div>
+
+    <div class="template" style="max-width: 500px;">
+      <div class="row-group">Present (filled)</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">change</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">pencil — at your context</span>
+          <span class="indicator">
+            <span class="pip pencil present"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">conflict</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">redline — at your context</span>
+          <span class="indicator">
+            <span class="pip redline present"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">directive</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">overlay — at your context</span>
+          <span class="indicator">
+            <span class="pip overlay present"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="row-group">Adjacent (hollow)</div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">change</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">pencil — nearby, not aligned</span>
+          <span class="indicator">
+            <span class="pip pencil adjacent"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">conflict</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">redline — nearby, not aligned</span>
+          <span class="indicator">
+            <span class="pip redline adjacent"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">directive</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">overlay — nearby, not aligned</span>
+          <span class="indicator">
+            <span class="pip overlay adjacent"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="row-group">Combined — ordering example</div>
+
+      <!-- Cairn + present conflict + adjacent change -->
+      <div class="prop-row">
+        <div class="main">
+          <span class="prop-name" style="color: var(--trace); cursor: default;">example</span>
+          <span class="prop-val" style="color: var(--trace); font-size: 11px;">cairn → conflict → change</span>
+          <span class="indicator">
+            <span class="cairn present">
+              <svg viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+                <path d="M2 10 L6 2 L10 10 Z"/>
+              </svg>
+            </span>
+            <span class="pip redline present"></span>
+            <span class="pip pencil adjacent"></span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

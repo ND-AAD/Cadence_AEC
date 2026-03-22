@@ -1,6 +1,8 @@
 # Cadence v6.1 — Technical Onboarding Brief
 ## "Three Tables and a Triple"
 
+> **Note:** This document reflects v6.1 and is partially stale. For current project status and work package details, see `Cadence_Implementation_Workplan_v6_2.md` (single source of truth). For the current specification, see `Cadence_Technical_Specification_v6.2.md`.
+
 ---
 
 ## TL;DR

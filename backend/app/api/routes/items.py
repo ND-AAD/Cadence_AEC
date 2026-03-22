@@ -63,6 +63,8 @@ async def list_types():
             "navigable": cfg.navigable,
             "is_source_type": cfg.is_source_type,
             "is_context_type": cfg.is_context_type,
+            "render_mode": cfg.render_mode,
+            "default_sort": cfg.default_sort,
             "valid_targets": cfg.valid_targets,
             "properties": [
                 {
@@ -367,11 +369,24 @@ async def get_connected_items(
             )
         )
 
-    # Sort groups by type config order, items by identifier within group
+    # Build ordinal lookup for temporal types (milestones, issuances).
+    # Decision D7: milestone ordering uses ordinal property, not created_at.
+    ordinal_lookup: dict[uuid.UUID, int] = {}
+    for ci in unique_items:
+        if ci.item_type in ("milestone", "issuance", "context"):
+            ordinal = (ci.properties or {}).get("ordinal")
+            if ordinal is not None:
+                ordinal_lookup[ci.id] = int(ordinal)
+
+    # Sort groups by type config order, items by ordinal (temporal) or identifier (others)
     groups = []
     for type_name, items_list in sorted(grouped.items()):
         type_cfg = get_type_config(type_name)
-        items_list.sort(key=lambda x: (x.identifier or "").lower())
+        if type_name in ("milestone", "issuance", "context"):
+            # Temporal types: sort by ordinal, fall back to identifier
+            items_list.sort(key=lambda x: (ordinal_lookup.get(x.id, 999999), (x.identifier or "").lower()))
+        else:
+            items_list.sort(key=lambda x: (x.identifier or "").lower())
         groups.append(
             ConnectedGroup(
                 item_type=type_name,

@@ -43,6 +43,22 @@ class SnapshotDetail(BaseModel):
 
 # ─── Resolved View ────────────────────────────────────────────
 
+class PropertyWorkflowRefs(BaseModel):
+    """
+    Navigation handles for workflow items connected to a property.
+
+    This is navigational metadata — it tells the frontend where to GO,
+    not what the property looks like. Kept structurally separate from
+    PropertyResolution's core fields (property_name, status, value, sources)
+    which are about what the property IS.
+    """
+    conflict_id: uuid.UUID | None = None
+    change_ids: list[uuid.UUID] = Field(default_factory=list)
+    decision_id: uuid.UUID | None = None
+    directive_ids: list[uuid.UUID] = Field(default_factory=list)
+    resolution_metadata: dict | None = None  # { decided_by, resolved_at, method, rationale, chosen_source }
+
+
 class PropertyResolution(BaseModel):
     """Resolution status for a single property across sources."""
     property_name: str
@@ -52,6 +68,7 @@ class PropertyResolution(BaseModel):
         default_factory=dict,
         description="source_identifier → value for each source",
     )
+    workflow: PropertyWorkflowRefs | None = None
 
 
 class ResolvedView(BaseModel):

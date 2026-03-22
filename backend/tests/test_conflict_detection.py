@@ -260,7 +260,9 @@ async def test_conflict_item_has_correct_identifier(
 
     finish_conflict = [c for c in conflicts if "finish" in c.identifier]
     assert len(finish_conflict) == 1
-    assert finish_conflict[0].identifier == "Door 001 / finish"
+    assert finish_conflict[0].identifier.startswith("Door 001 / finish / ")
+    # Verify it contains the source pair suffix
+    assert "+" in finish_conflict[0].identifier.split(" / ")[-1]
 
 
 @pytest.mark.asyncio
@@ -297,7 +299,10 @@ async def test_conflict_item_has_connections(
     # Find the conflict item
     conflict_result = await db_session.execute(
         select(Item).where(
-            and_(Item.item_type == "conflict", Item.identifier == "Door 001 / finish")
+            and_(
+                Item.item_type == "conflict",
+                Item.identifier.like("Door 001 / finish / %"),
+            )
         )
     )
     conflict = conflict_result.scalar_one()
@@ -349,7 +354,12 @@ async def test_conflict_has_self_sourced_snapshot(
 
     # Find conflict
     conflict_result = await db_session.execute(
-        select(Item).where(Item.identifier == "Door 001 / finish")
+        select(Item).where(
+            and_(
+                Item.item_type == "conflict",
+                Item.identifier.like("Door 001 / finish / %"),
+            )
+        )
     )
     conflict = conflict_result.scalar_one()
 
@@ -406,9 +416,10 @@ async def test_one_conflict_per_property_per_item(
     )
     conflicts = result.scalars().all()
     assert len(conflicts) == 2
-    identifiers = {c.identifier for c in conflicts}
-    assert "Door 001 / finish" in identifiers
-    assert "Door 001 / material" in identifiers
+    finish_conflicts = [c for c in conflicts if c.identifier.startswith("Door 001 / finish")]
+    material_conflicts = [c for c in conflicts if c.identifier.startswith("Door 001 / material")]
+    assert len(finish_conflicts) == 1
+    assert len(material_conflicts) == 1
 
 
 @pytest.mark.asyncio
@@ -462,7 +473,12 @@ async def test_auto_resolution_when_sources_agree(client: AsyncClient, project_s
 
     # Verify conflict item status is updated
     conflict_result = await db_session.execute(
-        select(Item).where(Item.identifier == "Door 001 / finish")
+        select(Item).where(
+            and_(
+                Item.item_type == "conflict",
+                Item.identifier.like("Door 001 / finish / %"),
+            )
+        )
     )
     conflict = conflict_result.scalar_one()
     assert conflict.properties["status"] == "resolved_by_agreement"
@@ -550,3 +566,69 @@ async def test_conflict_property_only_when_both_sources_have_value(
     # finish should conflict, fire_rating should not since spec has empty
     finish_conflicts = [c for c in result["conflict_items"] if c["property_name"] == "finish"]
     assert len(finish_conflicts) >= 1
+
+
+@pytest.mark.asyncio
+async def test_different_source_pairs_create_distinct_conflicts(
+    client: AsyncClient, project_setup, db_session, make_item, make_connection
+):
+    """Decision 9: different source pairs produce distinct conflict items."""
+    setup = project_setup
+
+    # Create a third source (drawing)
+    drawing = await make_item(
+        "drawing", "Door Drawing",
+        {"name": "Door Drawing", "discipline": "Architectural"},
+    )
+    await make_connection(setup["project"], drawing)
+
+    # Schedule says finish=paint
+    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
+                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    await client.post(
+        "/api/v1/import",
+        data={
+            "source_item_id": str(setup["schedule"].id),
+            "time_context_id": str(setup["dd_milestone"].id),
+            "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
+        },
+        files={"file": ("schedule.xlsx", sched_data, "application/octet-stream")},
+    )
+
+    # Spec says finish=stain → conflict (schedule+spec)
+    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
+                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    await client.post(
+        "/api/v1/import",
+        data={
+            "source_item_id": str(setup["spec"].id),
+            "time_context_id": str(setup["dd_milestone"].id),
+            "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
+        },
+        files={"file": ("spec.xlsx", spec_data, "application/octet-stream")},
+    )
+
+    # Drawing says finish=lacquer → conflict (schedule+drawing) AND (spec+drawing)
+    drawing_data = _make_spec_excel([{"id": "Door 001", "finish": "lacquer", "material": "wood",
+                                       "hardware_set": "HW-1", "fire_rating": ""}])
+    await client.post(
+        "/api/v1/import",
+        data={
+            "source_item_id": str(drawing.id),
+            "time_context_id": str(setup["dd_milestone"].id),
+            "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
+        },
+        files={"file": ("drawing.xlsx", drawing_data, "application/octet-stream")},
+    )
+
+    # Should have 3 distinct conflict items for finish (one per source pair)
+    result = await db_session.execute(
+        select(Item).where(
+            and_(
+                Item.item_type == "conflict",
+                Item.identifier.like("Door 001 / finish / %"),
+            )
+        )
+    )
+    conflicts = result.scalars().all()
+    assert len(conflicts) == 3  # schedule+spec, schedule+drawing, spec+drawing

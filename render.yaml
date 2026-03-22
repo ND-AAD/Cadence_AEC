@@ -1,0 +1,61 @@
+# Render Infrastructure-as-Code
+# Three resources: Postgres database, backend Web Service, frontend Static Site.
+# Deploy: connect the GitHub repo to Render → New Blueprint Instance.
+
+databases:
+  - name: cadence-db
+    plan: starter
+    databaseName: cadence
+    user: cadence
+    postgresMajorVersion: "16"
+    ipAllowList: []  # Only internal Render connections
+
+services:
+  # ─── Backend API ─────────────────────────────────────────────
+  - type: web
+    name: cadence-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cadence-db
+          property: connectionString
+      - key: DATABASE_URL_SYNC
+        fromDatabase:
+          name: cadence-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        value: "https://cadence-aec.io,https://www.cadence-aec.io,http://localhost:3000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALPHA_INVITE_CODE
+        value: "CADENCE-ALPHA"
+      - key: DEBUG
+        value: "false"
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Manual entry in Render dashboard
+
+  # ─── Frontend Static Site ────────────────────────────────────
+  - type: web
+    name: cadence-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: cadence-api
+          property: host
