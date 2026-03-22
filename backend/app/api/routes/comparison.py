@@ -217,16 +217,17 @@ def _build_property_changes(
         old_val = old_properties.get(prop_name)
         new_val = new_properties.get(prop_name)
 
-        # Check if values differ
-        # Use values_match for normalization
-        if old_val != new_val:
-            # Also check with normalization; if they match after normalization,
-            # they haven't really changed
-            if old_val is not None and new_val is not None:
-                if values_match(str(old_val), str(new_val), property_name=prop_name):
-                    continue  # Values match after normalization
+        # Skip if values match — use values_match which handles
+        # type normalization (string "914.4" vs float 914.4),
+        # case-insensitive comparison, and dimension tolerance.
+        if values_match(
+            str(old_val) if old_val is not None else None,
+            str(new_val) if new_val is not None else None,
+            property_name=prop_name,
+        ):
+            continue
 
-            changes.append(PropertyChange(
+        changes.append(PropertyChange(
                 property_name=prop_name,
                 old_value=old_val,
                 new_value=new_val,
