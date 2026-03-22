@@ -10,8 +10,6 @@ Tests the POST /api/v1/compare endpoint with various scenarios:
 - Error cases
 """
 
-import uuid
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -233,7 +233,7 @@ async def seed_masterformat(
     groups = sum(1 for k in ids if len(k) == 8 and k.endswith("00"))
     leaves = total_sections - divisions - groups
 
-    print(f"Seeded MasterFormat hierarchy:")
+    print("Seeded MasterFormat hierarchy:")
     print(f"  Divisions:  {divisions}")
     print(f"  Groups:     {groups}")
     print(f"  Sections:   {leaves}")
@@ -265,7 +265,7 @@ async def main():
             session.add(spec)
             await session.flush()
 
-            ids = await seed_masterformat(session, specification_id=spec.id)
+            await seed_masterformat(session, specification_id=spec.id)
 
     await engine.dispose()
     print("\nMasterFormat seed complete.")

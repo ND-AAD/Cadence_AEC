@@ -13,15 +13,12 @@ import uuid
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.type_config import (
-    PropertyDef,
-    get_type_config,
     get_vocabulary_for_division,
     get_types_for_division,
 )
-from app.models.core import Connection, Item
+from app.models.core import Connection
 from app.services.extraction_service import (
     assemble_vocabulary,
     build_extraction_prompt,

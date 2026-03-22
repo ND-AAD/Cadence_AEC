@@ -9,11 +9,10 @@ Covers:
 """
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Connection, Item
+from app.models.core import Connection
 from app.services.property_service import (
     ensure_property_connection,
     get_or_create_property_item,

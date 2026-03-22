@@ -16,12 +16,11 @@ Covers:
 """
 
 import json
-import uuid
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.models.core import Connection, Item, Snapshot
 from app.services.import_service import _find_prior_context
@@ -205,7 +204,6 @@ async def test_change_item_has_correct_identifier(
     """
     Change item identifier format: "{source} / {affected_item} / {from}→{to}"
     """
-    from sqlalchemy import select
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
@@ -253,7 +251,7 @@ async def test_change_item_has_self_sourced_snapshot(
     """
     Change item has self-sourced snapshot: source_id = item_id (change item itself)
     """
-    from sqlalchemy import and_, select
+    from sqlalchemy import and_
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
@@ -309,7 +307,6 @@ async def test_change_item_snapshot_has_correct_properties(
     """
     Change item snapshot has: status, changes (dict), from_context, to_context, source, affected_item
     """
-    from sqlalchemy import and_, select
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
@@ -376,7 +373,7 @@ async def test_change_item_has_four_connections(
       - change → affected_item
       - change → property_item (new in WP-PROP-3)
     """
-    from sqlalchemy import and_, select
+    from sqlalchemy import and_
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
@@ -455,12 +452,11 @@ async def test_normalized_comparison_no_false_change_on_case_difference(
     Values that differ only in case should NOT trigger a change.
     Uses values_match from normalization.py
     """
-    from sqlalchemy import and_, select
 
     setup = project_setup
 
     # Create a door manually with lowercase finish
-    door = await make_item("door", "Door 001")
+    await make_item("door", "Door 001")
 
     # First import at DD (finish = "paint")
     file_bytes = make_door_schedule_excel(1)
@@ -530,7 +526,6 @@ async def test_multiple_properties_changed_single_change_item(
     If multiple properties change on the same item, create ONE change item
     with all property changes in its snapshot.
     """
-    from sqlalchemy import select
 
     setup = project_setup
 
@@ -834,7 +829,6 @@ async def test_change_items_only_from_prior_source(
     Change detection only compares against prior snapshots from the SAME source.
     If another source has snapshots, they are ignored.
     """
-    from sqlalchemy import and_, select
 
     setup = project_setup
 

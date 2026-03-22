@@ -19,17 +19,14 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from unittest.mock import AsyncMock, patch
 
 from app.models.core import Connection, Item
 from app.services.classification_service import (
-    ClassificationResult,
     _build_classification_prompt,
     _parse_classification_response,
     _filter_unclassified,
     _load_divisions,
     classify_elements,
-    BATCH_SIZE,
 )
 from scripts.seed_masterformat import seed_masterformat
 
@@ -328,7 +325,7 @@ async def test_classify_skips_already_classified(
     db_session, spec_with_divisions, doors_for_classification, make_connection
 ):
     """Already-classified items are not re-classified."""
-    div_08_id = spec_with_divisions["ids"]["08"]
+    spec_with_divisions["ids"]["08"]
     divisions = await _load_divisions(db_session)
     div_08 = divisions["08"]
 

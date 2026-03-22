@@ -1,7 +1,6 @@
 """Pydantic schemas for the Import Pipeline — WP-6."""
 
 import uuid
-from datetime import datetime
 
 from pydantic import BaseModel, Field
 

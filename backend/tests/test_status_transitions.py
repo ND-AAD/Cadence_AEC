@@ -16,7 +16,7 @@ import pytest_asyncio
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Item, Snapshot
+from app.models.core import Snapshot
 
 
 # ─── Fixtures ─────────────────────────────────────────────────

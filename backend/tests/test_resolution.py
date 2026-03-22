@@ -12,15 +12,14 @@ Covers:
   - Full workflow integration
 """
 
-import json
 import uuid
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Connection, Item, Snapshot
+from app.models.core import Snapshot
 
 
 # ─── Fixtures ─────────────────────────────────────────────────
@@ -399,7 +398,7 @@ async def test_fulfill_directive_manual(client, conflict_scenario):
     assert resolve_resp.status_code == 200
 
     # Get directives
-    dir_resp = await client.get(f"/api/v1/directives?status=pending")
+    dir_resp = await client.get("/api/v1/directives?status=pending")
     assert dir_resp.status_code == 200
     directives = dir_resp.json()["directives"]
     assert len(directives) >= 1
@@ -413,7 +412,7 @@ async def test_fulfill_directive_manual(client, conflict_scenario):
     assert fulfill_resp.json()["status"] == "fulfilled"
 
     # Verify it's now fulfilled
-    dir_resp2 = await client.get(f"/api/v1/directives?status=pending")
+    dir_resp2 = await client.get("/api/v1/directives?status=pending")
     pending_after = [d for d in dir_resp2.json()["directives"]]
     assert len(pending_after) == 0
 

@@ -10,18 +10,14 @@ Covers:
 """
 
 import json
-import uuid
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.type_config import (
     get_type_config,
     get_vocabulary_for_division,
     get_types_for_division,
 )
-from app.models.core import Item
 from app.services.extraction_service import (
     assemble_vocabulary,
     attribute_nouns_to_elements,
@@ -601,8 +597,8 @@ class TestAttributeNounsToElements:
     @pytest.mark.asyncio
     async def test_matched_type_with_elements(self, db_session, make_item):
         """Nouns matching a type with existing items → 'matched'."""
-        door1 = await make_item("door", "D-101", {"material": "hollow metal"})
-        door2 = await make_item("door", "D-102", {"material": "wood"})
+        await make_item("door", "D-101", {"material": "hollow metal"})
+        await make_item("door", "D-102", {"material": "wood"})
 
         nouns = [
             NounExtraction(

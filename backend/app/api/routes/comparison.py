@@ -12,8 +12,8 @@ which snapshots are effective at each context.
 import uuid
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, select
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -522,7 +522,7 @@ async def compare_snapshots(
     # Perform comparison
     if payload.source_filter:
         # Validate source exists
-        source = await _get_item_or_404(db, payload.source_filter, "Source")
+        await _get_item_or_404(db, payload.source_filter, "Source")
         comparisons, summary = await _categorize_items_with_source_filter(
             db,
             item_ids,

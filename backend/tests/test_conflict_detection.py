@@ -12,19 +12,15 @@ Covers:
 """
 
 import json
-import uuid
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import and_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.core import Connection, Item, Snapshot
 from tests.fixtures.excel_factory import (
     STANDARD_DOOR_MAPPING,
-    make_door_schedule_excel,
-    make_updated_door_schedule_excel,
 )
 
 

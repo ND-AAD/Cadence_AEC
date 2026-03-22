@@ -22,10 +22,9 @@ import uuid
 from typing import Any
 
 import openpyxl
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.type_config import get_conflict_excluded_types, get_type_config
 from app.models.core import Connection, Item, Snapshot
 from app.core.config import settings
 from app.schemas.imports import (
@@ -36,14 +35,12 @@ from app.schemas.imports import (
     ImportMappingConfig,
     ImportResult,
     ImportSummary,
-    MatchCandidate,
     UnmatchedRow,
 )
 from app.services.normalization import (
     normalize_case,
     normalize_dimension_to_inches,
     normalize_dimension_to_mm,
-    normalize_identifier,
     normalize_numeric,
     normalize_whitespace,
     values_match,
@@ -411,7 +408,7 @@ async def run_import(
     row_to_item: dict[str, Item] = {}
     for row in parsed_rows:
         raw_id = row["_identifier"]
-        row_num = row["_row_number"]
+        row["_row_number"]
 
         # Extract properties (everything except _identifier and _row_number)
         props = {k: v for k, v in row.items() if not k.startswith("_")}

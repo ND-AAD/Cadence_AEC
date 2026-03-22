@@ -13,20 +13,16 @@ Covers:
   - API routes: POST /propagate, GET /assignments, POST /assign
 """
 
-import json
 import uuid
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import and_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.core import Connection, Item, Snapshot
 from app.services.propagation_service import (
-    PropagationResult,
     propagate_extractions,
-    get_pending_assignments,
     assign_conditional_values,
 )
 

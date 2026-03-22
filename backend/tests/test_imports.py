@@ -25,7 +25,6 @@ from tests.fixtures.excel_factory import (
     STANDARD_DOOR_MAPPING,
     make_door_schedule_csv,
     make_door_schedule_excel,
-    make_updated_door_schedule_excel,
 )
 
 
@@ -400,7 +399,7 @@ async def test_normalized_matching(client: AsyncClient, project_setup, make_item
     setup = project_setup
 
     # Pre-create a door with different casing
-    existing_door = await make_item("door", "door 001", {"mark": "001"})
+    await make_item("door", "door 001", {"mark": "001"})
 
     # Import with "Door 001" in the file — should normalize-match "door 001"
     file_bytes = make_door_schedule_excel(1)  # "Door 001"

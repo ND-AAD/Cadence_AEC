@@ -45,7 +45,7 @@ async def test_seed_creates_one_project(db_session):
 @pytest.mark.asyncio
 async def test_seed_creates_one_building(db_session):
     """Seed creates exactly one building connected to project."""
-    ids = await seed_project(db_session)
+    await seed_project(db_session)
 
     result = await db_session.execute(select(Item).where(Item.item_type == "building"))
     buildings = result.scalars().all()
@@ -202,7 +202,7 @@ async def test_seed_creates_two_phases(db_session):
 @pytest.mark.asyncio
 async def test_seed_creates_two_milestones_with_correct_ordinals(db_session):
     """Seed creates SD (200) and DD (300) milestones with correct ordinals."""
-    ids = await seed_project(db_session)
+    await seed_project(db_session)
 
     # Get milestones
     result = await db_session.execute(select(Item).where(Item.item_type == "milestone"))
@@ -297,9 +297,7 @@ async def test_schedule_connected_to_all_doors(db_session):
     schedule_id = ids["schedule"]
 
     # Count connections from schedule to doors
-    door_ids_subquery = (
-        select(Item.id).where(Item.item_type == "door").scalar_subquery()
-    )
+    (select(Item.id).where(Item.item_type == "door").scalar_subquery())
 
     result = await db_session.execute(
         select(func.count(Connection.id))

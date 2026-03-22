@@ -235,7 +235,7 @@ def _parse_classification_response(
     if text.startswith("```"):
         # Remove ```json and ``` markers
         lines = text.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         text = "\n".join(lines).strip()
 
     try:

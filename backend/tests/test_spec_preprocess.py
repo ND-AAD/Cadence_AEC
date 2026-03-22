@@ -13,14 +13,12 @@ Covers:
   - Edge cases (empty PDF, no sections, compressed numbers)
 """
 
-import json
 import uuid
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.models.core import Connection, Item
 from app.services.spec_preprocess_service import (
@@ -34,23 +32,17 @@ from app.services.spec_preprocess_service import (
     preprocess_specification_pdf,
     confirm_sections,
     _extract_title_from_context,
-    _is_false_positive,
     _strip_headers_footers,
 )
 from app.schemas.spec_preprocess import (
     PageContent,
     RawSectionMatch,
-    PartBoundaries,
-    IdentifiedSection,
     IdentifiedDocument,
     SectionConfirmation,
 )
 from tests.fixtures.pdf_factory import (
-    generate_spec_pdf,
     generate_single_section_pdf,
     generate_multi_section_spec_pdf,
-    generate_compressed_number_pdf,
-    generate_no_parts_pdf,
     generate_empty_pdf,
 )
 
@@ -417,7 +409,7 @@ class TestMasterFormatMatching:
     @pytest.mark.asyncio
     async def test_group_level_fallback(self, db_session, spec_with_masterformat):
         """Unknown section falls back to group match (XX XX 00)."""
-        raw_matches = [
+        [
             RawSectionMatch(
                 section_number="08 11 13",  # Not seeded, but group 08 11 00 exists
                 raw_match="SECTION 08 11 13",
@@ -545,7 +537,6 @@ class TestConfirmSections:
         self, db_session, spec_with_masterformat
     ):
         """Confirmation creates a specification item and connections."""
-        setup = spec_with_masterformat
 
         # First, preprocess a PDF
         pdf_bytes = generate_single_section_pdf("08 14 00", "WOOD DOORS")
@@ -590,7 +581,6 @@ class TestConfirmSections:
         self, db_session, spec_with_masterformat
     ):
         """Confirmation stores Part 2 text in connection properties (WP-17 bridge)."""
-        setup = spec_with_masterformat
 
         pdf_bytes = generate_single_section_pdf("08 14 00", "WOOD DOORS")
         batch, doc = await preprocess_specification_pdf(

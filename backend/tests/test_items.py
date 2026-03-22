@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-import pytest_asyncio
 
 
 # ─── Create ────────────────────────────────────────────────────

@@ -23,7 +23,6 @@ import asyncio
 import random
 import uuid
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 # Ensure models are imported so Base.metadata is populated
@@ -314,9 +313,9 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     mf_ids = await seed_masterformat(db, specification_id=spec.id)
     ids.update(mf_ids)
 
-    print(f"Seeded Project Alpha:")
+    print("Seeded Project Alpha:")
     print(f"  Project:     {ids['project']}")
-    print(f"  Building:    1")
+    print("  Building:    1")
     print(f"  Floors:      {len(floors)}")
     print(f"  Rooms:       {len(rooms)}")
     print(f"  Doors:       {len(doors)}")
@@ -344,7 +343,7 @@ async def main():
 
     async with session_factory() as session:
         async with session.begin():
-            ids = await seed_project(session)
+            await seed_project(session)
 
     await engine.dispose()
     print("\nSeed complete.")

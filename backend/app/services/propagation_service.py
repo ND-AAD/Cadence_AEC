@@ -20,7 +20,7 @@ Pipeline:
 """
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -15,9 +15,8 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Connection, Item
+from app.models.core import Item
 from app.services.extraction_service import run_extraction
 from app.services.extraction_confirm_service import confirm_extractions
 from app.schemas.extraction import (
@@ -186,7 +185,6 @@ class TestTriggerExtractionAPI:
     async def test_trigger_extraction_success(
         self, client: AsyncClient, extraction_setup
     ):
-        data = extraction_setup
         # Note: the mock LLM isn't wired through the API endpoint directly;
         # we'd need to mock at a deeper level. Instead, test service directly
         # and use the API for error-path testing.

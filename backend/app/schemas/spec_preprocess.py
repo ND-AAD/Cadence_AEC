@@ -7,7 +7,6 @@ Defines request/response models for the spec preprocessing pipeline:
 """
 
 import uuid
-from typing import Optional
 
 from pydantic import BaseModel, Field
 

@@ -2,17 +2,14 @@
 
 from decimal import Decimal
 
-import pytest
 
 from app.services.normalization import (
     normalize_identifier,
     normalize_dimension_to_inches,
     normalize_dimension_to_mm,
-    normalize_numeric,
     detect_dimension_system,
     build_snapshot_properties,
     values_match,
-    DEFAULT_TOLERANCE_MM,
 )
 
 

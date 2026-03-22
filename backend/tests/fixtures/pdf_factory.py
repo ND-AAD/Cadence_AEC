@@ -8,7 +8,6 @@ Uses reportlab for PDF creation — lightweight and deterministic.
 """
 
 import io
-from typing import Any
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch

@@ -7,7 +7,6 @@ Endpoints:
   GET  /api/v1/spec/preprocess/{batch_id}     — Get batch status
 """
 
-import json
 import logging
 import uuid
 

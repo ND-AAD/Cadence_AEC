@@ -20,12 +20,12 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.type_config import get_type_config
-from app.models.core import Connection, Item, Snapshot
+from app.models.core import Connection, Item
 from app.schemas.imports import (
     ColumnProposalResponse,
     ConfirmMatchRequest,

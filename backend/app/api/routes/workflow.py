@@ -24,7 +24,6 @@ from app.models.core import Item
 from app.schemas.items import ItemResponse
 from app.schemas.resolution import (
     ActionItemRollup,
-    BulkResolveEntry,
     BulkResolveRequest,
     BulkResolveResponse,
     BulkResolveResult,

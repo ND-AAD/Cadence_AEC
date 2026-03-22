@@ -8,9 +8,7 @@ handles property items without code changes.
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Item
 from app.services.property_service import (
     ensure_property_connection,
     get_or_create_property_item,

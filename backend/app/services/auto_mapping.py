@@ -25,14 +25,11 @@ import openpyxl
 from app.core.column_aliases import (
     HEADER_KEYWORDS,
     IDENTIFIER_ALIASES,
-    IGNORED_PATTERNS,
     clean_column_name,
     get_aliases_for_type,
-    get_all_aliases,
     is_ignored_column,
 )
 from app.core.type_config import (
-    ITEM_TYPES,
     build_label_map,
     get_dimension_properties,
     get_importable_types,
@@ -261,7 +258,7 @@ def detect_target_type(
         domain_aliases = get_aliases_for_type(tc.name)
 
         matches = 0
-        total_props = len(tc.properties)
+        len(tc.properties)
 
         for cleaned, lower in zip(cleaned_headers, lower_headers):
             if is_ignored_column(cleaned):
@@ -608,7 +605,7 @@ def propose_mapping(
     normalizations: dict[str, str] = {}
 
     # Get dimension properties for normalization assignment
-    dim_props = get_dimension_properties(target_type) if target_type else set()
+    get_dimension_properties(target_type) if target_type else set()
     tc = get_type_config(target_type)
 
     for cp in column_proposals:

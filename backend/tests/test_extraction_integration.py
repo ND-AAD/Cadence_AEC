@@ -16,7 +16,6 @@ Validates:
 """
 
 import json
-import uuid
 
 import pytest
 import pytest_asyncio
@@ -367,7 +366,7 @@ class TestExtractionPipelineE2E:
         assert prop_item.properties["parent_type"] == "door"
 
         # ── Step 6: Verify cross-reference data preserved ─────────
-        cross_refs = section_data.get("cross_references", [])
+        section_data.get("cross_references", [])
         # Cross-references are stored in extraction_results from LLM
         stored_results = props["extraction_results"]["sections"]["08 11 00"]
         # These are in the original section data, not in confirmed_extractions
@@ -435,7 +434,7 @@ class TestExtractionPipelineE2E:
         data = wp16_output
 
         # Pre-create the property item (as if from a prior extraction)
-        existing_prop = await make_item(
+        await make_item(
             "property",
             "door/stc_rating",
             {

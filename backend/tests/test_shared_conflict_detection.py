@@ -11,11 +11,8 @@ Covers:
 import uuid
 
 import pytest
-import pytest_asyncio
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Connection, Item, Snapshot
+from app.models.core import Snapshot
 from app.services.conflict_detection import (
     get_or_create_conflict,
     get_effective_snapshots,

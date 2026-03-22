@@ -9,8 +9,6 @@ They represent the concept itself, enabling navigation, rollup, and
 MasterFormat governance connections.
 """
 
-import uuid
-
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

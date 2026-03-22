@@ -10,14 +10,11 @@ Covers:
   - Empty project / no data edge cases
 """
 
-import uuid
-
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.core import Connection, Item, Snapshot
+from app.models.core import Snapshot
 from app.services.property_service import (
     ensure_property_connection,
     get_or_create_property_item,
@@ -582,7 +579,7 @@ async def test_health_multiple_conflicts(
     await make_connection(c2, dd)
 
     # Resolved conflict (should NOT count as unresolved)
-    c3 = await make_item(
+    await make_item(
         "conflict",
         "301/material",
         {
@@ -603,7 +600,7 @@ async def test_health_multiple_conflicts(
 @pytest.mark.asyncio
 async def test_health_mixed_statuses(client, db_session, make_item, make_connection):
     """Health endpoint correctly handles mixed action item statuses."""
-    door = await make_item("door", "401", {"mark": "401"})
+    await make_item("door", "401", {"mark": "401"})
 
     # Detected change (counts as unresolved)
     await make_item("change", "c1", {"property_name": "width", "status": "detected"})
@@ -677,10 +674,10 @@ async def test_directive_status_multiple_per_source(
 async def test_temporal_trend_ordering(client, db_session, make_item, make_connection):
     """Milestones come back ordered by ordinal regardless of creation order."""
     # Create milestones out of order
-    cd = await make_item("milestone", "CD", {"name": "CD", "ordinal": 400})
-    sd = await make_item("milestone", "SD", {"name": "SD", "ordinal": 200})
-    dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 300})
-    sc = await make_item("milestone", "SC", {"name": "SC", "ordinal": 100})
+    await make_item("milestone", "CD", {"name": "CD", "ordinal": 400})
+    await make_item("milestone", "SD", {"name": "SD", "ordinal": 200})
+    await make_item("milestone", "DD", {"name": "DD", "ordinal": 300})
+    await make_item("milestone", "SC", {"name": "SC", "ordinal": 100})
 
     response = await client.get("/api/v1/dashboard/temporal-trend")
     data = response.json()

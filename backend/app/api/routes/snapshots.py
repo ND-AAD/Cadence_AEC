@@ -197,7 +197,7 @@ async def get_effective_value(
     Per Decision 3: ordering uses milestone ordinal via JOIN to the
     context item's properties.
     """
-    item = await _get_item_or_404(db, item_id, "Item")
+    await _get_item_or_404(db, item_id, "Item")
     source_item = await _get_item_or_404(db, source, "Source")
 
     # Get all snapshots from this source for this item

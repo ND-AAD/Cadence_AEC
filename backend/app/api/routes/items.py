@@ -4,7 +4,7 @@ import uuid
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -349,7 +349,7 @@ async def get_connected_items(
             .where(Item.item_type.in_(["change", "conflict"]))
         )
         action_result = await db.execute(action_counts_query)
-        action_count = action_result.scalar() or 0
+        action_result.scalar() or 0
 
         # Count both changes and conflicts separately for the action_counts dict
         changes_query = (

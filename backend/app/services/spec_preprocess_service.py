@@ -16,13 +16,10 @@ Only MasterFormat matching requires a database session.
 """
 
 import io
-import json
 import logging
 import re
 import uuid
 from collections import Counter
-from dataclasses import dataclass
-from typing import NamedTuple
 
 import pdfplumber
 from sqlalchemy import and_, select

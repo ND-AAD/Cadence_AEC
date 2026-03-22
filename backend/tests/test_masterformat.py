@@ -12,7 +12,7 @@ Covers:
 """
 
 import pytest
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 
 from app.models.core import Connection, Item
 from app.core.type_config import get_type_config, ITEM_TYPES
@@ -389,7 +389,7 @@ async def test_navigate_spec_to_divisions(
 ):
     """GET /items/:spec_id/connected returns divisions as connected items."""
     spec = await make_item("specification", "Nav Spec", {"name": "Nav Spec"})
-    ids = await seed_masterformat(db_session, specification_id=spec.id)
+    await seed_masterformat(db_session, specification_id=spec.id)
 
     response = await client.get(f"/api/v1/items/{spec.id}/connected?types=spec_section")
     assert response.status_code == 200

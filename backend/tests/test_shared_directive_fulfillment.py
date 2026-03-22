@@ -11,9 +11,7 @@ Covers:
 import uuid
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.core import Item, Snapshot
 from app.services.directive_fulfillment import (
