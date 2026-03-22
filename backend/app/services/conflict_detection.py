@@ -29,6 +29,7 @@ from app.services.property_service import get_or_create_property_item
 @dataclass
 class ConflictResult:
     """Result of conflict detection for a single property disagreement."""
+
     conflict_item: Item
     is_new: bool
     affected_item_id: uuid.UUID
@@ -41,6 +42,7 @@ class ConflictResult:
 @dataclass
 class AutoResolutionResult:
     """Result of an auto-resolution when sources agree on a prior conflict."""
+
     conflict_item: Item
     property_name: str
 
@@ -48,6 +50,7 @@ class AutoResolutionResult:
 @dataclass
 class DetectionSummary:
     """Aggregate results from a batch detection run."""
+
     new_conflicts: int = 0
     resolved_conflicts: int = 0
     conflicts: list[ConflictResult] = field(default_factory=list)
@@ -130,9 +133,7 @@ async def get_effective_snapshots(
         Dict mapping source_id → most recent Snapshot at or before context_ordinal
     """
     # Get all snapshots for this item
-    result = await db.execute(
-        select(Snapshot).where(Snapshot.item_id == item_id)
-    )
+    result = await db.execute(select(Snapshot).where(Snapshot.item_id == item_id))
     all_snaps = result.scalars().all()
 
     # Load source items to filter workflow types
@@ -205,11 +206,13 @@ async def _ensure_connection_exists(
         )
     )
     if not result.scalar_one_or_none():
-        db.add(Connection(
-            source_item_id=source_item_id,
-            target_item_id=target_item_id,
-            properties=properties or {},
-        ))
+        db.add(
+            Connection(
+                source_item_id=source_item_id,
+                target_item_id=target_item_id,
+                properties=properties or {},
+            )
+        )
         await db.flush()
 
 
@@ -257,18 +260,20 @@ async def detect_conflicts_for_item(
     other_sources = {s.id: s for s in other_sources_result.scalars().all()}
 
     # Also load current source for identifier
-    current_source_result = await db.execute(
-        select(Item).where(Item.id == source_id)
-    )
+    current_source_result = await db.execute(select(Item).where(Item.id == source_id))
     current_source = current_source_result.scalar_one_or_none()
-    current_source_identifier = current_source.identifier if current_source else str(source_id)
+    current_source_identifier = (
+        current_source.identifier if current_source else str(source_id)
+    )
 
     conflicts: list[ConflictResult] = []
     auto_resolutions: list[AutoResolutionResult] = []
 
     for other_source_id, other_snap in other_effective.items():
         other_source = other_sources.get(other_source_id)
-        other_source_identifier = other_source.identifier if other_source else str(other_source_id)
+        other_source_identifier = (
+            other_source.identifier if other_source else str(other_source_id)
+        )
 
         for prop_name, new_value in snapshot_properties.items():
             other_value = other_snap.properties.get(prop_name)
@@ -276,7 +281,9 @@ async def detect_conflicts_for_item(
             if other_value is None:
                 continue  # Other source doesn't address this property
 
-            if not values_match(str(new_value), str(other_value), property_name=prop_name):
+            if not values_match(
+                str(new_value), str(other_value), property_name=prop_name
+            ):
                 # Disagreement — create or get conflict item
                 conflict_item, is_new = await get_or_create_conflict(
                     db, item, prop_name, source_id, other_source_id
@@ -306,12 +313,14 @@ async def detect_conflicts_for_item(
                     existing_cs.properties = conflict_snap_props
                     await db.flush()
                 else:
-                    db.add(Snapshot(
-                        item_id=conflict_item.id,
-                        context_id=context.id,
-                        source_id=conflict_item.id,
-                        properties=conflict_snap_props,
-                    ))
+                    db.add(
+                        Snapshot(
+                            item_id=conflict_item.id,
+                            context_id=context.id,
+                            source_id=conflict_item.id,
+                            properties=conflict_snap_props,
+                        )
+                    )
                     await db.flush()
 
                 # Ensure connections: conflict → affected_item, both sources, milestone
@@ -324,18 +333,20 @@ async def detect_conflicts_for_item(
                 )
                 await _ensure_connection_exists(db, conflict_item.id, prop_item.id)
 
-                conflicts.append(ConflictResult(
-                    conflict_item=conflict_item,
-                    is_new=is_new,
-                    affected_item_id=item.id,
-                    affected_item_identifier=item.identifier,
-                    property_name=prop_name,
-                    values={
-                        str(current_source_identifier): str(new_value),
-                        str(other_source_identifier): str(other_value),
-                    },
-                    context_id=context.id,
-                ))
+                conflicts.append(
+                    ConflictResult(
+                        conflict_item=conflict_item,
+                        is_new=is_new,
+                        affected_item_id=item.id,
+                        affected_item_identifier=item.identifier,
+                        property_name=prop_name,
+                        values={
+                            str(current_source_identifier): str(new_value),
+                            str(other_source_identifier): str(other_value),
+                        },
+                        context_id=context.id,
+                    )
+                )
 
             else:
                 # Agreement — check if this resolves an existing conflict
@@ -372,12 +383,14 @@ async def detect_conflicts_for_item(
                         if existing_res:
                             existing_res.properties = resolution_props
                         else:
-                            db.add(Snapshot(
-                                item_id=existing_conflict.id,
-                                context_id=context.id,
-                                source_id=existing_conflict.id,
-                                properties=resolution_props,
-                            ))
+                            db.add(
+                                Snapshot(
+                                    item_id=existing_conflict.id,
+                                    context_id=context.id,
+                                    source_id=existing_conflict.id,
+                                    properties=resolution_props,
+                                )
+                            )
                         # Update conflict status
                         existing_conflict.properties = {
                             **existing_conflict.properties,
@@ -385,10 +398,12 @@ async def detect_conflicts_for_item(
                         }
                         await db.flush()
 
-                        auto_resolutions.append(AutoResolutionResult(
-                            conflict_item=existing_conflict,
-                            property_name=prop_name,
-                        ))
+                        auto_resolutions.append(
+                            AutoResolutionResult(
+                                conflict_item=existing_conflict,
+                                property_name=prop_name,
+                            )
+                        )
 
     return conflicts, auto_resolutions
 

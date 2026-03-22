@@ -26,6 +26,7 @@ router = APIRouter()
 
 # ─── CRUD ──────────────────────────────────────────────────────
 
+
 @router.post("/", response_model=ItemResponse, status_code=201)
 async def create_item(
     payload: ItemCreate,
@@ -36,7 +37,7 @@ async def create_item(
         raise HTTPException(
             status_code=400,
             detail=f"Unknown item type: {payload.item_type}. "
-                   f"Valid types: {list(ITEM_TYPES.keys())}",
+            f"Valid types: {list(ITEM_TYPES.keys())}",
         )
 
     item = Item(
@@ -85,7 +86,9 @@ async def list_types():
 async def list_items(
     item_type: str | None = Query(None, description="Filter by item type"),
     search: str | None = Query(None, description="Search by identifier (trigram)"),
-    project: uuid.UUID | None = Query(None, description="Filter by project (connected ancestor)"),
+    project: uuid.UUID | None = Query(
+        None, description="Filter by project (connected ancestor)"
+    ),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -107,11 +110,13 @@ async def list_items(
     if search:
         normalized = normalize_identifier(search)
         # Use trigram similarity — index idx_items_identifier_trgm handles this
-        similarity_filter = func.similarity(
-            func.lower(Item.identifier), normalized
-        ) > 0.1
+        similarity_filter = (
+            func.similarity(func.lower(Item.identifier), normalized) > 0.1
+        )
         query = query.where(Item.identifier.isnot(None)).where(similarity_filter)
-        count_query = count_query.where(Item.identifier.isnot(None)).where(similarity_filter)
+        count_query = count_query.where(Item.identifier.isnot(None)).where(
+            similarity_filter
+        )
         # Order by similarity descending for search results
         query = query.order_by(
             func.similarity(func.lower(Item.identifier), normalized).desc()
@@ -121,9 +126,11 @@ async def list_items(
 
     # Project filter: items connected (directly) to a project item
     if project:
-        project_connected = select(Connection.target_item_id).where(
-            Connection.source_item_id == project
-        ).scalar_subquery()
+        project_connected = (
+            select(Connection.target_item_id)
+            .where(Connection.source_item_id == project)
+            .scalar_subquery()
+        )
         query = query.where(
             or_(
                 Item.id == project,
@@ -211,12 +218,17 @@ async def delete_item(
 
 # ─── Connected Items ───────────────────────────────────────────
 
+
 @router.get("/{item_id}/connected", response_model=ConnectedItemsResponse)
 async def get_connected_items(
     item_id: uuid.UUID,
-    direction: str = Query("both", description="Filter direction: outgoing, incoming, both"),
+    direction: str = Query(
+        "both", description="Filter direction: outgoing, incoming, both"
+    ),
     types: str | None = Query(None, description="Comma-separated type filter"),
-    exclude: str | None = Query(None, description="Comma-separated UUIDs to exclude (breadcrumb ancestors)"),
+    exclude: str | None = Query(
+        None, description="Comma-separated UUIDs to exclude (breadcrumb ancestors)"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -287,13 +299,11 @@ async def get_connected_items(
     type_cfg = get_type_config(item.item_type)
     if type_cfg and type_cfg.is_context_type:
         # Items described at this context (doors, rooms, etc.)
-        snapshot_items_q = (
-            select(Item).where(
-                Item.id.in_(
-                    select(Snapshot.item_id)
-                    .where(Snapshot.context_id == item_id)
-                    .distinct()
-                )
+        snapshot_items_q = select(Item).where(
+            Item.id.in_(
+                select(Snapshot.item_id)
+                .where(Snapshot.context_id == item_id)
+                .distinct()
             )
         )
         if exclude_ids:
@@ -304,19 +314,19 @@ async def get_connected_items(
         connected_items.extend(result.scalars().all())
 
         # Sources that submitted at this context
-        snapshot_sources_q = (
-            select(Item).where(
-                Item.id.in_(
-                    select(Snapshot.source_id)
-                    .where(Snapshot.context_id == item_id)
-                    .distinct()
-                )
+        snapshot_sources_q = select(Item).where(
+            Item.id.in_(
+                select(Snapshot.source_id)
+                .where(Snapshot.context_id == item_id)
+                .distinct()
             )
         )
         if exclude_ids:
             snapshot_sources_q = snapshot_sources_q.where(Item.id.notin_(exclude_ids))
         if type_filter:
-            snapshot_sources_q = snapshot_sources_q.where(Item.item_type.in_(type_filter))
+            snapshot_sources_q = snapshot_sources_q.where(
+                Item.item_type.in_(type_filter)
+            )
         result = await db.execute(snapshot_sources_q)
         connected_items.extend(result.scalars().all())
 
@@ -384,7 +394,12 @@ async def get_connected_items(
         type_cfg = get_type_config(type_name)
         if type_name in ("milestone", "issuance", "context"):
             # Temporal types: sort by ordinal, fall back to identifier
-            items_list.sort(key=lambda x: (ordinal_lookup.get(x.id, 999999), (x.identifier or "").lower()))
+            items_list.sort(
+                key=lambda x: (
+                    ordinal_lookup.get(x.id, 999999),
+                    (x.identifier or "").lower(),
+                )
+            )
         else:
             items_list.sort(key=lambda x: (x.identifier or "").lower())
         groups.append(

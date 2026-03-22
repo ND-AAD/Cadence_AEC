@@ -68,60 +68,62 @@ PART 1 - GENERAL
     A. Product Data.
 """
 
-MOCK_LLM_RESPONSE = json.dumps({
-    "section_number": "08 11 00",
-    "extractions": [
-        {
-            "property": "material",
-            "element_type": "door",
-            "assertion_type": "flat",
-            "value": "hollow metal, cold-rolled steel",
-            "confidence": 0.95,
-            "source_text": "Material: Hollow metal, cold-rolled steel.",
-        },
-        {
-            "property": "finish",
-            "element_type": "door",
-            "assertion_type": "flat",
-            "value": "factory applied rust-inhibitive primer",
-            "confidence": 0.90,
-            "source_text": "Finish: Factory applied rust-inhibitive primer.",
-        },
-        {
-            "property": "fire_rating",
-            "element_type": "door",
-            "assertion_type": "conditional",
-            "assertions": [
-                {
-                    "value": "B-Label",
-                    "condition": "doors in 1-hour rated partitions",
-                    "source_text": "Doors in 1-hour rated partitions: UL listed, B-Label minimum.",
-                },
-                {
-                    "value": "A-Label",
-                    "condition": "doors in 2-hour rated partitions",
-                    "source_text": "Doors in 2-hour rated partitions: UL listed, A-Label.",
-                },
-            ],
-            "confidence": 0.90,
-        },
-    ],
-    "unrecognized": [
-        {
-            "term": "STC rating",
-            "value": "45",
-            "context": "door acoustic requirements",
-            "source_text": "Doors shall have a minimum STC rating of 45.",
-        },
-    ],
-    "cross_references": [
-        {
-            "section_number": "08 71 00",
-            "relationship": "hardware requirements",
-            "source_text": "Hardware: Per Section 08 71 00.",
-        },
-    ],
-})
+MOCK_LLM_RESPONSE = json.dumps(
+    {
+        "section_number": "08 11 00",
+        "extractions": [
+            {
+                "property": "material",
+                "element_type": "door",
+                "assertion_type": "flat",
+                "value": "hollow metal, cold-rolled steel",
+                "confidence": 0.95,
+                "source_text": "Material: Hollow metal, cold-rolled steel.",
+            },
+            {
+                "property": "finish",
+                "element_type": "door",
+                "assertion_type": "flat",
+                "value": "factory applied rust-inhibitive primer",
+                "confidence": 0.90,
+                "source_text": "Finish: Factory applied rust-inhibitive primer.",
+            },
+            {
+                "property": "fire_rating",
+                "element_type": "door",
+                "assertion_type": "conditional",
+                "assertions": [
+                    {
+                        "value": "B-Label",
+                        "condition": "doors in 1-hour rated partitions",
+                        "source_text": "Doors in 1-hour rated partitions: UL listed, B-Label minimum.",
+                    },
+                    {
+                        "value": "A-Label",
+                        "condition": "doors in 2-hour rated partitions",
+                        "source_text": "Doors in 2-hour rated partitions: UL listed, A-Label.",
+                    },
+                ],
+                "confidence": 0.90,
+            },
+        ],
+        "unrecognized": [
+            {
+                "term": "STC rating",
+                "value": "45",
+                "context": "door acoustic requirements",
+                "source_text": "Doors shall have a minimum STC rating of 45.",
+            },
+        ],
+        "cross_references": [
+            {
+                "section_number": "08 71 00",
+                "relationship": "hardware requirements",
+                "source_text": "Hardware: Per Section 08 71 00.",
+            },
+        ],
+    }
+)
 
 
 _mock_llm_caller_multi_pass = make_multi_pass_mock(MOCK_LLM_RESPONSE)
@@ -139,43 +141,67 @@ async def wp16_output(db_session, make_item, make_connection):
       - confirmed preprocess_batch
       - connection: specification → spec_section (with Part 1/2 text)
     """
-    spec = await make_item("specification", "08 11 00 – Hollow Metal Doors", {
-        "name": "Division 08 — Openings",
-    })
-    milestone = await make_item("milestone", "50CD", {
-        "name": "50% Construction Documents",
-        "ordinal": 500,
-    })
-    section = await make_item("spec_section", "08 11 00", {
-        "title": "Hollow Metal Doors and Frames",
-        "division": "08",
-        "level": 2,
-    })
+    spec = await make_item(
+        "specification",
+        "08 11 00 – Hollow Metal Doors",
+        {
+            "name": "Division 08 — Openings",
+        },
+    )
+    milestone = await make_item(
+        "milestone",
+        "50CD",
+        {
+            "name": "50% Construction Documents",
+            "ordinal": 500,
+        },
+    )
+    section = await make_item(
+        "spec_section",
+        "08 11 00",
+        {
+            "title": "Hollow Metal Doors and Frames",
+            "division": "08",
+            "level": 2,
+        },
+    )
     # Also create a referenced section (08 71 00) for navigability test
-    hardware_section = await make_item("spec_section", "08 71 00", {
-        "title": "Door Hardware",
-        "division": "08",
-        "level": 2,
-    })
+    hardware_section = await make_item(
+        "spec_section",
+        "08 71 00",
+        {
+            "title": "Door Hardware",
+            "division": "08",
+            "level": 2,
+        },
+    )
 
-    pp_batch = await make_item("preprocess_batch", "Preprocess-08_doors.pdf", {
-        "original_filename": "08_doors.pdf",
-        "status": "confirmed",
-        "page_count": 12,
-        "sections_identified": 1,
-        "sections_matched": 1,
-        "specification_item_id": str(spec.id),
-    })
+    pp_batch = await make_item(
+        "preprocess_batch",
+        "Preprocess-08_doors.pdf",
+        {
+            "original_filename": "08_doors.pdf",
+            "status": "confirmed",
+            "page_count": 12,
+            "sections_identified": 1,
+            "sections_matched": 1,
+            "specification_item_id": str(spec.id),
+        },
+    )
 
     # WP-16 stores Part 1/2 text on specification → spec_section connection
-    await make_connection(spec, section, {
-        "confirmed_by": "user",
-        "section_number": "08 11 00",
-        "part2_text": SAMPLE_PART2_METAL_DOORS,
-        "part1_text": SAMPLE_PART1_WITH_RELATED,
-        "match_confidence": 1.0,
-        "detected_title": "Hollow Metal Doors and Frames",
-    })
+    await make_connection(
+        spec,
+        section,
+        {
+            "confirmed_by": "user",
+            "section_number": "08 11 00",
+            "part2_text": SAMPLE_PART2_METAL_DOORS,
+            "part1_text": SAMPLE_PART1_WITH_RELATED,
+            "match_confidence": 1.0,
+            "detected_title": "Hollow Metal Doors and Frames",
+        },
+    )
 
     return {
         "spec": spec,
@@ -244,7 +270,9 @@ class TestExtractionPipelineE2E:
         connections = list(conn_result.scalars().all())
         target_ids = {c.target_item_id for c in connections}
 
-        assert data["pp_batch"].id in target_ids, "Missing connection to preprocess_batch"
+        assert data["pp_batch"].id in target_ids, (
+            "Missing connection to preprocess_batch"
+        )
         assert data["spec"].id in target_ids, "Missing connection to specification"
         assert data["milestone"].id in target_ids, "Missing connection to milestone"
 
@@ -286,10 +314,10 @@ class TestExtractionPipelineE2E:
             ],
         )
 
-        assert counts["confirmed"] == 2    # material + fire_rating
-        assert counts["corrected"] == 1    # finish
+        assert counts["confirmed"] == 2  # material + fire_rating
+        assert counts["corrected"] == 1  # finish
         assert counts["rejected"] == 0
-        assert counts["promoted"] == 1     # STC rating → stc_rating
+        assert counts["promoted"] == 1  # STC rating → stc_rating
 
         # ── Step 4: Verify WP-18 handoff readiness ────────────────
         await db_session.refresh(batch)
@@ -349,7 +377,9 @@ class TestExtractionPipelineE2E:
         )
 
     @pytest.mark.asyncio
-    async def test_pipeline_metadata_linkage(self, db_session: AsyncSession, wp16_output):
+    async def test_pipeline_metadata_linkage(
+        self, db_session: AsyncSession, wp16_output
+    ):
         """Verify batch stores all metadata WP-18 needs for source attribution."""
         data = wp16_output
 
@@ -367,7 +397,9 @@ class TestExtractionPipelineE2E:
         assert props["context_id"] == str(data["milestone"].id)
 
     @pytest.mark.asyncio
-    async def test_pipeline_auto_confirm_preserves_all(self, db_session: AsyncSession, wp16_output):
+    async def test_pipeline_auto_confirm_preserves_all(
+        self, db_session: AsyncSession, wp16_output
+    ):
         """Auto-confirm (empty confirmations) preserves all extractions."""
         data = wp16_output
 
@@ -386,7 +418,7 @@ class TestExtractionPipelineE2E:
         )
 
         assert counts["confirmed"] == 3  # material, finish, fire_rating
-        assert counts["promoted"] == 0   # No unrecognized promotion
+        assert counts["promoted"] == 0  # No unrecognized promotion
 
         await db_session.refresh(batch)
         section_data = batch.properties["extraction_results"]["sections"]["08 11 00"]
@@ -394,18 +426,25 @@ class TestExtractionPipelineE2E:
 
     @pytest.mark.asyncio
     async def test_pipeline_idempotent_property_promotion(
-        self, db_session: AsyncSession, wp16_output, make_item,
+        self,
+        db_session: AsyncSession,
+        wp16_output,
+        make_item,
     ):
         """Promoting a property that already exists should reuse it."""
         data = wp16_output
 
         # Pre-create the property item (as if from a prior extraction)
-        existing_prop = await make_item("property", "door/stc_rating", {
-            "property_name": "stc_rating",
-            "parent_type": "door",
-            "label": "STC Rating",
-            "data_type": "string",  # Note: string, not integer
-        })
+        existing_prop = await make_item(
+            "property",
+            "door/stc_rating",
+            {
+                "property_name": "stc_rating",
+                "parent_type": "door",
+                "label": "STC Rating",
+                "data_type": "string",  # Note: string, not integer
+            },
+        )
 
         batch, _ = await run_extraction(
             db=db_session,
@@ -451,7 +490,9 @@ class TestExtractionPipelineE2E:
         assert props[0].properties["data_type"] == "string"  # Original, not overwritten
 
     @pytest.mark.asyncio
-    async def test_batch_identifier_traceable(self, db_session: AsyncSession, wp16_output):
+    async def test_batch_identifier_traceable(
+        self, db_session: AsyncSession, wp16_output
+    ):
         """Batch identifier should be traceable to the specification."""
         data = wp16_output
 

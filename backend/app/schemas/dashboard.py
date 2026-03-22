@@ -12,8 +12,10 @@ from pydantic import BaseModel, Field
 
 # ─── Project Health ──────────────────────────────────────────
 
+
 class ActionItemCounts(BaseModel):
     """Counts of action items by status category."""
+
     unresolved_changes: int = 0
     unresolved_conflicts: int = 0
     pending_directives: int = 0
@@ -23,6 +25,7 @@ class ActionItemCounts(BaseModel):
 
 class PropertyBreakdown(BaseModel):
     """Action item counts for a single property."""
+
     changes: int = 0
     conflicts: int = 0
     directives: int = 0
@@ -30,11 +33,13 @@ class PropertyBreakdown(BaseModel):
 
 class SourcePairBreakdown(BaseModel):
     """Conflict counts for a specific source pair."""
+
     conflicts: int = 0
 
 
 class AffectedTypeBreakdown(BaseModel):
     """Action item counts for items of a specific type."""
+
     changes: int = 0
     conflicts: int = 0
     directives: int = 0
@@ -46,6 +51,7 @@ class ProjectHealthResponse(BaseModel):
 
     GET /api/v1/dashboard/health?project=uuid
     """
+
     total_items: int = 0
     by_type: dict[str, int] = Field(
         default_factory=dict,
@@ -68,8 +74,10 @@ class ProjectHealthResponse(BaseModel):
 
 # ─── Import Summary ─────────────────────────────────────────
 
+
 class SourceImportDetail(BaseModel):
     """Per-source breakdown within an import summary."""
+
     source_id: uuid.UUID
     source_identifier: str | None = None
     source_type: str | None = None
@@ -84,6 +92,7 @@ class ImportSummaryResponse(BaseModel):
 
     GET /api/v1/dashboard/import-summary?project=uuid
     """
+
     batch_id: uuid.UUID | None = None
     batch_identifier: str | None = None
     source_id: uuid.UUID | None = None
@@ -102,8 +111,10 @@ class ImportSummaryResponse(BaseModel):
 
 # ─── Temporal Trend ──────────────────────────────────────────
 
+
 class MilestoneTrend(BaseModel):
     """Action item counts at a single milestone."""
+
     context_id: uuid.UUID
     context_identifier: str | None = None
     ordinal: int = 0
@@ -120,13 +131,16 @@ class TemporalTrendResponse(BaseModel):
 
     GET /api/v1/dashboard/temporal-trend?project=uuid
     """
+
     milestones: list[MilestoneTrend] = Field(default_factory=list)
 
 
 # ─── Directive Status Rollup ─────────────────────────────────
 
+
 class SourceDirectiveRollup(BaseModel):
     """Directive status for a single target source."""
+
     source_id: uuid.UUID
     source_identifier: str | None = None
     pending: int = 0
@@ -139,6 +153,7 @@ class DirectiveStatusResponse(BaseModel):
 
     GET /api/v1/dashboard/directive-status?project=uuid
     """
+
     total_pending: int = 0
     total_fulfilled: int = 0
     by_source: list[SourceDirectiveRollup] = Field(default_factory=list)
@@ -146,8 +161,10 @@ class DirectiveStatusResponse(BaseModel):
 
 # ─── Affected Items (Workflow Perspective) ────────────────
 
+
 class ItemActionCounts(BaseModel):
     """Per-item action counts for workflow categories."""
+
     changes: int = 0
     conflicts: int = 0
     directives: int = 0
@@ -155,6 +172,7 @@ class ItemActionCounts(BaseModel):
 
 class AffectedItemSummary(BaseModel):
     """Summary of an item with its action counts."""
+
     id: uuid.UUID
     identifier: str | None = None
     item_type: str
@@ -163,6 +181,7 @@ class AffectedItemSummary(BaseModel):
 
 class AffectedItemGroup(BaseModel):
     """Group of affected items by type."""
+
     item_type: str
     label: str
     count: int
@@ -175,4 +194,5 @@ class AffectedItemsResponse(BaseModel):
 
     GET /api/v1/dashboard/affected-items?project=uuid
     """
+
     groups: list[AffectedItemGroup] = Field(default_factory=list)

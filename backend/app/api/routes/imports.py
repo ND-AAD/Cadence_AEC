@@ -48,6 +48,7 @@ _proposal_cache: dict[uuid.UUID, dict] = {}
 
 # ─── Helpers ───────────────────────────────────────────────────
 
+
 async def _get_item_or_404(
     db: AsyncSession, item_id: uuid.UUID, label: str = "Item"
 ) -> Item:
@@ -83,6 +84,7 @@ async def _load_user_aliases(
 
 
 # ─── Import Mapping CRUD ──────────────────────────────────────
+
 
 @router.get(
     "/items/{source_id}/import-mapping",
@@ -138,6 +140,7 @@ async def set_import_mapping(
 
 
 # ─── WP-6b: Auto-Mapping Endpoints ──────────────────────────────
+
 
 @router.post(
     "/import/analyze",
@@ -294,7 +297,10 @@ async def confirm_mapping(
             project = result.scalar_one_or_none()
             if project:
                 from app.core.column_aliases import clean_column_name
-                existing_aliases = project.properties.get("column_alias_corrections", {})
+
+                existing_aliases = project.properties.get(
+                    "column_alias_corrections", {}
+                )
                 for col_name, corrected_prop in corrections.items():
                     if corrected_prop is not None:
                         cleaned = clean_column_name(col_name)
@@ -320,12 +326,15 @@ async def confirm_mapping(
 
 # ─── Main Import Endpoint (WP-6b: auto-mapping fallback) ────────
 
+
 @router.post("/import", response_model=ImportResult, status_code=201)
 async def import_file(
     file: UploadFile = File(...),
     source_item_id: str = Form(...),
     time_context_id: str = Form(...),
-    mapping_config: str | None = Form(None, description="JSON-encoded ImportMappingConfig"),
+    mapping_config: str | None = Form(
+        None, description="JSON-encoded ImportMappingConfig"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -450,8 +459,8 @@ async def import_file(
             raise HTTPException(
                 status_code=400,
                 detail="Could not determine file structure. "
-                       "Use POST /api/v1/import/analyze to preview the mapping, "
-                       "or provide an explicit mapping_config.",
+                "Use POST /api/v1/import/analyze to preview the mapping, "
+                "or provide an explicit mapping_config.",
             )
 
     # Store/update mapping on source item for reuse
@@ -479,6 +488,7 @@ async def import_file(
 
 # ─── Batch Status ─────────────────────────────────────────────
 
+
 @router.get("/import/{batch_id}", response_model=dict)
 async def get_import_batch(
     batch_id: uuid.UUID,
@@ -500,6 +510,7 @@ async def get_import_batch(
 
 
 # ─── Unmatched / Confirm ──────────────────────────────────────
+
 
 @router.get("/import/{batch_id}/unmatched", response_model=list[UnmatchedRow])
 async def get_unmatched(

@@ -8,19 +8,24 @@ from pydantic import BaseModel, Field
 
 class ItemCreate(BaseModel):
     """Schema for creating an item."""
+
     item_type: str = Field(..., description="Type key from type configuration")
     identifier: str | None = Field(None, description="Human-readable identifier")
-    properties: dict = Field(default_factory=dict, description="Type-specific properties")
+    properties: dict = Field(
+        default_factory=dict, description="Type-specific properties"
+    )
 
 
 class ItemUpdate(BaseModel):
     """Schema for updating an item. Properties use merge semantics."""
+
     identifier: str | None = None
     properties: dict | None = None
 
 
 class ItemResponse(BaseModel):
     """Schema for item in API responses."""
+
     id: uuid.UUID
     item_type: str
     identifier: str | None
@@ -34,16 +39,20 @@ class ItemResponse(BaseModel):
 
 class ItemSummary(BaseModel):
     """Compact item representation for listings and connections."""
+
     id: uuid.UUID
     item_type: str
     identifier: str | None
-    action_counts: dict = Field(default_factory=lambda: {"changes": 0, "conflicts": 0, "directives": 0})
+    action_counts: dict = Field(
+        default_factory=lambda: {"changes": 0, "conflicts": 0, "directives": 0}
+    )
 
     model_config = {"from_attributes": True}
 
 
 class PaginatedItems(BaseModel):
     """Paginated list of items with total count."""
+
     items: list[ItemResponse]
     total: int
     limit: int
@@ -52,8 +61,10 @@ class PaginatedItems(BaseModel):
 
 # ─── Connected Items (Navigation) ─────────────────────────────
 
+
 class ConnectedGroup(BaseModel):
     """A group of connected items sharing the same type."""
+
     item_type: str
     label: str
     items: list[ItemSummary]
@@ -62,5 +73,6 @@ class ConnectedGroup(BaseModel):
 
 class ConnectedItemsResponse(BaseModel):
     """An item with its connected items grouped by type."""
+
     item: ItemResponse
     connected: list[ConnectedGroup]

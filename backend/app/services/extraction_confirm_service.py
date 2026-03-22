@@ -98,8 +98,7 @@ async def confirm_extractions(
 
         # Process extraction decisions
         decision_map = {
-            (d.property, d.element_type): d
-            for d in section_conf.extraction_decisions
+            (d.property, d.element_type): d for d in section_conf.extraction_decisions
         }
 
         confirmed_extractions = []
@@ -134,9 +133,7 @@ async def confirm_extractions(
         section_data["confirmed_extractions"] = confirmed_extractions
 
         # Process unrecognized term decisions
-        unrec_decision_map = {
-            d.term: d for d in section_conf.unrecognized_decisions
-        }
+        unrec_decision_map = {d.term: d for d in section_conf.unrecognized_decisions}
 
         promoted_properties = []
         skipped_unrecognized = []
@@ -169,26 +166,30 @@ async def confirm_extractions(
                         item_props["label"] = term  # Use original term as label
                         prop_item.properties = item_props
 
-                promoted_properties.append({
-                    "term": term,
-                    "property_name": prop_name,
-                    "target_types": target_types,
-                    "data_type": data_type,
-                    "value": unrec.get("value"),
-                    "source_text": unrec.get("source_text"),
-                })
+                promoted_properties.append(
+                    {
+                        "term": term,
+                        "property_name": prop_name,
+                        "target_types": target_types,
+                        "data_type": data_type,
+                        "value": unrec.get("value"),
+                        "source_text": unrec.get("source_text"),
+                    }
+                )
 
                 # Add the promoted property to confirmed extractions
                 for target_type in target_types:
-                    confirmed_extractions.append({
-                        "property": prop_name,
-                        "element_type": target_type,
-                        "assertion_type": "flat",
-                        "value": unrec.get("value", ""),
-                        "confidence": 0.80,  # User-confirmed discovery
-                        "source_text": unrec.get("source_text", ""),
-                        "action": "promoted",
-                    })
+                    confirmed_extractions.append(
+                        {
+                            "property": prop_name,
+                            "element_type": target_type,
+                            "assertion_type": "flat",
+                            "value": unrec.get("value", ""),
+                            "confidence": 0.80,  # User-confirmed discovery
+                            "source_text": unrec.get("source_text", ""),
+                            "action": "promoted",
+                        }
+                    )
 
                 counts["promoted"] += 1
 

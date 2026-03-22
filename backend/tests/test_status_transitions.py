@@ -83,7 +83,9 @@ async def pending_directive(db_session: AsyncSession, make_item):
 # ─── Helper ──────────────────────────────────────────────────
 
 
-async def get_self_snapshot(db_session: AsyncSession, item_id: uuid.UUID) -> Snapshot | None:
+async def get_self_snapshot(
+    db_session: AsyncSession, item_id: uuid.UUID
+) -> Snapshot | None:
     """Load the self-sourced snapshot for a workflow item."""
     result = await db_session.execute(
         select(Snapshot).where(

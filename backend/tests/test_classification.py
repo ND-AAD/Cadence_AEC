@@ -50,12 +50,16 @@ async def doors_for_classification(db_session: AsyncSession, make_item):
     """Create a few door items ready for classification."""
     doors = []
     for i in range(5):
-        door = await make_item("door", f"D{101 + i}", {
-            "mark": f"D{101 + i}",
-            "material": "hollow metal" if i < 3 else "wood",
-            "finish": "paint",
-            "hardware_set": f"HS-{i + 1}",
-        })
+        door = await make_item(
+            "door",
+            f"D{101 + i}",
+            {
+                "mark": f"D{101 + i}",
+                "material": "hollow metal" if i < 3 else "wood",
+                "finish": "paint",
+                "hardware_set": f"HS-{i + 1}",
+            },
+        )
         doors.append(door)
     return doors
 
@@ -146,8 +150,16 @@ async def test_filter_skips_classified(
 def test_prompt_contains_divisions():
     """Prompt includes available MasterFormat divisions."""
     # Create mock divisions
-    div_08 = Item(item_type="spec_section", identifier="08", properties={"title": "Openings", "level": 0})
-    div_09 = Item(item_type="spec_section", identifier="09", properties={"title": "Finishes", "level": 0})
+    div_08 = Item(
+        item_type="spec_section",
+        identifier="08",
+        properties={"title": "Openings", "level": 0},
+    )
+    div_09 = Item(
+        item_type="spec_section",
+        identifier="09",
+        properties={"title": "Finishes", "level": 0},
+    )
     divisions = {"08": div_08, "09": div_09}
 
     door = Item(item_type="door", identifier="D101", properties={})
@@ -161,7 +173,11 @@ def test_prompt_contains_divisions():
 
 def test_prompt_contains_elements():
     """Prompt includes all element identifiers and properties."""
-    div_08 = Item(item_type="spec_section", identifier="08", properties={"title": "Openings", "level": 0})
+    div_08 = Item(
+        item_type="spec_section",
+        identifier="08",
+        properties={"title": "Openings", "level": 0},
+    )
     divisions = {"08": div_08}
 
     door1_id = uuid.uuid4()
@@ -186,7 +202,11 @@ def test_prompt_contains_elements():
 
 def test_parse_valid_response():
     """Parse a well-formed JSON response."""
-    div_08 = Item(item_type="spec_section", identifier="08", properties={"title": "Openings", "level": 0})
+    div_08 = Item(
+        item_type="spec_section",
+        identifier="08",
+        properties={"title": "Openings", "level": 0},
+    )
     divisions = {"08": div_08}
 
     items = [
@@ -194,10 +214,12 @@ def test_parse_valid_response():
         Item(item_type="door", identifier="D102", properties={}),
     ]
 
-    response = json.dumps([
-        {"element": 1, "division": "08", "confidence": "high"},
-        {"element": 2, "division": "08", "confidence": "medium"},
-    ])
+    response = json.dumps(
+        [
+            {"element": 1, "division": "08", "confidence": "high"},
+            {"element": 2, "division": "08", "confidence": "medium"},
+        ]
+    )
 
     results = _parse_classification_response(response, items, divisions)
     assert len(results) == 2
@@ -207,7 +229,11 @@ def test_parse_valid_response():
 
 def test_parse_response_with_markdown_fencing():
     """Parse response wrapped in ```json fencing."""
-    div_08 = Item(item_type="spec_section", identifier="08", properties={"title": "Openings", "level": 0})
+    div_08 = Item(
+        item_type="spec_section",
+        identifier="08",
+        properties={"title": "Openings", "level": 0},
+    )
     divisions = {"08": div_08}
     items = [Item(item_type="door", identifier="D101", properties={})]
 
@@ -218,7 +244,11 @@ def test_parse_response_with_markdown_fencing():
 
 def test_parse_response_invalid_json():
     """Invalid JSON returns empty list."""
-    divisions = {"08": Item(item_type="spec_section", identifier="08", properties={"title": "Openings"})}
+    divisions = {
+        "08": Item(
+            item_type="spec_section", identifier="08", properties={"title": "Openings"}
+        )
+    }
     items = [Item(item_type="door", identifier="D101", properties={})]
 
     results = _parse_classification_response("not json", items, divisions)
@@ -227,7 +257,9 @@ def test_parse_response_invalid_json():
 
 def test_parse_response_invalid_division():
     """Unknown division identifier is skipped."""
-    div_08 = Item(item_type="spec_section", identifier="08", properties={"title": "Openings"})
+    div_08 = Item(
+        item_type="spec_section", identifier="08", properties={"title": "Openings"}
+    )
     divisions = {"08": div_08}
     items = [Item(item_type="door", identifier="D101", properties={})]
 
@@ -238,7 +270,9 @@ def test_parse_response_invalid_division():
 
 def test_parse_response_invalid_element_index():
     """Out-of-range element index is skipped."""
-    div_08 = Item(item_type="spec_section", identifier="08", properties={"title": "Openings"})
+    div_08 = Item(
+        item_type="spec_section", identifier="08", properties={"title": "Openings"}
+    )
     divisions = {"08": div_08}
     items = [Item(item_type="door", identifier="D101", properties={})]
 
@@ -264,7 +298,9 @@ async def test_classify_creates_connections(
         return _mock_llm_response(doors_for_classification, "08")
 
     results = await classify_elements(
-        db_session, doors_for_classification, item_props,
+        db_session,
+        doors_for_classification,
+        item_props,
         llm_caller=mock_caller,
     )
 
@@ -309,15 +345,19 @@ async def test_classify_skips_already_classified(
         assert '"D101"' not in prompt
         assert '"D102"' not in prompt
         # Return classification for the 3 remaining
-        return json.dumps([
-            {"element": i + 1, "division": "08", "confidence": "high"}
-            for i in range(3)
-        ])
+        return json.dumps(
+            [
+                {"element": i + 1, "division": "08", "confidence": "high"}
+                for i in range(3)
+            ]
+        )
 
     item_props = {d.id: {"material": "wood"} for d in doors_for_classification}
 
     results = await classify_elements(
-        db_session, doors_for_classification, item_props,
+        db_session,
+        doors_for_classification,
+        item_props,
         llm_caller=mock_caller,
     )
 
@@ -336,12 +376,14 @@ async def test_classify_low_confidence_needs_review(
         return _mock_llm_mixed_response(doors_for_classification)
 
     results = await classify_elements(
-        db_session, doors_for_classification, item_props,
+        db_session,
+        doors_for_classification,
+        item_props,
         llm_caller=mock_caller,
     )
 
     assert len(results) == 5
-    assert results[0].needs_review is True   # low confidence
+    assert results[0].needs_review is True  # low confidence
     assert results[0].confidence == "low"
     assert results[1].needs_review is False  # medium confidence
     assert results[2].needs_review is False  # high confidence
@@ -371,7 +413,9 @@ async def test_classify_api_failure_returns_empty(
         raise RuntimeError("API unavailable")
 
     results = await classify_elements(
-        db_session, doors_for_classification, item_props,
+        db_session,
+        doors_for_classification,
+        item_props,
         llm_caller=failing_caller,
     )
 
@@ -397,7 +441,9 @@ async def test_classify_no_divisions(db_session, doors_for_classification):
         return "[]"
 
     results = await classify_elements(
-        db_session, doors_for_classification, item_props,
+        db_session,
+        doors_for_classification,
+        item_props,
         llm_caller=mock_caller,
     )
 
@@ -406,9 +452,7 @@ async def test_classify_no_divisions(db_session, doors_for_classification):
 
 
 @pytest.mark.asyncio
-async def test_classify_batches_large_sets(
-    db_session, spec_with_divisions, make_item
-):
+async def test_classify_batches_large_sets(db_session, spec_with_divisions, make_item):
     """Items exceeding BATCH_SIZE are split into multiple batches."""
     # Create 60 items (BATCH_SIZE is 50)
     items = []
@@ -423,14 +467,18 @@ async def test_classify_batches_large_sets(
         nonlocal call_count
         call_count += 1
         # Count how many elements are in this prompt
-        element_count = prompt.count('(door)')
-        return json.dumps([
-            {"element": i + 1, "division": "08", "confidence": "high"}
-            for i in range(element_count)
-        ])
+        element_count = prompt.count("(door)")
+        return json.dumps(
+            [
+                {"element": i + 1, "division": "08", "confidence": "high"}
+                for i in range(element_count)
+            ]
+        )
 
     results = await classify_elements(
-        db_session, items, item_props,
+        db_session,
+        items,
+        item_props,
         llm_caller=mock_caller,
     )
 
@@ -452,7 +500,9 @@ async def test_classification_result_fields(
         return _mock_llm_response(doors_for_classification, "08")
 
     results = await classify_elements(
-        db_session, doors_for_classification, item_props,
+        db_session,
+        doors_for_classification,
+        item_props,
         llm_caller=mock_caller,
     )
 
@@ -469,15 +519,17 @@ async def test_classification_result_fields(
 
 
 @pytest.mark.asyncio
-async def test_classify_to_division_09(
-    db_session, spec_with_divisions, make_item
-):
+async def test_classify_to_division_09(db_session, spec_with_divisions, make_item):
     """Items can be classified to Division 09 (Finishes)."""
-    room = await make_item("room", "101", {
-        "finish_floor": "VCT",
-        "finish_wall": "Paint",
-        "finish_ceiling": "ACT 2x4",
-    })
+    room = await make_item(
+        "room",
+        "101",
+        {
+            "finish_floor": "VCT",
+            "finish_wall": "Paint",
+            "finish_ceiling": "ACT 2x4",
+        },
+    )
 
     item_props = {room.id: {"finish_floor": "VCT", "finish_wall": "Paint"}}
 
@@ -485,7 +537,9 @@ async def test_classify_to_division_09(
         return json.dumps([{"element": 1, "division": "09", "confidence": "high"}])
 
     results = await classify_elements(
-        db_session, [room], item_props,
+        db_session,
+        [room],
+        item_props,
         llm_caller=mock_caller,
     )
 
@@ -510,7 +564,9 @@ async def test_classify_to_division_09(
 
 
 @pytest.mark.asyncio
-async def test_import_without_api_key_succeeds(client, db_session, make_item, make_connection):
+async def test_import_without_api_key_succeeds(
+    client, db_session, make_item, make_connection
+):
     """Import pipeline succeeds when ANTHROPIC_API_KEY is None (no classification)."""
     # This tests the existing import pipeline with classification disabled
     # The existing import tests already cover this — classification is skipped

@@ -62,9 +62,7 @@ async def test_seed_creates_two_divisions(db_session, make_item):
 
     # Verify they're actual items with correct properties
     for div_id in ("08", "09"):
-        result = await db_session.execute(
-            select(Item).where(Item.id == ids[div_id])
-        )
+        result = await db_session.execute(select(Item).where(Item.id == ids[div_id]))
         item = result.scalar_one()
         assert item.item_type == "spec_section"
         assert item.identifier == div_id
@@ -77,9 +75,7 @@ async def test_division_08_title(db_session, make_item):
     spec = await make_item("specification", "Test Spec", {"name": "Test Spec"})
     ids = await seed_masterformat(db_session, specification_id=spec.id)
 
-    result = await db_session.execute(
-        select(Item).where(Item.id == ids["08"])
-    )
+    result = await db_session.execute(select(Item).where(Item.id == ids["08"]))
     div_08 = result.scalar_one()
     assert div_08.properties["title"] == "Openings"
 
@@ -90,9 +86,7 @@ async def test_division_09_title(db_session, make_item):
     spec = await make_item("specification", "Test Spec", {"name": "Test Spec"})
     ids = await seed_masterformat(db_session, specification_id=spec.id)
 
-    result = await db_session.execute(
-        select(Item).where(Item.id == ids["09"])
-    )
+    result = await db_session.execute(select(Item).where(Item.id == ids["09"]))
     div_09 = result.scalar_one()
     assert div_09.properties["title"] == "Finishes"
 
@@ -146,12 +140,18 @@ async def test_section_identifiers_match_masterformat(db_session, make_item):
 
         if level == 0:
             # Division: two-digit code
-            assert len(identifier) == 2, f"Division identifier '{identifier}' should be 2 chars"
+            assert len(identifier) == 2, (
+                f"Division identifier '{identifier}' should be 2 chars"
+            )
         elif level in (1, 2):
             # Group/Section: "XX XX XX" format
             parts = identifier.split(" ")
-            assert len(parts) == 3, f"Section identifier '{identifier}' should have 3 parts"
-            assert all(len(p) == 2 for p in parts), f"Section identifier '{identifier}' parts should be 2 chars each"
+            assert len(parts) == 3, (
+                f"Section identifier '{identifier}' should have 3 parts"
+            )
+            assert all(len(p) == 2 for p in parts), (
+                f"Section identifier '{identifier}' parts should be 2 chars each"
+            )
 
 
 # ─── Hierarchy Connections ────────────────────────────────────
@@ -192,11 +192,10 @@ async def test_division_connects_to_groups(db_session, make_item):
 
     # Count outgoing connections from Division 08 to spec_sections
     result = await db_session.execute(
-        select(func.count(Connection.id)).select_from(
-            Connection
-        ).join(
-            Item, Connection.target_item_id == Item.id
-        ).where(
+        select(func.count(Connection.id))
+        .select_from(Connection)
+        .join(Item, Connection.target_item_id == Item.id)
+        .where(
             Connection.source_item_id == div_08_id,
             Item.item_type == "spec_section",
         )
@@ -216,11 +215,10 @@ async def test_group_connects_to_sections(db_session, make_item):
 
     # Count outgoing connections from group to spec_sections
     result = await db_session.execute(
-        select(func.count(Connection.id)).select_from(
-            Connection
-        ).join(
-            Item, Connection.target_item_id == Item.id
-        ).where(
+        select(func.count(Connection.id))
+        .select_from(Connection)
+        .join(Item, Connection.target_item_id == Item.id)
+        .where(
             Connection.source_item_id == group_id,
             Item.item_type == "spec_section",
         )
@@ -238,18 +236,14 @@ async def test_hierarchy_traversal_spec_to_section(db_session, make_item):
 
     # Step 1: spec → divisions
     result = await db_session.execute(
-        select(Connection.target_item_id).where(
-            Connection.source_item_id == spec.id
-        )
+        select(Connection.target_item_id).where(Connection.source_item_id == spec.id)
     )
     division_ids = {row[0] for row in result.all()}
     assert ids["08"] in division_ids
 
     # Step 2: Division 08 → groups
     result = await db_session.execute(
-        select(Connection.target_item_id).where(
-            Connection.source_item_id == ids["08"]
-        )
+        select(Connection.target_item_id).where(Connection.source_item_id == ids["08"])
     )
     group_ids = {row[0] for row in result.all()}
     assert ids["08 10 00"] in group_ids
@@ -300,8 +294,9 @@ async def test_level_1_items_are_groups(db_session, make_item):
 
     # All groups should have "00" as the last two digits
     for group in level_1:
-        assert group.identifier.endswith("00"), \
+        assert group.identifier.endswith("00"), (
             f"Group '{group.identifier}' should end with '00'"
+        )
 
 
 @pytest.mark.asyncio
@@ -337,8 +332,9 @@ async def test_division_property_correct(db_session, make_item):
         if section.properties.get("level") == 0:
             assert div == section.identifier
         else:
-            assert div == section.identifier[:2], \
+            assert div == section.identifier[:2], (
                 f"Section '{section.identifier}' has division '{div}', expected '{section.identifier[:2]}'"
+            )
 
 
 # ─── Integration with seed_project ───────────────────────────
@@ -388,14 +384,14 @@ async def test_seed_project_spec_section_count(db_session):
 
 
 @pytest.mark.asyncio
-async def test_navigate_spec_to_divisions(client, db_session, make_item, make_connection):
+async def test_navigate_spec_to_divisions(
+    client, db_session, make_item, make_connection
+):
     """GET /items/:spec_id/connected returns divisions as connected items."""
     spec = await make_item("specification", "Nav Spec", {"name": "Nav Spec"})
     ids = await seed_masterformat(db_session, specification_id=spec.id)
 
-    response = await client.get(
-        f"/api/v1/items/{spec.id}/connected?types=spec_section"
-    )
+    response = await client.get(f"/api/v1/items/{spec.id}/connected?types=spec_section")
     assert response.status_code == 200
     data = response.json()
 

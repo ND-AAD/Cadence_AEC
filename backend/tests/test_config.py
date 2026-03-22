@@ -5,6 +5,7 @@ import pytest
 
 # ─── Type Configuration Endpoint ───────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_type_config_endpoint_returns_all_types(client):
     """Type config endpoint returns all registered types with properties."""
@@ -172,6 +173,7 @@ async def test_search_fields_populated(client):
 
 
 # ─── Milestone Template Endpoint ───────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_milestone_template_endpoint_exists(client):

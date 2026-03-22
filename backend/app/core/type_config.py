@@ -28,6 +28,7 @@ class PropertyDef:
       - aliases: alternative column header names that map to this property
       - normalization: default normalization type applied during import
     """
+
     name: str
     label: str
     data_type: str = "string"  # string, number, boolean, date, enum
@@ -44,6 +45,7 @@ class PropertyDef:
 @dataclass(frozen=True)
 class TypeConfig:
     """Configuration for an item type."""
+
     name: str
     label: str
     plural_label: str
@@ -107,8 +109,7 @@ def get_conflict_excluded_types() -> set[str]:
 def get_importable_types() -> list[TypeConfig]:
     """Get item types that have properties defined (candidates for import)."""
     return [
-        t for t in ITEM_TYPES.values()
-        if t.properties and t.category in ("spatial",)
+        t for t in ITEM_TYPES.values() if t.properties and t.category in ("spatial",)
     ]
 
 
@@ -185,497 +186,650 @@ def get_types_for_division(division: str) -> list[str]:
         List of type names (e.g., ["door", "window"]).
     """
     return [
-        config.name for config in ITEM_TYPES.values()
+        config.name
+        for config in ITEM_TYPES.values()
         if division in config.masterformat_divisions
     ]
 
 
 # ─── Organization Types ────────────────────────────────────────
 
-register_type(TypeConfig(
-    name="project",
-    label="Project",
-    plural_label="Projects",
-    category="organization",
-    valid_targets=["building", "schedule", "specification", "milestone", "phase"],
-    navigable=True,
-    render_mode="cards",
-    default_sort="name",
-    search_fields=["name"],
-))
+register_type(
+    TypeConfig(
+        name="project",
+        label="Project",
+        plural_label="Projects",
+        category="organization",
+        valid_targets=["building", "schedule", "specification", "milestone", "phase"],
+        navigable=True,
+        render_mode="cards",
+        default_sort="name",
+        search_fields=["name"],
+    )
+)
 
-register_type(TypeConfig(
-    name="portfolio",
-    label="Portfolio",
-    plural_label="Portfolios",
-    category="organization",
-    valid_targets=["project"],
-    navigable=True,
-    render_mode="cards",
-    default_sort="name",
-    search_fields=["name"],
-))
+register_type(
+    TypeConfig(
+        name="portfolio",
+        label="Portfolio",
+        plural_label="Portfolios",
+        category="organization",
+        valid_targets=["project"],
+        navigable=True,
+        render_mode="cards",
+        default_sort="name",
+        search_fields=["name"],
+    )
+)
 
-register_type(TypeConfig(
-    name="firm",
-    label="Firm",
-    plural_label="Firms",
-    category="organization",
-    valid_targets=["portfolio", "project"],
-    navigable=True,
-    render_mode="cards",
-    default_sort="name",
-    search_fields=["name"],
-))
+register_type(
+    TypeConfig(
+        name="firm",
+        label="Firm",
+        plural_label="Firms",
+        category="organization",
+        valid_targets=["portfolio", "project"],
+        navigable=True,
+        render_mode="cards",
+        default_sort="name",
+        search_fields=["name"],
+    )
+)
 
 
 # ─── Spatial Types ─────────────────────────────────────────────
 
-register_type(TypeConfig(
-    name="building",
-    label="Building",
-    plural_label="Buildings",
-    category="spatial",
-    valid_targets=["floor"],
-    navigable=True,
-    render_mode="list",
-    default_sort="name",
-    search_fields=["name", "address"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("address", "Address"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="building",
+        label="Building",
+        plural_label="Buildings",
+        category="spatial",
+        valid_targets=["floor"],
+        navigable=True,
+        render_mode="list",
+        default_sort="name",
+        search_fields=["name", "address"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef("address", "Address"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="floor",
-    label="Floor",
-    plural_label="Floors",
-    category="spatial",
-    valid_targets=["room"],
-    navigable=True,
-    render_mode="list",
-    default_sort="level",
-    search_fields=["name"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("level", "Level", data_type="number"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="floor",
+        label="Floor",
+        plural_label="Floors",
+        category="spatial",
+        valid_targets=["room"],
+        navigable=True,
+        render_mode="list",
+        default_sort="level",
+        search_fields=["name"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef("level", "Level", data_type="number"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="room",
-    label="Room",
-    plural_label="Rooms",
-    category="spatial",
-    valid_targets=["door"],
-    navigable=True,
-    render_mode="cards",
-    default_sort="number",
-    search_fields=["name", "number"],
-    masterformat_divisions=("09",),  # Division 09: Finishes
-    properties=[
-        PropertyDef("name", "Name", required=True,
-                     aliases=("room_name", "rm_name")),
-        PropertyDef("number", "Room Number",
-                     aliases=("room_number", "rm_no", "rm_#")),
-        PropertyDef("area", "Area", data_type="number", unit="sf",
-                     aliases=("sf", "sqft", "sq_ft", "area_sf")),
-        PropertyDef("finish_floor", "Floor Finish",
-                     aliases=("floor_finish", "flr_finish")),
-        PropertyDef("finish_wall", "Wall Finish",
-                     aliases=("wall_finish", "wl_finish")),
-        PropertyDef("finish_ceiling", "Ceiling Finish",
-                     aliases=("ceiling_finish", "clg_finish")),
-        PropertyDef("ceiling_height", "Ceiling Height", data_type="number", unit="in",
-                     normalization="dimension",
-                     aliases=("clg_height", "ceiling_ht")),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="room",
+        label="Room",
+        plural_label="Rooms",
+        category="spatial",
+        valid_targets=["door"],
+        navigable=True,
+        render_mode="cards",
+        default_sort="number",
+        search_fields=["name", "number"],
+        masterformat_divisions=("09",),  # Division 09: Finishes
+        properties=[
+            PropertyDef(
+                "name", "Name", required=True, aliases=("room_name", "rm_name")
+            ),
+            PropertyDef(
+                "number", "Room Number", aliases=("room_number", "rm_no", "rm_#")
+            ),
+            PropertyDef(
+                "area",
+                "Area",
+                data_type="number",
+                unit="sf",
+                aliases=("sf", "sqft", "sq_ft", "area_sf"),
+            ),
+            PropertyDef(
+                "finish_floor", "Floor Finish", aliases=("floor_finish", "flr_finish")
+            ),
+            PropertyDef(
+                "finish_wall", "Wall Finish", aliases=("wall_finish", "wl_finish")
+            ),
+            PropertyDef(
+                "finish_ceiling",
+                "Ceiling Finish",
+                aliases=("ceiling_finish", "clg_finish"),
+            ),
+            PropertyDef(
+                "ceiling_height",
+                "Ceiling Height",
+                data_type="number",
+                unit="in",
+                normalization="dimension",
+                aliases=("clg_height", "ceiling_ht"),
+            ),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="frame",
-    label="Frame",
-    plural_label="Frames",
-    category="spatial",
-    valid_targets=[],
-    navigable=True,
-    render_mode="list",
-    default_sort="identifier",
-    search_fields=["material", "type"],
-    masterformat_divisions=("08",),  # Division 08: Openings (same as door)
-    properties=[
-        PropertyDef("material", "Material",
-                     description="Frame material (e.g., hollow metal, aluminum)"),
-        PropertyDef("gauge", "Gauge",
-                     description="Metal gauge (e.g., 16 gauge)"),
-        PropertyDef("finish", "Finish",
-                     description="Applied finish or coating"),
-        PropertyDef("fire_rating", "Fire Rating",
-                     description="UL fire rating label"),
-        PropertyDef("type", "Frame Type",
-                     description="Frame profile type (e.g., knocked-down, welded)"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="frame",
+        label="Frame",
+        plural_label="Frames",
+        category="spatial",
+        valid_targets=[],
+        navigable=True,
+        render_mode="list",
+        default_sort="identifier",
+        search_fields=["material", "type"],
+        masterformat_divisions=("08",),  # Division 08: Openings (same as door)
+        properties=[
+            PropertyDef(
+                "material",
+                "Material",
+                description="Frame material (e.g., hollow metal, aluminum)",
+            ),
+            PropertyDef("gauge", "Gauge", description="Metal gauge (e.g., 16 gauge)"),
+            PropertyDef("finish", "Finish", description="Applied finish or coating"),
+            PropertyDef(
+                "fire_rating", "Fire Rating", description="UL fire rating label"
+            ),
+            PropertyDef(
+                "type",
+                "Frame Type",
+                description="Frame profile type (e.g., knocked-down, welded)",
+            ),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="door",
-    label="Door",
-    plural_label="Doors",
-    category="spatial",
-    valid_targets=[],
-    navigable=True,
-    render_mode="table",
-    default_sort="mark",
-    search_fields=["mark", "type", "hardware_set"],
-    masterformat_divisions=("08",),  # Division 08: Openings
-    properties=[
-        PropertyDef("mark", "Mark", required=True,
-                     aliases=("number", "door_mark", "door_number", "door_no")),
-        PropertyDef("level", "Level",
-                     aliases=("floor", "story", "flr")),
-        PropertyDef("width", "Width", data_type="number", unit="in",
-                     normalization="dimension",
-                     aliases=("w", "door_width", "clear_width")),
-        PropertyDef("height", "Height", data_type="number", unit="in",
-                     normalization="dimension",
-                     aliases=("h", "door_height", "clear_height")),
-        PropertyDef("thickness", "Thickness", data_type="number", unit="in",
-                     normalization="dimension",
-                     aliases=("t", "door_thickness", "thk")),
-        PropertyDef("type", "Door Type",
-                     aliases=("door_type", "dt", "style")),
-        PropertyDef("material", "Material",
-                     aliases=("door_material", "mat", "mtl")),
-        PropertyDef("finish", "Finish",
-                     aliases=("fnsh", "door_finish", "surface_finish")),
-        PropertyDef("hardware_set", "Hardware Set",
-                     aliases=("hw", "hw_set", "hardware", "hardware_group", "hdw")),
-        PropertyDef("fire_rating", "Fire Rating",
-                     aliases=("fr", "fire_rate", "rating", "f.r.", "fire_rated")),
-        PropertyDef("frame_type", "Frame Type",
-                     aliases=("frame",)),
-        PropertyDef("frame_material", "Frame Material"),
-        PropertyDef("frame_finish", "Frame Finish"),
-        PropertyDef("glazing", "Glazing",
-                     aliases=("glass", "gl", "glass_type", "lite", "vision_panel")),
-        PropertyDef("location", "Location",
-                     aliases=("room", "room_name", "rm")),
-        PropertyDef("location_to", "Location To",
-                     aliases=("to",)),
-        PropertyDef("handing", "Handing",
-                     aliases=("hand",)),
-        PropertyDef("swing", "Swing"),
-        PropertyDef("closer", "Closer",
-                     aliases=("door_closer", "cl")),
-        PropertyDef("lock_function", "Lock Function",
-                     aliases=("lock", "lockset", "lock_type")),
-        PropertyDef("rebate_width", "Rebate Width", data_type="number", unit="in",
-                     normalization="dimension",
-                     aliases=("rabbet_width", "rebate_w")),
-        PropertyDef("rebate_height", "Rebate Height", data_type="number", unit="in",
-                     normalization="dimension",
-                     aliases=("rabbet_height", "rebate_h")),
-        PropertyDef("panel_type", "Panel Type",
-                     aliases=("panel",)),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="door",
+        label="Door",
+        plural_label="Doors",
+        category="spatial",
+        valid_targets=[],
+        navigable=True,
+        render_mode="table",
+        default_sort="mark",
+        search_fields=["mark", "type", "hardware_set"],
+        masterformat_divisions=("08",),  # Division 08: Openings
+        properties=[
+            PropertyDef(
+                "mark",
+                "Mark",
+                required=True,
+                aliases=("number", "door_mark", "door_number", "door_no"),
+            ),
+            PropertyDef("level", "Level", aliases=("floor", "story", "flr")),
+            PropertyDef(
+                "width",
+                "Width",
+                data_type="number",
+                unit="in",
+                normalization="dimension",
+                aliases=("w", "door_width", "clear_width"),
+            ),
+            PropertyDef(
+                "height",
+                "Height",
+                data_type="number",
+                unit="in",
+                normalization="dimension",
+                aliases=("h", "door_height", "clear_height"),
+            ),
+            PropertyDef(
+                "thickness",
+                "Thickness",
+                data_type="number",
+                unit="in",
+                normalization="dimension",
+                aliases=("t", "door_thickness", "thk"),
+            ),
+            PropertyDef("type", "Door Type", aliases=("door_type", "dt", "style")),
+            PropertyDef(
+                "material", "Material", aliases=("door_material", "mat", "mtl")
+            ),
+            PropertyDef(
+                "finish", "Finish", aliases=("fnsh", "door_finish", "surface_finish")
+            ),
+            PropertyDef(
+                "hardware_set",
+                "Hardware Set",
+                aliases=("hw", "hw_set", "hardware", "hardware_group", "hdw"),
+            ),
+            PropertyDef(
+                "fire_rating",
+                "Fire Rating",
+                aliases=("fr", "fire_rate", "rating", "f.r.", "fire_rated"),
+            ),
+            PropertyDef("frame_type", "Frame Type", aliases=("frame",)),
+            PropertyDef("frame_material", "Frame Material"),
+            PropertyDef("frame_finish", "Frame Finish"),
+            PropertyDef(
+                "glazing",
+                "Glazing",
+                aliases=("glass", "gl", "glass_type", "lite", "vision_panel"),
+            ),
+            PropertyDef("location", "Location", aliases=("room", "room_name", "rm")),
+            PropertyDef("location_to", "Location To", aliases=("to",)),
+            PropertyDef("handing", "Handing", aliases=("hand",)),
+            PropertyDef("swing", "Swing"),
+            PropertyDef("closer", "Closer", aliases=("door_closer", "cl")),
+            PropertyDef(
+                "lock_function",
+                "Lock Function",
+                aliases=("lock", "lockset", "lock_type"),
+            ),
+            PropertyDef(
+                "rebate_width",
+                "Rebate Width",
+                data_type="number",
+                unit="in",
+                normalization="dimension",
+                aliases=("rabbet_width", "rebate_w"),
+            ),
+            PropertyDef(
+                "rebate_height",
+                "Rebate Height",
+                data_type="number",
+                unit="in",
+                normalization="dimension",
+                aliases=("rabbet_height", "rebate_h"),
+            ),
+            PropertyDef("panel_type", "Panel Type", aliases=("panel",)),
+        ],
+    )
+)
 
 
 # ─── Document Types ────────────────────────────────────────────
 
-register_type(TypeConfig(
-    name="schedule",
-    label="Schedule",
-    plural_label="Schedules",
-    category="document",
-    is_source_type=True,
-    valid_targets=["door", "room", "floor"],
-    navigable=True,
-    render_mode="table",
-    default_sort="name",
-    search_fields=["name", "document_number", "discipline"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("document_number", "Document Number"),
-        PropertyDef("discipline", "Discipline"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="schedule",
+        label="Schedule",
+        plural_label="Schedules",
+        category="document",
+        is_source_type=True,
+        valid_targets=["door", "room", "floor"],
+        navigable=True,
+        render_mode="table",
+        default_sort="name",
+        search_fields=["name", "document_number", "discipline"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef("document_number", "Document Number"),
+            PropertyDef("discipline", "Discipline"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="specification",
-    label="Specification",
-    plural_label="Specifications",
-    category="document",
-    is_source_type=True,
-    valid_targets=["door", "room"],
-    navigable=True,
-    render_mode="list",
-    default_sort="section_number",
-    search_fields=["name", "section_number", "discipline"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("section_number", "Section Number"),
-        PropertyDef("discipline", "Discipline"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="specification",
+        label="Specification",
+        plural_label="Specifications",
+        category="document",
+        is_source_type=True,
+        valid_targets=["door", "room"],
+        navigable=True,
+        render_mode="list",
+        default_sort="section_number",
+        search_fields=["name", "section_number", "discipline"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef("section_number", "Section Number"),
+            PropertyDef("discipline", "Discipline"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="drawing",
-    label="Drawing",
-    plural_label="Drawings",
-    category="document",
-    is_source_type=True,
-    valid_targets=["door", "room", "floor", "building"],
-    navigable=True,
-    render_mode="list",
-    default_sort="sheet_number",
-    search_fields=["name", "sheet_number", "discipline"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("sheet_number", "Sheet Number"),
-        PropertyDef("discipline", "Discipline"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="drawing",
+        label="Drawing",
+        plural_label="Drawings",
+        category="document",
+        is_source_type=True,
+        valid_targets=["door", "room", "floor", "building"],
+        navigable=True,
+        render_mode="list",
+        default_sort="sheet_number",
+        search_fields=["name", "sheet_number", "discipline"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef("sheet_number", "Sheet Number"),
+            PropertyDef("discipline", "Discipline"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="spec_section",
-    label="Specification Section",
-    plural_label="Specification Sections",
-    category="document",
-    valid_targets=["spec_section", "door", "room"],
-    navigable=True,
-    render_mode="list",
-    default_sort="identifier",
-    search_fields=["title", "identifier"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("title", "Title", required=True),
-        PropertyDef("division", "Division"),
-        PropertyDef("level", "Level", data_type="number",
-                     description="0=Division, 1=Group, 2=Section, 3=Subsection"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="spec_section",
+        label="Specification Section",
+        plural_label="Specification Sections",
+        category="document",
+        valid_targets=["spec_section", "door", "room"],
+        navigable=True,
+        render_mode="list",
+        default_sort="identifier",
+        search_fields=["title", "identifier"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("title", "Title", required=True),
+            PropertyDef("division", "Division"),
+            PropertyDef(
+                "level",
+                "Level",
+                data_type="number",
+                description="0=Division, 1=Group, 2=Section, 3=Subsection",
+            ),
+        ],
+    )
+)
 
 
 # ─── Temporal Types ────────────────────────────────────────────
 
-register_type(TypeConfig(
-    name="milestone",
-    label="Milestone",
-    plural_label="Milestones",
-    category="temporal",
-    is_context_type=True,
-    navigable=True,
-    render_mode="timeline",
-    default_sort="ordinal",
-    search_fields=["name"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("ordinal", "Ordinal", data_type="number", required=True,
-                     description="Determines sequence: 100, 200, 300..."),
-        PropertyDef("date", "Date", data_type="date"),
-        PropertyDef("phase", "Phase"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="milestone",
+        label="Milestone",
+        plural_label="Milestones",
+        category="temporal",
+        is_context_type=True,
+        navigable=True,
+        render_mode="timeline",
+        default_sort="ordinal",
+        search_fields=["name"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef(
+                "ordinal",
+                "Ordinal",
+                data_type="number",
+                required=True,
+                description="Determines sequence: 100, 200, 300...",
+            ),
+            PropertyDef("date", "Date", data_type="date"),
+            PropertyDef("phase", "Phase"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="phase",
-    label="Phase",
-    plural_label="Phases",
-    category="temporal",
-    valid_targets=["milestone"],
-    navigable=True,
-    render_mode="timeline",
-    default_sort="name",
-    search_fields=["name", "abbreviation"],
-    properties=[
-        PropertyDef("name", "Name", required=True),
-        PropertyDef("abbreviation", "Abbreviation"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="phase",
+        label="Phase",
+        plural_label="Phases",
+        category="temporal",
+        valid_targets=["milestone"],
+        navigable=True,
+        render_mode="timeline",
+        default_sort="name",
+        search_fields=["name", "abbreviation"],
+        properties=[
+            PropertyDef("name", "Name", required=True),
+            PropertyDef("abbreviation", "Abbreviation"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="import_batch",
-    label="Import Batch",
-    plural_label="Import Batches",
-    category="temporal",
-    navigable=False,
-    render_mode="list",
-    default_sort="created_at",
-    search_fields=["filename"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("filename", "Filename", required=True),
-        PropertyDef("row_count", "Row Count", data_type="number"),
-        PropertyDef("status", "Status", data_type="enum",
-                     enum_values=["pending", "processing", "completed", "failed"]),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="import_batch",
+        label="Import Batch",
+        plural_label="Import Batches",
+        category="temporal",
+        navigable=False,
+        render_mode="list",
+        default_sort="created_at",
+        search_fields=["filename"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("filename", "Filename", required=True),
+            PropertyDef("row_count", "Row Count", data_type="number"),
+            PropertyDef(
+                "status",
+                "Status",
+                data_type="enum",
+                enum_values=["pending", "processing", "completed", "failed"],
+            ),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="preprocess_batch",
-    label="Preprocess Batch",
-    plural_label="Preprocess Batches",
-    category="temporal",
-    navigable=False,
-    render_mode="list",
-    default_sort="created_at",
-    search_fields=["original_filename"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("original_filename", "Filename", required=True),
-        PropertyDef("status", "Status", data_type="enum",
-                     enum_values=["preprocessing", "identified", "confirmed", "failed"]),
-        PropertyDef("page_count", "Page Count", data_type="number"),
-        PropertyDef("sections_identified", "Sections Identified", data_type="number"),
-        PropertyDef("sections_matched", "Sections Matched", data_type="number"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="preprocess_batch",
+        label="Preprocess Batch",
+        plural_label="Preprocess Batches",
+        category="temporal",
+        navigable=False,
+        render_mode="list",
+        default_sort="created_at",
+        search_fields=["original_filename"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("original_filename", "Filename", required=True),
+            PropertyDef(
+                "status",
+                "Status",
+                data_type="enum",
+                enum_values=["preprocessing", "identified", "confirmed", "failed"],
+            ),
+            PropertyDef("page_count", "Page Count", data_type="number"),
+            PropertyDef(
+                "sections_identified", "Sections Identified", data_type="number"
+            ),
+            PropertyDef("sections_matched", "Sections Matched", data_type="number"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="extraction_batch",
-    label="Extraction Batch",
-    plural_label="Extraction Batches",
-    category="temporal",
-    navigable=False,
-    render_mode="list",
-    default_sort="created_at",
-    search_fields=[],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("status", "Status", data_type="enum", required=True,
-                     enum_values=["pending", "extracting", "extracted",
-                                  "confirmed", "failed"]),
-        PropertyDef("specification_item_id", "Specification", data_type="string"),
-        PropertyDef("preprocess_batch_id", "Preprocess Batch", data_type="string"),
-        PropertyDef("context_id", "Context Milestone", data_type="string"),
-        PropertyDef("sections_total", "Total Sections", data_type="number"),
-        PropertyDef("sections_extracted", "Sections Extracted", data_type="number"),
-        PropertyDef("sections_failed", "Sections Failed", data_type="number"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="extraction_batch",
+        label="Extraction Batch",
+        plural_label="Extraction Batches",
+        category="temporal",
+        navigable=False,
+        render_mode="list",
+        default_sort="created_at",
+        search_fields=[],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef(
+                "status",
+                "Status",
+                data_type="enum",
+                required=True,
+                enum_values=[
+                    "pending",
+                    "extracting",
+                    "extracted",
+                    "confirmed",
+                    "failed",
+                ],
+            ),
+            PropertyDef("specification_item_id", "Specification", data_type="string"),
+            PropertyDef("preprocess_batch_id", "Preprocess Batch", data_type="string"),
+            PropertyDef("context_id", "Context Milestone", data_type="string"),
+            PropertyDef("sections_total", "Total Sections", data_type="number"),
+            PropertyDef("sections_extracted", "Sections Extracted", data_type="number"),
+            PropertyDef("sections_failed", "Sections Failed", data_type="number"),
+        ],
+    )
+)
 
 
 # ─── Workflow Types ────────────────────────────────────────────
 
-register_type(TypeConfig(
-    name="change",
-    label="Change",
-    plural_label="Changes",
-    category="workflow",
-    # Workflow items point TO what they reference
-    valid_targets=["door", "room", "floor", "building"],
-    navigable=True,
-    render_mode="table",
-    default_sort="created_at",
-    search_fields=["property_name"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("property_name", "Property", required=True),
-        PropertyDef("previous_value", "Previous Value"),
-        PropertyDef("new_value", "New Value"),
-        PropertyDef("status", "Status", data_type="enum",
-                     enum_values=["detected", "acknowledged", "reviewed"]),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="change",
+        label="Change",
+        plural_label="Changes",
+        category="workflow",
+        # Workflow items point TO what they reference
+        valid_targets=["door", "room", "floor", "building"],
+        navigable=True,
+        render_mode="table",
+        default_sort="created_at",
+        search_fields=["property_name"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("property_name", "Property", required=True),
+            PropertyDef("previous_value", "Previous Value"),
+            PropertyDef("new_value", "New Value"),
+            PropertyDef(
+                "status",
+                "Status",
+                data_type="enum",
+                enum_values=["detected", "acknowledged", "reviewed"],
+            ),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="conflict",
-    label="Conflict",
-    plural_label="Conflicts",
-    category="workflow",
-    valid_targets=["door", "room", "floor", "building"],
-    navigable=True,
-    render_mode="table",
-    default_sort="created_at",
-    search_fields=["property_name"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("property_name", "Property", required=True),
-        PropertyDef("status", "Status", data_type="enum",
-                     enum_values=["detected", "acknowledged", "resolved"],
-                     required=True),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="conflict",
+        label="Conflict",
+        plural_label="Conflicts",
+        category="workflow",
+        valid_targets=["door", "room", "floor", "building"],
+        navigable=True,
+        render_mode="table",
+        default_sort="created_at",
+        search_fields=["property_name"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("property_name", "Property", required=True),
+            PropertyDef(
+                "status",
+                "Status",
+                data_type="enum",
+                enum_values=["detected", "acknowledged", "resolved"],
+                required=True,
+            ),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="decision",
-    label="Decision",
-    plural_label="Decisions",
-    category="workflow",
-    is_source_type=True,  # Decisions act as resolution sources
-    valid_targets=["conflict"],
-    navigable=True,
-    render_mode="list",
-    default_sort="created_at",
-    search_fields=["rationale", "decided_by"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("rationale", "Rationale"),
-        PropertyDef("resolved_value", "Resolved Value"),
-        PropertyDef("decided_by", "Decided By"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="decision",
+        label="Decision",
+        plural_label="Decisions",
+        category="workflow",
+        is_source_type=True,  # Decisions act as resolution sources
+        valid_targets=["conflict"],
+        navigable=True,
+        render_mode="list",
+        default_sort="created_at",
+        search_fields=["rationale", "decided_by"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("rationale", "Rationale"),
+            PropertyDef("resolved_value", "Resolved Value"),
+            PropertyDef("decided_by", "Decided By"),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="directive",
-    label="Directive",
-    plural_label="Directives",
-    category="workflow",
-    valid_targets=["door", "room", "floor", "building"],
-    navigable=True,
-    render_mode="table",
-    default_sort="created_at",
-    search_fields=["property_name", "status"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("property_name", "Property", required=True),
-        PropertyDef("target_value", "Target Value"),
-        PropertyDef("target_source_id", "Target Source", required=True),
-        PropertyDef("decision_item_id", "Decision"),
-        PropertyDef("affected_item_id", "Affected Item"),
-        PropertyDef("status", "Status", data_type="enum",
-                     enum_values=["pending", "fulfilled", "superseded"],
-                     required=True),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="directive",
+        label="Directive",
+        plural_label="Directives",
+        category="workflow",
+        valid_targets=["door", "room", "floor", "building"],
+        navigable=True,
+        render_mode="table",
+        default_sort="created_at",
+        search_fields=["property_name", "status"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("property_name", "Property", required=True),
+            PropertyDef("target_value", "Target Value"),
+            PropertyDef("target_source_id", "Target Source", required=True),
+            PropertyDef("decision_item_id", "Decision"),
+            PropertyDef("affected_item_id", "Affected Item"),
+            PropertyDef(
+                "status",
+                "Status",
+                data_type="enum",
+                enum_values=["pending", "fulfilled", "superseded"],
+                required=True,
+            ),
+        ],
+    )
+)
 
-register_type(TypeConfig(
-    name="note",
-    label="Note",
-    plural_label="Notes",
-    category="workflow",
-    valid_targets=["door", "room", "floor", "building", "conflict", "change", "decision"],
-    navigable=False,
-    render_mode="list",
-    default_sort="created_at",
-    search_fields=["content"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("content", "Content", required=True),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="note",
+        label="Note",
+        plural_label="Notes",
+        category="workflow",
+        valid_targets=[
+            "door",
+            "room",
+            "floor",
+            "building",
+            "conflict",
+            "change",
+            "decision",
+        ],
+        navigable=False,
+        render_mode="list",
+        default_sort="created_at",
+        search_fields=["content"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("content", "Content", required=True),
+        ],
+    )
+)
 
 
 # ─── Definition types ──────────────────────────────────────────
 
-register_type(TypeConfig(
-    name="property",
-    label="Property",
-    plural_label="Properties",
-    category="definition",
-    icon="tag",
-    navigable=True,
-    render_mode="list",
-    default_sort="identifier",
-    search_fields=["property_name", "label"],
-    exclude_from_conflicts=True,
-    properties=[
-        PropertyDef("property_name", "Property Name", required=True),
-        PropertyDef("parent_type", "Parent Type", required=True),
-        PropertyDef("label", "Display Label", required=True),
-        PropertyDef("data_type", "Data Type"),
-        PropertyDef("unit", "Unit"),
-    ],
-))
+register_type(
+    TypeConfig(
+        name="property",
+        label="Property",
+        plural_label="Properties",
+        category="definition",
+        icon="tag",
+        navigable=True,
+        render_mode="list",
+        default_sort="identifier",
+        search_fields=["property_name", "label"],
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("property_name", "Property Name", required=True),
+            PropertyDef("parent_type", "Parent Type", required=True),
+            PropertyDef("label", "Display Label", required=True),
+            PropertyDef("data_type", "Data Type"),
+            PropertyDef("unit", "Unit"),
+        ],
+    )
+)

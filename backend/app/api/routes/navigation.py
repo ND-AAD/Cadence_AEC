@@ -18,8 +18,10 @@ router = APIRouter()
 
 # ─── Schemas ───────────────────────────────────────────────────────
 
+
 class NavigateRequest(BaseModel):
     """Request to navigate to a target item."""
+
     breadcrumb: list[uuid.UUID] = Field(
         ..., description="Current breadcrumb path (list of item IDs)"
     )
@@ -28,12 +30,14 @@ class NavigateRequest(BaseModel):
 
 class NavigateResponse(BaseModel):
     """Response with new breadcrumb after navigation."""
+
     breadcrumb: list[uuid.UUID]
     action: Literal["push", "bounce_back", "no_path"]
     bounced_from: uuid.UUID | None = None
 
 
 # ─── Navigation Algorithm ──────────────────────────────────────────
+
 
 async def _is_connected(
     db: AsyncSession,
@@ -55,12 +59,20 @@ async def _is_connected(
     """
     # Check 1: Connection table (bidirectional).
     conn_result = await db.execute(
-        select(Connection.id).where(
+        select(Connection.id)
+        .where(
             or_(
-                and_(Connection.source_item_id == item_a_id, Connection.target_item_id == item_b_id),
-                and_(Connection.source_item_id == item_b_id, Connection.target_item_id == item_a_id),
+                and_(
+                    Connection.source_item_id == item_a_id,
+                    Connection.target_item_id == item_b_id,
+                ),
+                and_(
+                    Connection.source_item_id == item_b_id,
+                    Connection.target_item_id == item_a_id,
+                ),
             )
-        ).limit(1)
+        )
+        .limit(1)
     )
     if conn_result.scalar_one_or_none() is not None:
         return True
@@ -80,7 +92,8 @@ async def _is_connected(
     a_cfg = get_type_config(a_type)
     if a_cfg and a_cfg.is_context_type:
         snap_result = await db.execute(
-            select(Snapshot.id).where(
+            select(Snapshot.id)
+            .where(
                 and_(
                     Snapshot.context_id == item_a_id,
                     or_(
@@ -88,7 +101,8 @@ async def _is_connected(
                         Snapshot.source_id == item_b_id,
                     ),
                 )
-            ).limit(1)
+            )
+            .limit(1)
         )
         if snap_result.scalar_one_or_none() is not None:
             return True
@@ -98,7 +112,8 @@ async def _is_connected(
     b_cfg = get_type_config(b_type)
     if b_cfg and b_cfg.is_context_type:
         snap_result = await db.execute(
-            select(Snapshot.id).where(
+            select(Snapshot.id)
+            .where(
                 and_(
                     Snapshot.context_id == item_b_id,
                     or_(
@@ -106,7 +121,8 @@ async def _is_connected(
                         Snapshot.source_id == item_a_id,
                     ),
                 )
-            ).limit(1)
+            )
+            .limit(1)
         )
         if snap_result.scalar_one_or_none() is not None:
             return True
@@ -116,9 +132,7 @@ async def _is_connected(
 
 async def _item_exists(db: AsyncSession, item_id: uuid.UUID) -> bool:
     """Check if an item exists in the database."""
-    result = await db.execute(
-        select(Item.id).where(Item.id == item_id).limit(1)
-    )
+    result = await db.execute(select(Item.id).where(Item.id == item_id).limit(1))
     return result.scalar_one_or_none() is not None
 
 
@@ -151,9 +165,7 @@ async def _get_neighbors(
             neighbors.add(neighbor)
 
     # Snapshot-based neighbors for context types.
-    type_result = await db.execute(
-        select(Item.item_type).where(Item.id == item_id)
-    )
+    type_result = await db.execute(select(Item.item_type).where(Item.id == item_id))
     item_type = type_result.scalar_one_or_none()
     if item_type:
         cfg = get_type_config(item_type)
@@ -202,7 +214,7 @@ async def _find_path_bfs(
     if breadcrumb_ids:
         # Exclude all breadcrumb items except the start (already added)
         # and the target (which we're trying to reach).
-        visited |= (breadcrumb_ids - {start_id, target_id})
+        visited |= breadcrumb_ids - {start_id, target_id}
 
     queue: deque[tuple[uuid.UUID, list[uuid.UUID]]] = deque()
     queue.append((start_id, []))
@@ -228,6 +240,7 @@ async def _find_path_bfs(
 
 
 # ─── Navigation Endpoint ───────────────────────────────────────────
+
 
 @router.post("/navigate", response_model=NavigateResponse)
 async def navigate(
@@ -273,7 +286,7 @@ async def navigate(
     # Step 1: If target is already in breadcrumb, pop to it.
     if request.target in request.breadcrumb:
         target_index = request.breadcrumb.index(request.target)
-        new_breadcrumb = request.breadcrumb[:target_index + 1]
+        new_breadcrumb = request.breadcrumb[: target_index + 1]
         return NavigateResponse(
             breadcrumb=new_breadcrumb,
             action="bounce_back",
@@ -294,8 +307,10 @@ async def navigate(
         ancestor_item = request.breadcrumb[i]
 
         if await _is_connected(db, ancestor_item, request.target):
-            new_breadcrumb = request.breadcrumb[:i + 1] + [request.target]
-            bounced_from = request.breadcrumb[i + 1] if i + 1 < len(request.breadcrumb) else None
+            new_breadcrumb = request.breadcrumb[: i + 1] + [request.target]
+            bounced_from = (
+                request.breadcrumb[i + 1] if i + 1 < len(request.breadcrumb) else None
+            )
 
             return NavigateResponse(
                 breadcrumb=new_breadcrumb,
@@ -306,7 +321,9 @@ async def navigate(
     # Step 4: BFS path-finding, excluding breadcrumb items from traversal.
     breadcrumb_set = set(request.breadcrumb)
     path = await _find_path_bfs(
-        db, current_item, request.target,
+        db,
+        current_item,
+        request.target,
         breadcrumb_ids=breadcrumb_set,
     )
     if path:

@@ -36,6 +36,7 @@ from app.services.directive_fulfillment import check_directive_fulfillment
 @dataclass
 class PropagationResult:
     """Summary of a propagation run."""
+
     batch_id: uuid.UUID
     status: str = "propagated"
     section_snapshots_created: int = 0
@@ -67,18 +68,23 @@ async def _ensure_connection(
         )
     )
     if not result.scalar_one_or_none():
-        db.add(Connection(
-            source_item_id=source_item_id,
-            target_item_id=target_item_id,
-            properties=properties or {},
-        ))
+        db.add(
+            Connection(
+                source_item_id=source_item_id,
+                target_item_id=target_item_id,
+                properties=properties or {},
+            )
+        )
         await db.flush()
 
 
 def _is_conditional(value) -> bool:
     """Check if a value is a conditional assertion from WP-17."""
     if isinstance(value, dict):
-        return value.get("conditional") is True or value.get("assertion_type") == "conditional"
+        return (
+            value.get("conditional") is True
+            or value.get("assertion_type") == "conditional"
+        )
     return False
 
 
@@ -199,9 +205,7 @@ async def propagate_extractions(
         raise ValueError("Batch missing milestone_id in properties")
     milestone_id = uuid.UUID(milestone_id_str)
 
-    milestone_result = await db.execute(
-        select(Item).where(Item.id == milestone_id)
-    )
+    milestone_result = await db.execute(select(Item).where(Item.id == milestone_id))
     milestone = milestone_result.scalar_one_or_none()
     if not milestone:
         raise ValueError(f"Milestone not found: {milestone_id}")
@@ -312,19 +316,23 @@ async def propagate_extractions(
                     await db.flush()
                     result.element_snapshots_updated += 1
                 else:
-                    db.add(Snapshot(
-                        item_id=element_id,
-                        context_id=milestone.id,
-                        source_id=section_item.id,  # D-21: section is the source
-                        properties=element_props,
-                    ))
+                    db.add(
+                        Snapshot(
+                            item_id=element_id,
+                            context_id=milestone.id,
+                            source_id=section_item.id,  # D-21: section is the source
+                            properties=element_props,
+                        )
+                    )
                     await db.flush()
                     result.element_snapshots_created += 1
 
                 # ── Step 7: Connection: spec_section → element ───
                 noun_phrase = noun_data.get("noun_phrase", "")
                 await _ensure_connection(
-                    db, section_item.id, element_id,
+                    db,
+                    section_item.id,
+                    element_id,
                     {"relationship": "spec_governs", "noun_phrase": noun_phrase},
                 )
 
@@ -332,7 +340,10 @@ async def propagate_extractions(
                 # Only run on flat (non-conditional) properties
                 if flat_props_for_detection:
                     conflicts, auto_resolutions = await detect_conflicts_for_item(
-                        db, element, section_item.id, milestone,
+                        db,
+                        element,
+                        section_item.id,
+                        milestone,
                         flat_props_for_detection,
                     )
                     result.conflicts_detected += sum(1 for c in conflicts if c.is_new)
@@ -341,7 +352,10 @@ async def propagate_extractions(
                 # ── Step 6: Directive fulfillment ────────────
                 if flat_props_for_detection:
                     fulfilled = await check_directive_fulfillment(
-                        db, section_item.id, element_id, flat_props_for_detection,
+                        db,
+                        section_item.id,
+                        element_id,
+                        flat_props_for_detection,
                     )
                     result.directives_fulfilled += fulfilled
 
@@ -362,12 +376,14 @@ async def propagate_extractions(
                 existing_ss.properties = section_all_props
                 await db.flush()
             else:
-                db.add(Snapshot(
-                    item_id=section_item.id,
-                    context_id=milestone.id,
-                    source_id=section_item.id,
-                    properties=section_all_props,
-                ))
+                db.add(
+                    Snapshot(
+                        item_id=section_item.id,
+                        context_id=milestone.id,
+                        source_id=section_item.id,
+                        properties=section_all_props,
+                    )
+                )
                 await db.flush()
                 result.section_snapshots_created += 1
 
@@ -395,9 +411,7 @@ async def get_pending_assignments(
         "section_number": str, "section_item_id": uuid,
       }
     """
-    batch_result = await db.execute(
-        select(Item).where(Item.id == batch_id)
-    )
+    batch_result = await db.execute(select(Item).where(Item.id == batch_id))
     batch = batch_result.scalar_one_or_none()
     if not batch:
         return []
@@ -432,7 +446,9 @@ async def get_pending_assignments(
                         continue
 
                     # Check if still needs assignment
-                    section_item_id = uuid.UUID(section_item_id_str) if section_item_id_str else None
+                    section_item_id = (
+                        uuid.UUID(section_item_id_str) if section_item_id_str else None
+                    )
                     if section_item_id:
                         snap_result = await db.execute(
                             select(Snapshot).where(
@@ -445,15 +461,19 @@ async def get_pending_assignments(
                         snap = snap_result.scalar_one_or_none()
                         if snap and snap.properties.get(prop_name):
                             prop_val = snap.properties[prop_name]
-                            if isinstance(prop_val, dict) and prop_val.get("_needs_assignment"):
-                                pending.append({
-                                    "element_id": element.id,
-                                    "element_identifier": element.identifier,
-                                    "property_name": prop_name,
-                                    "assertions": assertions,
-                                    "section_number": section_number,
-                                    "section_item_id": section_item_id,
-                                })
+                            if isinstance(prop_val, dict) and prop_val.get(
+                                "_needs_assignment"
+                            ):
+                                pending.append(
+                                    {
+                                        "element_id": element.id,
+                                        "element_identifier": element.identifier,
+                                        "property_name": prop_name,
+                                        "assertions": assertions,
+                                        "section_number": section_number,
+                                        "section_item_id": section_item_id,
+                                    }
+                                )
 
     return pending
 
@@ -535,13 +555,14 @@ async def assign_conditional_values(
             assignments_made += 1
 
             # Run conflict detection on the now-concrete value
-            elem_result = await db.execute(
-                select(Item).where(Item.id == element_id)
-            )
+            elem_result = await db.execute(select(Item).where(Item.id == element_id))
             element = elem_result.scalar_one_or_none()
             if element:
                 conflicts, _ = await detect_conflicts_for_item(
-                    db, element, section_item_id, milestone,
+                    db,
+                    element,
+                    section_item_id,
+                    milestone,
                     {prop_name: value},
                 )
                 conflicts_detected += sum(1 for c in conflicts if c.is_new)

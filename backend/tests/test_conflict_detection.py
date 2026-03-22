@@ -36,11 +36,13 @@ async def project_setup(make_item, make_connection):
     """Create project with schedule, spec, and milestones."""
     project = await make_item("project", "Project Alpha")
     schedule = await make_item(
-        "schedule", "Finish Schedule",
+        "schedule",
+        "Finish Schedule",
         {"name": "Finish Schedule", "discipline": "Architectural"},
     )
     spec = await make_item(
-        "specification", "Door Spec",
+        "specification",
+        "Door Spec",
         {"name": "Door Specification", "discipline": "Architectural"},
     )
     dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 100})
@@ -67,17 +69,29 @@ def _make_spec_excel(doors: list[dict]) -> bytes:
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.append(["DOOR NO.", "WIDTH", "HEIGHT", "FINISH", "MATERIAL", "HARDWARE SET", "FIRE RATING"])
+    ws.append(
+        [
+            "DOOR NO.",
+            "WIDTH",
+            "HEIGHT",
+            "FINISH",
+            "MATERIAL",
+            "HARDWARE SET",
+            "FIRE RATING",
+        ]
+    )
     for d in doors:
-        ws.append([
-            d.get("id", "Door 001"),
-            d.get("width", "3'-0\""),
-            d.get("height", "7'-0\""),
-            d.get("finish", "paint"),
-            d.get("material", "wood"),
-            d.get("hardware_set", "HW-1"),
-            d.get("fire_rating", ""),
-        ])
+        ws.append(
+            [
+                d.get("id", "Door 001"),
+                d.get("width", "3'-0\""),
+                d.get("height", "7'-0\""),
+                d.get("finish", "paint"),
+                d.get("material", "wood"),
+                d.get("hardware_set", "HW-1"),
+                d.get("fire_rating", ""),
+            ]
+        )
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -93,8 +107,17 @@ async def test_no_conflicts_when_sources_agree(client: AsyncClient, project_setu
     setup = project_setup
 
     # Import schedule with finish=paint for Door 001
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -106,8 +129,17 @@ async def test_no_conflicts_when_sources_agree(client: AsyncClient, project_setu
     )
 
     # Import spec with same finish=paint
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     resp = await client.post(
         "/api/v1/import",
         data={
@@ -123,13 +155,24 @@ async def test_no_conflicts_when_sources_agree(client: AsyncClient, project_setu
 
 
 @pytest.mark.asyncio
-async def test_conflict_detected_when_sources_disagree(client: AsyncClient, project_setup):
+async def test_conflict_detected_when_sources_disagree(
+    client: AsyncClient, project_setup
+):
     """Two sources disagree on finish → conflict created."""
     setup = project_setup
 
     # Schedule says finish=paint
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -141,8 +184,17 @@ async def test_conflict_detected_when_sources_disagree(client: AsyncClient, proj
     )
 
     # Spec says finish=stain (different!)
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     resp = await client.post(
         "/api/v1/import",
         data={
@@ -157,20 +209,35 @@ async def test_conflict_detected_when_sources_disagree(client: AsyncClient, proj
     assert result["summary"]["new_conflicts"] >= 1
 
     # At least one conflict for finish
-    finish_conflicts = [c for c in result["conflict_items"] if c["property_name"] == "finish"]
+    finish_conflicts = [
+        c for c in result["conflict_items"] if c["property_name"] == "finish"
+    ]
     assert len(finish_conflicts) >= 1
     conflict = finish_conflicts[0]
-    assert "paint" in conflict["values"].values() or "stain" in conflict["values"].values()
+    assert (
+        "paint" in conflict["values"].values() or "stain" in conflict["values"].values()
+    )
 
 
 @pytest.mark.asyncio
-async def test_normalized_comparison_prevents_false_conflict(client: AsyncClient, project_setup):
+async def test_normalized_comparison_prevents_false_conflict(
+    client: AsyncClient, project_setup
+):
     """'Paint' vs 'paint' should NOT create a conflict (case-insensitive)."""
     setup = project_setup
 
     # Schedule says finish=paint
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -182,8 +249,17 @@ async def test_normalized_comparison_prevents_false_conflict(client: AsyncClient
     )
 
     # Spec says finish=Paint (different case only)
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "Paint", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "Paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     resp = await client.post(
         "/api/v1/import",
         data={
@@ -196,7 +272,9 @@ async def test_normalized_comparison_prevents_false_conflict(client: AsyncClient
     assert resp.status_code == 201
     result = resp.json()
     # No conflict on finish (case insensitive)
-    finish_conflicts = [c for c in result["conflict_items"] if c["property_name"] == "finish"]
+    finish_conflicts = [
+        c for c in result["conflict_items"] if c["property_name"] == "finish"
+    ]
     assert len(finish_conflicts) == 0
 
 
@@ -228,8 +306,17 @@ async def test_conflict_item_has_correct_identifier(
     """Conflict item identifier: '{item} / {property}'."""
     setup = project_setup
 
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -240,8 +327,17 @@ async def test_conflict_item_has_correct_identifier(
         files={"file": ("schedule.xlsx", sched_data, "application/octet-stream")},
     )
 
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -252,9 +348,7 @@ async def test_conflict_item_has_correct_identifier(
         files={"file": ("spec.xlsx", spec_data, "application/octet-stream")},
     )
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "conflict")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "conflict"))
     conflicts = result.scalars().all()
     assert len(conflicts) >= 1
 
@@ -272,8 +366,17 @@ async def test_conflict_item_has_connections(
     """Conflict item connected to affected item, both sources, and milestone."""
     setup = project_setup
 
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -284,8 +387,17 @@ async def test_conflict_item_has_connections(
         files={"file": ("schedule.xlsx", sched_data, "application/octet-stream")},
     )
 
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -328,8 +440,17 @@ async def test_conflict_has_self_sourced_snapshot(
     """Conflict item has a self-sourced snapshot with DETECTED status."""
     setup = project_setup
 
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -340,8 +461,17 @@ async def test_conflict_has_self_sourced_snapshot(
         files={"file": ("schedule.xlsx", sched_data, "application/octet-stream")},
     )
 
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -386,8 +516,17 @@ async def test_one_conflict_per_property_per_item(
     setup = project_setup
 
     # Two disagreeing properties (finish and material)
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -398,8 +537,17 @@ async def test_one_conflict_per_property_per_item(
         files={"file": ("schedule.xlsx", sched_data, "application/octet-stream")},
     )
 
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "steel",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "steel",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -411,19 +559,23 @@ async def test_one_conflict_per_property_per_item(
     )
 
     # Should have 2 conflict items: one for finish, one for material
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "conflict")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "conflict"))
     conflicts = result.scalars().all()
     assert len(conflicts) == 2
-    finish_conflicts = [c for c in conflicts if c.identifier.startswith("Door 001 / finish")]
-    material_conflicts = [c for c in conflicts if c.identifier.startswith("Door 001 / material")]
+    finish_conflicts = [
+        c for c in conflicts if c.identifier.startswith("Door 001 / finish")
+    ]
+    material_conflicts = [
+        c for c in conflicts if c.identifier.startswith("Door 001 / material")
+    ]
     assert len(finish_conflicts) == 1
     assert len(material_conflicts) == 1
 
 
 @pytest.mark.asyncio
-async def test_auto_resolution_when_sources_agree(client: AsyncClient, project_setup, db_session):
+async def test_auto_resolution_when_sources_agree(
+    client: AsyncClient, project_setup, db_session
+):
     """
     If sources come into agreement on a previously conflicted property,
     the conflict is auto-resolved.
@@ -431,8 +583,17 @@ async def test_auto_resolution_when_sources_agree(client: AsyncClient, project_s
     setup = project_setup
 
     # Step 1: Create conflict at DD
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -442,8 +603,17 @@ async def test_auto_resolution_when_sources_agree(client: AsyncClient, project_s
         },
         files={"file": ("schedule.xlsx", sched_data, "application/octet-stream")},
     )
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     resp1 = await client.post(
         "/api/v1/import",
         data={
@@ -456,8 +626,17 @@ async def test_auto_resolution_when_sources_agree(client: AsyncClient, project_s
     assert resp1.json()["summary"]["new_conflicts"] >= 1
 
     # Step 2: Schedule now agrees at CD (changes to "stain")
-    sched_updated = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                        "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_updated = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     resp2 = await client.post(
         "/api/v1/import",
         data={
@@ -491,8 +670,13 @@ async def test_multiple_doors_conflict_count(client: AsyncClient, project_setup)
 
     # Schedule: all doors with finish=paint
     sched_doors = [
-        {"id": f"Door {i:03d}", "finish": "paint", "material": "wood",
-         "hardware_set": "HW-1", "fire_rating": ""}
+        {
+            "id": f"Door {i:03d}",
+            "finish": "paint",
+            "material": "wood",
+            "hardware_set": "HW-1",
+            "fire_rating": "",
+        }
         for i in range(1, 6)
     ]
     sched_data = _make_spec_excel(sched_doors)
@@ -508,9 +692,13 @@ async def test_multiple_doors_conflict_count(client: AsyncClient, project_setup)
 
     # Spec: doors 1-3 have finish=stain (conflict), doors 4-5 have finish=paint (agree)
     spec_doors = [
-        {"id": f"Door {i:03d}",
-         "finish": "stain" if i <= 3 else "paint",
-         "material": "wood", "hardware_set": "HW-1", "fire_rating": ""}
+        {
+            "id": f"Door {i:03d}",
+            "finish": "stain" if i <= 3 else "paint",
+            "material": "wood",
+            "hardware_set": "HW-1",
+            "fire_rating": "",
+        }
         for i in range(1, 6)
     ]
     spec_data = _make_spec_excel(spec_doors)
@@ -536,8 +724,17 @@ async def test_conflict_property_only_when_both_sources_have_value(
     setup = project_setup
 
     # Schedule has fire_rating=""
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": "60 min"}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "60 min",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -550,8 +747,17 @@ async def test_conflict_property_only_when_both_sources_have_value(
 
     # Spec has finish=stain but no fire_rating (empty = not present)
     # fire_rating won't conflict because empty string comparison
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     resp = await client.post(
         "/api/v1/import",
         data={
@@ -564,7 +770,9 @@ async def test_conflict_property_only_when_both_sources_have_value(
     assert resp.status_code == 201
     result = resp.json()
     # finish should conflict, fire_rating should not since spec has empty
-    finish_conflicts = [c for c in result["conflict_items"] if c["property_name"] == "finish"]
+    finish_conflicts = [
+        c for c in result["conflict_items"] if c["property_name"] == "finish"
+    ]
     assert len(finish_conflicts) >= 1
 
 
@@ -577,14 +785,24 @@ async def test_different_source_pairs_create_distinct_conflicts(
 
     # Create a third source (drawing)
     drawing = await make_item(
-        "drawing", "Door Drawing",
+        "drawing",
+        "Door Drawing",
         {"name": "Door Drawing", "discipline": "Architectural"},
     )
     await make_connection(setup["project"], drawing)
 
     # Schedule says finish=paint
-    sched_data = _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                     "hardware_set": "HW-1", "fire_rating": ""}])
+    sched_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "paint",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -596,8 +814,17 @@ async def test_different_source_pairs_create_distinct_conflicts(
     )
 
     # Spec says finish=stain → conflict (schedule+spec)
-    spec_data = _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                    "hardware_set": "HW-1", "fire_rating": ""}])
+    spec_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "stain",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={
@@ -609,8 +836,17 @@ async def test_different_source_pairs_create_distinct_conflicts(
     )
 
     # Drawing says finish=lacquer → conflict (schedule+drawing) AND (spec+drawing)
-    drawing_data = _make_spec_excel([{"id": "Door 001", "finish": "lacquer", "material": "wood",
-                                       "hardware_set": "HW-1", "fire_rating": ""}])
+    drawing_data = _make_spec_excel(
+        [
+            {
+                "id": "Door 001",
+                "finish": "lacquer",
+                "material": "wood",
+                "hardware_set": "HW-1",
+                "fire_rating": "",
+            }
+        ]
+    )
     await client.post(
         "/api/v1/import",
         data={

@@ -34,7 +34,10 @@ router = APIRouter()
 
 # ─── Helpers ───────────────────────────────────────────────────
 
-async def _get_item_or_404(db: AsyncSession, item_id: uuid.UUID, label: str = "Item") -> Item:
+
+async def _get_item_or_404(
+    db: AsyncSession, item_id: uuid.UUID, label: str = "Item"
+) -> Item:
     """Fetch an item or raise 404."""
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
@@ -51,7 +54,7 @@ async def _validate_context(db: AsyncSession, context_id: uuid.UUID) -> Item:
         raise HTTPException(
             status_code=400,
             detail=f"Context must be a milestone item. Got type '{context.item_type}' "
-                   f"which is not a context type.",
+            f"which is not a context type.",
         )
     return context
 
@@ -61,7 +64,9 @@ def _get_ordinal(item: Item) -> int:
     return item.properties.get("ordinal", 0) if item.properties else 0
 
 
-async def _get_children_of_parent(db: AsyncSession, parent_id: uuid.UUID) -> list[uuid.UUID]:
+async def _get_children_of_parent(
+    db: AsyncSession, parent_id: uuid.UUID
+) -> list[uuid.UUID]:
     """
     Get all items connected to parent as target (i.e., all children).
 
@@ -69,9 +74,7 @@ async def _get_children_of_parent(db: AsyncSession, parent_id: uuid.UUID) -> lis
     We look for connections where parent is the source.
     """
     result = await db.execute(
-        select(Connection.target_item_id).where(
-            Connection.source_item_id == parent_id
-        )
+        select(Connection.target_item_id).where(Connection.source_item_id == parent_id)
     )
     return result.scalars().all()
 
@@ -162,9 +165,7 @@ async def _get_effective_values_at_context_all_sources(
     target_ordinal = _get_ordinal(target_context)
 
     # Get all snapshots for this item
-    result = await db.execute(
-        select(Snapshot).where(Snapshot.item_id == item_id)
-    )
+    result = await db.execute(select(Snapshot).where(Snapshot.item_id == item_id))
     snapshots = result.scalars().all()
 
     if not snapshots:
@@ -227,14 +228,16 @@ def _build_property_changes(
         ):
             continue
 
-        changes.append(PropertyChange(
+        changes.append(
+            PropertyChange(
                 property_name=prop_name,
                 old_value=old_val,
                 new_value=new_val,
                 from_context=from_context,
                 to_context=to_context,
                 source=source_id,
-            ))
+            )
+        )
 
     return changes
 
@@ -316,13 +319,15 @@ async def _categorize_items_with_source_filter(
                 category = "unchanged"
                 unchanged_count += 1
 
-        comparisons.append(ItemComparison(
-            item_id=item_id,
-            identifier=item.identifier,
-            item_type=item.item_type,
-            category=category,
-            changes=changes,
-        ))
+        comparisons.append(
+            ItemComparison(
+                item_id=item_id,
+                identifier=item.identifier,
+                item_type=item.item_type,
+                category=category,
+                changes=changes,
+            )
+        )
 
     total = added_count + removed_count + modified_count + unchanged_count
     summary = ComparisonSummary(
@@ -424,13 +429,15 @@ async def _categorize_items_with_effective_values(
                 category = "unchanged"
                 unchanged_count += 1
 
-        comparisons.append(ItemComparison(
-            item_id=item_id,
-            identifier=item.identifier,
-            item_type=item.item_type,
-            category=category,
-            changes=changes,
-        ))
+        comparisons.append(
+            ItemComparison(
+                item_id=item_id,
+                identifier=item.identifier,
+                item_type=item.item_type,
+                category=category,
+                changes=changes,
+            )
+        )
 
     total = added_count + removed_count + modified_count + unchanged_count
     summary = ComparisonSummary(
@@ -445,6 +452,7 @@ async def _categorize_items_with_effective_values(
 
 
 # ─── Main Route ────────────────────────────────────────────────
+
 
 @router.post("/compare", response_model=ComparisonResult, status_code=200)
 async def compare_snapshots(
@@ -464,8 +472,9 @@ async def compare_snapshots(
     Returns paginated results with per-item and summary statistics.
     """
     # Validate that exactly one of item_ids or parent_item_id is provided
-    if (payload.item_ids is None and payload.parent_item_id is None) or \
-       (payload.item_ids is not None and payload.parent_item_id is not None):
+    if (payload.item_ids is None and payload.parent_item_id is None) or (
+        payload.item_ids is not None and payload.parent_item_id is not None
+    ):
         raise HTTPException(
             status_code=400,
             detail="Specify exactly one of: item_ids (list) or parent_item_id (single)",

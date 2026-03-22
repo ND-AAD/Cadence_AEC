@@ -215,7 +215,9 @@ def generate_spec_pdf(
                 story.append(Spacer(1, 6))
             else:
                 # Escape HTML entities for reportlab
-                safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                safe_line = (
+                    line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                )
                 story.append(Paragraph(safe_line, body_style))
                 story.append(Spacer(1, 2))
 
@@ -226,7 +228,9 @@ def generate_spec_pdf(
 
             number = section.get("number", "00 00 00")
             title = section.get("title", "Unknown Section")
-            safe_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            safe_title = (
+                title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            )
 
             # Section header
             header_text = f"SECTION {number} - {safe_title}"
@@ -234,9 +238,16 @@ def generate_spec_pdf(
             story.append(Spacer(1, 12))
 
             # Part 1
-            part1 = section.get("part1", "PART 1 - GENERAL\n\n1.01 SUMMARY\nA. General requirements.")
+            part1 = section.get(
+                "part1", "PART 1 - GENERAL\n\n1.01 SUMMARY\nA. General requirements."
+            )
             for line in part1.split("\n"):
-                safe_line = line.strip().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                safe_line = (
+                    line.strip()
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
                 if not safe_line:
                     story.append(Spacer(1, 4))
                 elif safe_line.startswith("PART"):
@@ -248,9 +259,16 @@ def generate_spec_pdf(
             story.append(Spacer(1, 8))
 
             # Part 2
-            part2 = section.get("part2", "PART 2 - PRODUCTS\n\n2.01 MATERIALS\nA. As specified.")
+            part2 = section.get(
+                "part2", "PART 2 - PRODUCTS\n\n2.01 MATERIALS\nA. As specified."
+            )
             for line in part2.split("\n"):
-                safe_line = line.strip().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                safe_line = (
+                    line.strip()
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
                 if not safe_line:
                     story.append(Spacer(1, 4))
                 elif safe_line.startswith("PART"):
@@ -262,9 +280,16 @@ def generate_spec_pdf(
             story.append(Spacer(1, 8))
 
             # Part 3
-            part3 = section.get("part3", "PART 3 - EXECUTION\n\n3.01 INSTALLATION\nA. Per manufacturer.")
+            part3 = section.get(
+                "part3", "PART 3 - EXECUTION\n\n3.01 INSTALLATION\nA. Per manufacturer."
+            )
             for line in part3.split("\n"):
-                safe_line = line.strip().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                safe_line = (
+                    line.strip()
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
                 if not safe_line:
                     story.append(Spacer(1, 4))
                 elif safe_line.startswith("PART"):
@@ -290,13 +315,17 @@ def generate_single_section_pdf(
     title: str = "WOOD DOORS",
 ) -> bytes:
     """Generate a PDF with a single specification section (08 14 00 by default)."""
-    return generate_spec_pdf(sections=[{
-        "number": section_number,
-        "title": title,
-        "part1": SAMPLE_PART1_GENERAL,
-        "part2": SAMPLE_PART2_PRODUCTS,
-        "part3": SAMPLE_PART3_EXECUTION,
-    }])
+    return generate_spec_pdf(
+        sections=[
+            {
+                "number": section_number,
+                "title": title,
+                "part1": SAMPLE_PART1_GENERAL,
+                "part2": SAMPLE_PART2_PRODUCTS,
+                "part3": SAMPLE_PART3_EXECUTION,
+            }
+        ]
+    )
 
 
 def generate_multi_section_spec_pdf() -> bytes:
@@ -305,29 +334,31 @@ def generate_multi_section_spec_pdf() -> bytes:
 
     Sections: 08 11 00, 08 14 00, 08 71 00
     """
-    return generate_spec_pdf(sections=[
-        {
-            "number": "08 11 00",
-            "title": "METAL DOORS AND FRAMES",
-            "part1": "PART 1 - GENERAL\n\n1.01 SUMMARY\nA. Section includes hollow metal doors and frames.\nB. Types: Standard duty, heavy duty, and fire-rated assemblies.\n\n1.02 REFERENCES\nA. SDI - Steel Door Institute\nB. NFPA 80 - Standard for Fire Doors",
-            "part2": "PART 2 - PRODUCTS\n\n2.01 MANUFACTURERS\nA. Steelcraft\nB. Ceco Door\nC. Curries Company\n\n2.02 HOLLOW METAL DOORS\nA. Construction: Cold-rolled steel, flush design\nB. Gauge: 16 gauge minimum\nC. Core: Polyurethane insulated\nD. Fire Rating: 90 minutes where indicated",
-            "part3": "PART 3 - EXECUTION\n\n3.01 INSTALLATION\nA. Install in accordance with SDI-117 recommendations.\nB. Coordinate with masonry and drywall work.",
-        },
-        {
-            "number": "08 14 00",
-            "title": "WOOD DOORS",
-            "part1": SAMPLE_PART1_GENERAL,
-            "part2": SAMPLE_PART2_PRODUCTS,
-            "part3": SAMPLE_PART3_EXECUTION,
-        },
-        {
-            "number": "08 71 00",
-            "title": "DOOR HARDWARE",
-            "part1": "PART 1 - GENERAL\n\n1.01 SUMMARY\nA. Section includes door hardware for new doors.",
-            "part2": "PART 2 - PRODUCTS\n\n2.01 MANUFACTURERS\nA. Schlage\nB. Von Duprin\nC. LCN\n\n2.02 HARDWARE SETS\nA. Set 1: Office doors\nB. Set 2: Corridor doors\nC. Set 3: Rated doors",
-            "part3": "PART 3 - EXECUTION\n\n3.01 INSTALLATION\nA. Install hardware per manufacturer's templates.",
-        },
-    ])
+    return generate_spec_pdf(
+        sections=[
+            {
+                "number": "08 11 00",
+                "title": "METAL DOORS AND FRAMES",
+                "part1": "PART 1 - GENERAL\n\n1.01 SUMMARY\nA. Section includes hollow metal doors and frames.\nB. Types: Standard duty, heavy duty, and fire-rated assemblies.\n\n1.02 REFERENCES\nA. SDI - Steel Door Institute\nB. NFPA 80 - Standard for Fire Doors",
+                "part2": "PART 2 - PRODUCTS\n\n2.01 MANUFACTURERS\nA. Steelcraft\nB. Ceco Door\nC. Curries Company\n\n2.02 HOLLOW METAL DOORS\nA. Construction: Cold-rolled steel, flush design\nB. Gauge: 16 gauge minimum\nC. Core: Polyurethane insulated\nD. Fire Rating: 90 minutes where indicated",
+                "part3": "PART 3 - EXECUTION\n\n3.01 INSTALLATION\nA. Install in accordance with SDI-117 recommendations.\nB. Coordinate with masonry and drywall work.",
+            },
+            {
+                "number": "08 14 00",
+                "title": "WOOD DOORS",
+                "part1": SAMPLE_PART1_GENERAL,
+                "part2": SAMPLE_PART2_PRODUCTS,
+                "part3": SAMPLE_PART3_EXECUTION,
+            },
+            {
+                "number": "08 71 00",
+                "title": "DOOR HARDWARE",
+                "part1": "PART 1 - GENERAL\n\n1.01 SUMMARY\nA. Section includes door hardware for new doors.",
+                "part2": "PART 2 - PRODUCTS\n\n2.01 MANUFACTURERS\nA. Schlage\nB. Von Duprin\nC. LCN\n\n2.02 HARDWARE SETS\nA. Set 1: Office doors\nB. Set 2: Corridor doors\nC. Set 3: Rated doors",
+                "part3": "PART 3 - EXECUTION\n\n3.01 INSTALLATION\nA. Install hardware per manufacturer's templates.",
+            },
+        ]
+    )
 
 
 def generate_compressed_number_pdf() -> bytes:
@@ -382,4 +413,6 @@ END OF SECTION
 
 def generate_empty_pdf() -> bytes:
     """Generate a valid but empty PDF (no specification content)."""
-    return generate_spec_pdf(content="This document contains no specification sections.")
+    return generate_spec_pdf(
+        content="This document contains no specification sections."
+    )

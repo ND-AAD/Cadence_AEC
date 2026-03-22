@@ -64,36 +64,72 @@ async def spec_with_masterformat(make_item, make_connection):
     spec = await make_item("specification", "Test Specification", {"name": "Test Spec"})
 
     # Division 08
-    div_08 = await make_item("spec_section", "08", {
-        "title": "Openings", "division": "08", "level": 0,
-    })
+    div_08 = await make_item(
+        "spec_section",
+        "08",
+        {
+            "title": "Openings",
+            "division": "08",
+            "level": 0,
+        },
+    )
     await make_connection(spec, div_08)
 
     # Groups
-    grp_08_10 = await make_item("spec_section", "08 10 00", {
-        "title": "Doors and Frames", "division": "08", "level": 1,
-    })
+    grp_08_10 = await make_item(
+        "spec_section",
+        "08 10 00",
+        {
+            "title": "Doors and Frames",
+            "division": "08",
+            "level": 1,
+        },
+    )
     await make_connection(div_08, grp_08_10)
 
-    grp_08_70 = await make_item("spec_section", "08 70 00", {
-        "title": "Hardware", "division": "08", "level": 1,
-    })
+    grp_08_70 = await make_item(
+        "spec_section",
+        "08 70 00",
+        {
+            "title": "Hardware",
+            "division": "08",
+            "level": 1,
+        },
+    )
     await make_connection(div_08, grp_08_70)
 
     # Sections
-    sec_08_11 = await make_item("spec_section", "08 11 00", {
-        "title": "Metal Doors and Frames", "division": "08", "level": 2,
-    })
+    sec_08_11 = await make_item(
+        "spec_section",
+        "08 11 00",
+        {
+            "title": "Metal Doors and Frames",
+            "division": "08",
+            "level": 2,
+        },
+    )
     await make_connection(grp_08_10, sec_08_11)
 
-    sec_08_14 = await make_item("spec_section", "08 14 00", {
-        "title": "Wood Doors", "division": "08", "level": 2,
-    })
+    sec_08_14 = await make_item(
+        "spec_section",
+        "08 14 00",
+        {
+            "title": "Wood Doors",
+            "division": "08",
+            "level": 2,
+        },
+    )
     await make_connection(grp_08_10, sec_08_14)
 
-    sec_08_71 = await make_item("spec_section", "08 71 00", {
-        "title": "Door Hardware", "division": "08", "level": 2,
-    })
+    sec_08_71 = await make_item(
+        "spec_section",
+        "08 71 00",
+        {
+            "title": "Door Hardware",
+            "division": "08",
+            "level": 2,
+        },
+    )
     await make_connection(grp_08_70, sec_08_71)
 
     return {
@@ -172,11 +208,7 @@ class TestDetectSectionBoundaries:
 
     def test_sorted_by_offset(self):
         """Matches are returned sorted by position."""
-        text = (
-            "SECTION 08 71 00 - HARDWARE\n"
-            "Content.\n"
-            "SECTION 08 14 00 - WOOD DOORS\n"
-        )
+        text = "SECTION 08 71 00 - HARDWARE\nContent.\nSECTION 08 14 00 - WOOD DOORS\n"
         matches = detect_section_boundaries(text)
         assert matches[0].section_number == "08 71 00"
         assert matches[1].section_number == "08 14 00"
@@ -256,12 +288,7 @@ class TestFindPartBoundaries:
     def test_numbered_format(self):
         """Detects '1. GENERAL', '2. PRODUCTS', '3. EXECUTION' format."""
         text = (
-            "1. GENERAL\n"
-            "Scope.\n"
-            "2. PRODUCTS\n"
-            "Materials.\n"
-            "3. EXECUTION\n"
-            "Installation.\n"
+            "1. GENERAL\nScope.\n2. PRODUCTS\nMaterials.\n3. EXECUTION\nInstallation.\n"
         )
         b = find_part_boundaries(text)
         assert b.part1_start is not None
@@ -333,7 +360,9 @@ class TestExtractPdfText:
     def test_header_footer_stripping(self):
         """Repeated lines across pages are stripped."""
         pages = [
-            PageContent(page_number=i, text=f"HEADER LINE\nContent page {i}\nFOOTER LINE")
+            PageContent(
+                page_number=i, text=f"HEADER LINE\nContent page {i}\nFOOTER LINE"
+            )
             for i in range(1, 6)
         ]
         cleaned = _strip_headers_footers(pages)
@@ -489,9 +518,7 @@ class TestPreprocessPipeline:
             db_session, pdf_bytes, "tracked.pdf"
         )
         # Verify batch exists in DB
-        result = await db_session.execute(
-            select(Item).where(Item.id == batch.id)
-        )
+        result = await db_session.execute(select(Item).where(Item.id == batch.id))
         db_batch = result.scalar_one_or_none()
         assert db_batch is not None
         assert db_batch.item_type == "preprocess_batch"
@@ -514,7 +541,9 @@ class TestPreprocessPipeline:
 
 class TestConfirmSections:
     @pytest.mark.asyncio
-    async def test_confirm_creates_specification(self, db_session, spec_with_masterformat):
+    async def test_confirm_creates_specification(
+        self, db_session, spec_with_masterformat
+    ):
         """Confirmation creates a specification item and connections."""
         setup = spec_with_masterformat
 
@@ -557,7 +586,9 @@ class TestConfirmSections:
         assert spec_item.id == setup["spec"].id
 
     @pytest.mark.asyncio
-    async def test_confirm_stores_part2_in_connection(self, db_session, spec_with_masterformat):
+    async def test_confirm_stores_part2_in_connection(
+        self, db_session, spec_with_masterformat
+    ):
         """Confirmation stores Part 2 text in connection properties (WP-17 bridge)."""
         setup = spec_with_masterformat
 
@@ -581,9 +612,7 @@ class TestConfirmSections:
         if conns > 0:
             # Check connection properties
             result = await db_session.execute(
-                select(Connection).where(
-                    Connection.source_item_id == spec_item.id
-                )
+                select(Connection).where(Connection.source_item_id == spec_item.id)
             )
             connections = result.scalars().all()
             assert len(connections) > 0
@@ -594,7 +623,9 @@ class TestConfirmSections:
                 assert props["confirmed_by"] == "user"
 
     @pytest.mark.asyncio
-    async def test_confirm_already_confirmed_raises(self, db_session, spec_with_masterformat):
+    async def test_confirm_already_confirmed_raises(
+        self, db_session, spec_with_masterformat
+    ):
         """Confirming an already-confirmed batch raises ValueError."""
         pdf_bytes = generate_single_section_pdf("08 14 00", "WOOD DOORS")
         batch, doc = await preprocess_specification_pdf(
@@ -603,13 +634,21 @@ class TestConfirmSections:
 
         # First confirmation
         await confirm_sections(
-            db_session, batch.id, None, "First", [],
+            db_session,
+            batch.id,
+            None,
+            "First",
+            [],
         )
 
         # Second confirmation should fail
         with pytest.raises(ValueError, match="already confirmed"):
             await confirm_sections(
-                db_session, batch.id, None, "Second", [],
+                db_session,
+                batch.id,
+                None,
+                "Second",
+                [],
             )
 
     @pytest.mark.asyncio
@@ -617,11 +656,17 @@ class TestConfirmSections:
         """Confirming a nonexistent batch raises ValueError."""
         with pytest.raises(ValueError, match="not found"):
             await confirm_sections(
-                db_session, uuid.uuid4(), None, "Nope", [],
+                db_session,
+                uuid.uuid4(),
+                None,
+                "Nope",
+                [],
             )
 
     @pytest.mark.asyncio
-    async def test_confirm_with_section_exclusion(self, db_session, spec_with_masterformat):
+    async def test_confirm_with_section_exclusion(
+        self, db_session, spec_with_masterformat
+    ):
         """User can exclude specific sections from confirmation."""
         pdf_bytes = generate_single_section_pdf("08 14 00", "WOOD DOORS")
         batch, doc = await preprocess_specification_pdf(
@@ -640,7 +685,11 @@ class TestConfirmSections:
         ]
 
         spec_item, count, conns = await confirm_sections(
-            db_session, batch.id, None, "Exclude Test", confirmations,
+            db_session,
+            batch.id,
+            None,
+            "Exclude Test",
+            confirmations,
         )
 
         assert conns == 0  # No connections created
@@ -651,7 +700,9 @@ class TestConfirmSections:
 
 class TestAPIEndpoints:
     @pytest.mark.asyncio
-    async def test_post_preprocess_pdf(self, client: AsyncClient, spec_with_masterformat):
+    async def test_post_preprocess_pdf(
+        self, client: AsyncClient, spec_with_masterformat
+    ):
         """POST /api/v1/spec/preprocess returns batch_id and document."""
         pdf_bytes = generate_single_section_pdf()
 
@@ -706,7 +757,9 @@ class TestAPIEndpoints:
         assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_post_confirm_sections(self, client: AsyncClient, spec_with_masterformat):
+    async def test_post_confirm_sections(
+        self, client: AsyncClient, spec_with_masterformat
+    ):
         """POST confirm-sections creates specification and connections."""
         # Preprocess first
         pdf_bytes = generate_single_section_pdf()
@@ -771,9 +824,7 @@ class TestEdgeCases:
         )
 
         # Retrieve from DB
-        result = await db_session.execute(
-            select(Item).where(Item.id == batch.id)
-        )
+        result = await db_session.execute(select(Item).where(Item.id == batch.id))
         db_batch = result.scalar_one()
         props = db_batch.properties if isinstance(db_batch.properties, dict) else {}
         doc_json = props.get("document_json")

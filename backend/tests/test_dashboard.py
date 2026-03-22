@@ -53,7 +53,9 @@ async def dashboard_scenario(db_session: AsyncSession, make_item, make_connectio
 
     # Sources
     schedule = await make_item("schedule", "Door Schedule", {"name": "Door Schedule"})
-    spec = await make_item("specification", "Spec Section 09", {"name": "Spec Section 09"})
+    spec = await make_item(
+        "specification", "Spec Section 09", {"name": "Spec Section 09"}
+    )
     await make_connection(project, schedule)
     await make_connection(project, spec)
     await make_connection(schedule, door1)
@@ -67,30 +69,50 @@ async def dashboard_scenario(db_session: AsyncSession, make_item, make_connectio
     await make_connection(project, dd)
 
     # Snapshots for conflict and change
-    db_session.add(Snapshot(
-        item_id=door1.id, context_id=sd.id, source_id=schedule.id,
-        properties={"finish": "paint", "material": "wood"},
-    ))
-    db_session.add(Snapshot(
-        item_id=door1.id, context_id=dd.id, source_id=schedule.id,
-        properties={"finish": "paint", "material": "steel"},
-    ))
-    db_session.add(Snapshot(
-        item_id=door1.id, context_id=dd.id, source_id=spec.id,
-        properties={"finish": "stain", "material": "steel"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door1.id,
+            context_id=sd.id,
+            source_id=schedule.id,
+            properties={"finish": "paint", "material": "wood"},
+        )
+    )
+    db_session.add(
+        Snapshot(
+            item_id=door1.id,
+            context_id=dd.id,
+            source_id=schedule.id,
+            properties={"finish": "paint", "material": "steel"},
+        )
+    )
+    db_session.add(
+        Snapshot(
+            item_id=door1.id,
+            context_id=dd.id,
+            source_id=spec.id,
+            properties={"finish": "stain", "material": "steel"},
+        )
+    )
     await db_session.flush()
 
     # Conflict item: door 101 finish at DD (schedule vs spec)
-    conflict = await make_item("conflict", "101 / finish", {
-        "property_name": "finish",
-        "status": "detected",
-        "affected_item": str(door1.id),
-    })
-    db_session.add(Snapshot(
-        item_id=conflict.id, context_id=dd.id, source_id=conflict.id,
-        properties={"status": "detected", "property_name": "finish"},
-    ))
+    conflict = await make_item(
+        "conflict",
+        "101 / finish",
+        {
+            "property_name": "finish",
+            "status": "detected",
+            "affected_item": str(door1.id),
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=conflict.id,
+            context_id=dd.id,
+            source_id=conflict.id,
+            properties={"status": "detected", "property_name": "finish"},
+        )
+    )
     await db_session.flush()
     await make_connection(conflict, door1)
     await make_connection(conflict, schedule)
@@ -98,82 +120,120 @@ async def dashboard_scenario(db_session: AsyncSession, make_item, make_connectio
     await make_connection(conflict, dd)
 
     # Change item: door 101 material SD→DD from schedule
-    change = await make_item("change", "Door Schedule / 101 / SD→DD", {
-        "property_name": "material",
-        "status": "detected",
-        "affected_item": str(door1.id),
-    })
-    db_session.add(Snapshot(
-        item_id=change.id, context_id=dd.id, source_id=change.id,
-        properties={"status": "detected", "property_name": "material"},
-    ))
+    change = await make_item(
+        "change",
+        "Door Schedule / 101 / SD→DD",
+        {
+            "property_name": "material",
+            "status": "detected",
+            "affected_item": str(door1.id),
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=change.id,
+            context_id=dd.id,
+            source_id=change.id,
+            properties={"status": "detected", "property_name": "material"},
+        )
+    )
     await db_session.flush()
     await make_connection(change, door1)
     await make_connection(change, schedule)
     await make_connection(change, dd)
 
     # Decision item
-    decision = await make_item("decision", "Decision: 101/finish", {
-        "rationale": "Per architect",
-        "resolved_value": "paint",
-        "decided_by": "Architect",
-    })
-    db_session.add(Snapshot(
-        item_id=decision.id, context_id=dd.id, source_id=decision.id,
-        properties={"rationale": "Per architect"},
-    ))
+    decision = await make_item(
+        "decision",
+        "Decision: 101/finish",
+        {
+            "rationale": "Per architect",
+            "resolved_value": "paint",
+            "decided_by": "Architect",
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=decision.id,
+            context_id=dd.id,
+            source_id=decision.id,
+            properties={"rationale": "Per architect"},
+        )
+    )
     await db_session.flush()
 
     # Directive: pending (spec needs to update to "paint")
-    directive_pending = await make_item("directive", "Directive: 101/finish → Spec", {
-        "property_name": "finish",
-        "target_value": "paint",
-        "target_source_id": str(spec.id),
-        "decision_item_id": str(decision.id),
-        "affected_item_id": str(door1.id),
-        "status": "pending",
-    })
-    db_session.add(Snapshot(
-        item_id=directive_pending.id, context_id=dd.id, source_id=directive_pending.id,
-        properties={"status": "pending", "property_name": "finish"},
-    ))
+    directive_pending = await make_item(
+        "directive",
+        "Directive: 101/finish → Spec",
+        {
+            "property_name": "finish",
+            "target_value": "paint",
+            "target_source_id": str(spec.id),
+            "decision_item_id": str(decision.id),
+            "affected_item_id": str(door1.id),
+            "status": "pending",
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=directive_pending.id,
+            context_id=dd.id,
+            source_id=directive_pending.id,
+            properties={"status": "pending", "property_name": "finish"},
+        )
+    )
     await db_session.flush()
     await make_connection(directive_pending, door1)
     await make_connection(directive_pending, spec, {"relationship": "target_source"})
     await make_connection(directive_pending, dd)
 
     # Directive: fulfilled (schedule already matches)
-    directive_fulfilled = await make_item("directive", "Directive: 102/width → Schedule", {
-        "property_name": "width",
-        "target_value": "36",
-        "target_source_id": str(schedule.id),
-        "decision_item_id": str(decision.id),
-        "affected_item_id": str(door2.id),
-        "status": "fulfilled",
-    })
-    db_session.add(Snapshot(
-        item_id=directive_fulfilled.id, context_id=dd.id, source_id=directive_fulfilled.id,
-        properties={"status": "fulfilled", "property_name": "width"},
-    ))
+    directive_fulfilled = await make_item(
+        "directive",
+        "Directive: 102/width → Schedule",
+        {
+            "property_name": "width",
+            "target_value": "36",
+            "target_source_id": str(schedule.id),
+            "decision_item_id": str(decision.id),
+            "affected_item_id": str(door2.id),
+            "status": "fulfilled",
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=directive_fulfilled.id,
+            context_id=dd.id,
+            source_id=directive_fulfilled.id,
+            properties={"status": "fulfilled", "property_name": "width"},
+        )
+    )
     await db_session.flush()
     await make_connection(directive_fulfilled, door2)
-    await make_connection(directive_fulfilled, schedule, {"relationship": "target_source"})
+    await make_connection(
+        directive_fulfilled, schedule, {"relationship": "target_source"}
+    )
     await make_connection(directive_fulfilled, dd)
 
     # Import batch
-    import_batch = await make_item("import_batch", "batch-001", {
-        "filename": "door_schedule.xlsx",
-        "row_count": 50,
-        "status": "completed",
-        "source_item_id": str(schedule.id),
-        "time_context_id": str(dd.id),
-        "items_imported": 50,
-        "source_changes": 3,
-        "affected_items": 2,
-        "new_conflicts": 1,
-        "resolved_conflicts": 0,
-        "directives_fulfilled": 1,
-    })
+    import_batch = await make_item(
+        "import_batch",
+        "batch-001",
+        {
+            "filename": "door_schedule.xlsx",
+            "row_count": 50,
+            "status": "completed",
+            "source_item_id": str(schedule.id),
+            "time_context_id": str(dd.id),
+            "items_imported": 50,
+            "source_changes": 3,
+            "affected_items": 2,
+            "new_conflicts": 1,
+            "resolved_conflicts": 0,
+            "directives_fulfilled": 1,
+        },
+    )
 
     return {
         "project": project,
@@ -231,10 +291,10 @@ async def test_health_action_item_counts(client, dashboard_scenario):
     data = response.json()
     ai = data["action_items"]
     assert ai["unresolved_conflicts"] == 1  # one detected conflict
-    assert ai["unresolved_changes"] == 1    # one detected change
-    assert ai["pending_directives"] == 1    # one pending directive
+    assert ai["unresolved_changes"] == 1  # one detected change
+    assert ai["pending_directives"] == 1  # one pending directive
     assert ai["fulfilled_directives"] == 1  # one fulfilled directive
-    assert ai["decisions_made"] == 1        # one decision
+    assert ai["decisions_made"] == 1  # one decision
 
 
 @pytest.mark.asyncio
@@ -292,9 +352,7 @@ async def test_health_empty_project(client):
 async def test_health_project_scoped(client, dashboard_scenario):
     """GET /dashboard/health?project=uuid scopes to project items."""
     s = dashboard_scenario
-    response = await client.get(
-        f"/api/v1/dashboard/health?project={s['project'].id}"
-    )
+    response = await client.get(f"/api/v1/dashboard/health?project={s['project'].id}")
     assert response.status_code == 200
     data = response.json()
     # Phase 1 (BFS forward): project, building, 2 doors, 2 sources, 2 milestones = 8
@@ -495,30 +553,42 @@ async def test_health_multiple_conflicts(
     dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 300})
 
     # Conflict on finish
-    c1 = await make_item("conflict", "301/finish", {
-        "property_name": "finish",
-        "status": "detected",
-    })
+    c1 = await make_item(
+        "conflict",
+        "301/finish",
+        {
+            "property_name": "finish",
+            "status": "detected",
+        },
+    )
     await make_connection(c1, door)
     await make_connection(c1, sched)
     await make_connection(c1, spec)
     await make_connection(c1, dd)
 
     # Conflict on hardware_set
-    c2 = await make_item("conflict", "301/hardware_set", {
-        "property_name": "hardware_set",
-        "status": "detected",
-    })
+    c2 = await make_item(
+        "conflict",
+        "301/hardware_set",
+        {
+            "property_name": "hardware_set",
+            "status": "detected",
+        },
+    )
     await make_connection(c2, door)
     await make_connection(c2, sched)
     await make_connection(c2, spec)
     await make_connection(c2, dd)
 
     # Resolved conflict (should NOT count as unresolved)
-    c3 = await make_item("conflict", "301/material", {
-        "property_name": "material",
-        "status": "resolved",
-    })
+    c3 = await make_item(
+        "conflict",
+        "301/material",
+        {
+            "property_name": "material",
+            "status": "resolved",
+        },
+    )
 
     response = await client.get("/api/v1/dashboard/health")
     data = response.json()
@@ -535,17 +605,13 @@ async def test_health_mixed_statuses(client, db_session, make_item, make_connect
     door = await make_item("door", "401", {"mark": "401"})
 
     # Detected change (counts as unresolved)
-    await make_item("change", "c1", {
-        "property_name": "width", "status": "detected"
-    })
+    await make_item("change", "c1", {"property_name": "width", "status": "detected"})
     # Acknowledged change (still unresolved per spec)
-    await make_item("change", "c2", {
-        "property_name": "width", "status": "acknowledged"
-    })
+    await make_item(
+        "change", "c2", {"property_name": "width", "status": "acknowledged"}
+    )
     # Reviewed change (NOT unresolved — not in detected/acknowledged)
-    await make_item("change", "c3", {
-        "property_name": "height", "status": "reviewed"
-    })
+    await make_item("change", "c3", {"property_name": "height", "status": "reviewed"})
 
     response = await client.get("/api/v1/dashboard/health")
     data = response.json()
@@ -564,21 +630,33 @@ async def test_directive_status_multiple_per_source(
     """Directive status correctly aggregates multiple directives per source."""
     spec = await make_item("specification", "My Spec", {"name": "My Spec"})
 
-    await make_item("directive", "d1", {
-        "property_name": "finish",
-        "target_source_id": str(spec.id),
-        "status": "pending",
-    })
-    await make_item("directive", "d2", {
-        "property_name": "material",
-        "target_source_id": str(spec.id),
-        "status": "pending",
-    })
-    await make_item("directive", "d3", {
-        "property_name": "width",
-        "target_source_id": str(spec.id),
-        "status": "fulfilled",
-    })
+    await make_item(
+        "directive",
+        "d1",
+        {
+            "property_name": "finish",
+            "target_source_id": str(spec.id),
+            "status": "pending",
+        },
+    )
+    await make_item(
+        "directive",
+        "d2",
+        {
+            "property_name": "material",
+            "target_source_id": str(spec.id),
+            "status": "pending",
+        },
+    )
+    await make_item(
+        "directive",
+        "d3",
+        {
+            "property_name": "width",
+            "target_source_id": str(spec.id),
+            "status": "fulfilled",
+        },
+    )
 
     response = await client.get("/api/v1/dashboard/directive-status")
     data = response.json()
@@ -595,9 +673,7 @@ async def test_directive_status_multiple_per_source(
 
 
 @pytest.mark.asyncio
-async def test_temporal_trend_ordering(
-    client, db_session, make_item, make_connection
-):
+async def test_temporal_trend_ordering(client, db_session, make_item, make_connection):
     """Milestones come back ordered by ordinal regardless of creation order."""
     # Create milestones out of order
     cd = await make_item("milestone", "CD", {"name": "CD", "ordinal": 400})
@@ -617,17 +693,20 @@ async def test_temporal_trend_ordering(
 
 
 @pytest.mark.asyncio
-async def test_source_pair_key_sorted(
-    client, db_session, make_item, make_connection
-):
+async def test_source_pair_key_sorted(client, db_session, make_item, make_connection):
     """Source pair keys are sorted alphabetically (consistent naming)."""
     door = await make_item("door", "501", {"mark": "501"})
     spec = await make_item("specification", "AAA Spec", {"name": "AAA Spec"})
     drawing = await make_item("drawing", "ZZZ Drawing", {"name": "ZZZ Drawing"})
 
-    conflict = await make_item("conflict", "501/finish", {
-        "property_name": "finish", "status": "detected",
-    })
+    conflict = await make_item(
+        "conflict",
+        "501/finish",
+        {
+            "property_name": "finish",
+            "status": "detected",
+        },
+    )
     await make_connection(conflict, door)
     await make_connection(conflict, spec)
     await make_connection(conflict, drawing)
@@ -657,10 +736,14 @@ async def test_graph_rollup_basic_structure(
     await ensure_property_connection(db_session, finish_prop, door)
 
     # Create a conflict on the finish property
-    conflict = await make_item("conflict", "601/finish", {
-        "property_name": "finish",
-        "status": "detected",
-    })
+    conflict = await make_item(
+        "conflict",
+        "601/finish",
+        {
+            "property_name": "finish",
+            "status": "detected",
+        },
+    )
     await make_connection(conflict, finish_prop)
 
     # Get rollup
@@ -685,17 +768,25 @@ async def test_graph_rollup_counts_active_conflicts(
     await ensure_property_connection(db_session, finish_prop, door)
 
     # Create detected conflict
-    c1 = await make_item("conflict", "602/finish/detected", {
-        "property_name": "finish",
-        "status": "detected",
-    })
+    c1 = await make_item(
+        "conflict",
+        "602/finish/detected",
+        {
+            "property_name": "finish",
+            "status": "detected",
+        },
+    )
     await make_connection(c1, finish_prop)
 
     # Create resolved conflict (should not count)
-    c2 = await make_item("conflict", "602/finish/resolved", {
-        "property_name": "finish",
-        "status": "resolved",
-    })
+    c2 = await make_item(
+        "conflict",
+        "602/finish/resolved",
+        {
+            "property_name": "finish",
+            "status": "resolved",
+        },
+    )
     await make_connection(c2, finish_prop)
 
     rollup = await get_action_items_by_property_graph(db_session)
@@ -715,24 +806,36 @@ async def test_graph_rollup_counts_active_changes(
     await ensure_property_connection(db_session, material_prop, door)
 
     # Create detected change
-    ch1 = await make_item("change", "603/material/detected", {
-        "property_name": "material",
-        "status": "detected",
-    })
+    ch1 = await make_item(
+        "change",
+        "603/material/detected",
+        {
+            "property_name": "material",
+            "status": "detected",
+        },
+    )
     await make_connection(ch1, material_prop)
 
     # Create acknowledged change
-    ch2 = await make_item("change", "603/material/acked", {
-        "property_name": "material",
-        "status": "acknowledged",
-    })
+    ch2 = await make_item(
+        "change",
+        "603/material/acked",
+        {
+            "property_name": "material",
+            "status": "acknowledged",
+        },
+    )
     await make_connection(ch2, material_prop)
 
     # Create reviewed change (should not count)
-    ch3 = await make_item("change", "603/material/reviewed", {
-        "property_name": "material",
-        "status": "reviewed",
-    })
+    ch3 = await make_item(
+        "change",
+        "603/material/reviewed",
+        {
+            "property_name": "material",
+            "status": "reviewed",
+        },
+    )
     await make_connection(ch3, material_prop)
 
     rollup = await get_action_items_by_property_graph(db_session)
@@ -752,17 +855,25 @@ async def test_graph_rollup_counts_pending_directives(
     await ensure_property_connection(db_session, width_prop, door)
 
     # Create pending directive
-    d1 = await make_item("directive", "604/width/pending", {
-        "property_name": "width",
-        "status": "pending",
-    })
+    d1 = await make_item(
+        "directive",
+        "604/width/pending",
+        {
+            "property_name": "width",
+            "status": "pending",
+        },
+    )
     await make_connection(d1, width_prop)
 
     # Create fulfilled directive (should not count)
-    d2 = await make_item("directive", "604/width/fulfilled", {
-        "property_name": "width",
-        "status": "fulfilled",
-    })
+    d2 = await make_item(
+        "directive",
+        "604/width/fulfilled",
+        {
+            "property_name": "width",
+            "status": "fulfilled",
+        },
+    )
     await make_connection(d2, width_prop)
 
     rollup = await get_action_items_by_property_graph(db_session)

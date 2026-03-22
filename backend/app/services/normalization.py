@@ -45,7 +45,7 @@ _FEET_INCHES_PATTERN = re.compile(
     r"^\s*(\d+(?:\.\d+)?)\s*['\u2018\u2019]\s*"
     r"[-\u2013\s]*"
     r"(\d+(?:\.\d+)?)"
-    r"(?:\s+(\d+)/(\d+))?"       # optional fraction: 1/2, 3/4
+    r"(?:\s+(\d+)/(\d+))?"  # optional fraction: 1/2, 3/4
     r"\s*[\"\u201c\u201d]?\s*$"
 )
 
@@ -57,7 +57,7 @@ _FEET_ONLY_PATTERN = re.compile(
 
 _INCHES_ONLY_PATTERN = re.compile(
     r"^\s*(\d+(?:\.\d+)?)"
-    r"(?:\s+(\d+)/(\d+))?"       # optional fraction
+    r"(?:\s+(\d+)/(\d+))?"  # optional fraction
     r"\s*(?:[\"\u201c\u201d]|in\.?|inch(?:es)?)\s*$",
     re.IGNORECASE,
 )
@@ -100,14 +100,14 @@ def detect_dimension_system(value: str) -> str:
         return "imperial"
     if '"' in value or "\u201c" in value or "\u201d" in value:
         return "imperial"
-    if re.search(r'\b(ft|feet|in|inch|inches)\b', value, re.IGNORECASE):
+    if re.search(r"\b(ft|feet|in|inch|inches)\b", value, re.IGNORECASE):
         return "imperial"
 
     # Check for metric indicators: mm, cm, m
-    if re.search(r'(mm|cm)', value, re.IGNORECASE):
+    if re.search(r"(mm|cm)", value, re.IGNORECASE):
         return "metric"
     # Match 'm' only when preceded by digits (to avoid false positives)
-    if re.search(r'\d\s*m\s*$', value, re.IGNORECASE):
+    if re.search(r"\d\s*m\s*$", value, re.IGNORECASE):
         return "metric"
 
     return "unknown"
@@ -242,8 +242,14 @@ def values_match(
 
     # Try dimension comparison for dimension-like properties
     dimension_props = {
-        "width", "height", "depth", "thickness", "length",
-        "rebate_width", "rebate_height", "ceiling_height",
+        "width",
+        "height",
+        "depth",
+        "thickness",
+        "length",
+        "rebate_width",
+        "rebate_height",
+        "ceiling_height",
     }
     if property_name.lower() in dimension_props:
         dim_a = normalize_dimension_to_mm(a)
@@ -260,10 +266,13 @@ def values_match(
         pass
 
     # Fall back to normalized string comparison
-    return normalize_case(normalize_whitespace(a)) == normalize_case(normalize_whitespace(b))
+    return normalize_case(normalize_whitespace(a)) == normalize_case(
+        normalize_whitespace(b)
+    )
 
 
 # ─── Dual Storage Helpers (WP-6b: canonical + raw) ──────────────
+
 
 def build_snapshot_properties(
     raw_properties: dict[str, str],

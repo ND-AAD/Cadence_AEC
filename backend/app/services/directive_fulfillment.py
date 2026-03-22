@@ -28,6 +28,7 @@ from app.services.normalization import values_match
 @dataclass
 class FulfillmentResult:
     """Result of a single directive fulfillment."""
+
     directive_item: Item
     property_name: str
     target_value: str | None
@@ -37,6 +38,7 @@ class FulfillmentResult:
 @dataclass
 class FulfillmentSummary:
     """Aggregate results from a batch fulfillment check."""
+
     directives_fulfilled: int = 0
     results: list[FulfillmentResult] = field(default_factory=list)
 
@@ -139,9 +141,7 @@ async def check_directive_fulfillment_batch(
     summary = FulfillmentSummary()
 
     for source_id, item_id, properties in items_with_values:
-        count = await check_directive_fulfillment(
-            db, source_id, item_id, properties
-        )
+        count = await check_directive_fulfillment(db, source_id, item_id, properties)
         summary.directives_fulfilled += count
 
     return summary

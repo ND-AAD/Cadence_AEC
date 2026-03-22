@@ -43,13 +43,15 @@ from app.schemas.imports import ImportMappingConfig
 
 # ─── Data Classes ────────────────────────────────────────────────
 
+
 @dataclass
 class ColumnProposal:
     """Proposed mapping for a single column."""
-    column_name: str           # Raw column header text
-    cleaned_name: str          # Cleaned/normalized column name
+
+    column_name: str  # Raw column header text
+    cleaned_name: str  # Cleaned/normalized column name
     proposed_property: str | None = None  # Proposed Cadence property name
-    confidence: float = 0.0    # 0.0–1.0
+    confidence: float = 0.0  # 0.0–1.0
     match_method: str = "none"  # "exact_label", "normalized_label", "alias", "fuzzy", "identifier", "ignored", "none"
     alternatives: list[str] = field(default_factory=list)
 
@@ -57,11 +59,12 @@ class ColumnProposal:
 @dataclass
 class ProposedMapping:
     """Complete auto-mapping proposal for a file."""
-    header_row: int                   # 1-indexed
+
+    header_row: int  # 1-indexed
     header_row_confidence: float
     target_item_type: str
     type_confidence: float
-    identifier_column: str            # Raw column header
+    identifier_column: str  # Raw column header
     identifier_confidence: float
     columns: list[ColumnProposal] = field(default_factory=list)
     unmatched_columns: list[str] = field(default_factory=list)
@@ -71,6 +74,7 @@ class ProposedMapping:
 
 
 # ─── Header Row Detection ────────────────────────────────────────
+
 
 def detect_header_row(
     file_bytes: bytes,
@@ -114,7 +118,9 @@ def detect_header_row(
     best_score = -999.0
 
     for idx, row in enumerate(sample_rows):
-        row_values = [str(v).lower().strip() for v in row if v is not None and str(v).strip()]
+        row_values = [
+            str(v).lower().strip() for v in row if v is not None and str(v).strip()
+        ]
 
         if not row_values:
             continue
@@ -122,23 +128,21 @@ def detect_header_row(
         score = 0.0
 
         # Text-to-numeric ratio: headers are mostly text
-        text_count = sum(1 for v in row_values if not v.replace(".", "").replace("-", "").isdigit())
+        text_count = sum(
+            1 for v in row_values if not v.replace(".", "").replace("-", "").isdigit()
+        )
         text_ratio = text_count / max(1, len(row_values))
         score += text_ratio * 5
 
         # AEC keyword matches
         keyword_matches = sum(
-            1 for v in row_values
-            if any(kw in v for kw in HEADER_KEYWORDS)
+            1 for v in row_values if any(kw in v for kw in HEADER_KEYWORDS)
         )
         score += keyword_matches * 2
 
         # Identifier field matches (strong signal)
         cleaned_values = [clean_column_name(v) for v in row_values]
-        id_field_matches = sum(
-            1 for v in cleaned_values
-            if v in IDENTIFIER_ALIASES
-        )
+        id_field_matches = sum(1 for v in cleaned_values if v in IDENTIFIER_ALIASES)
         score += id_field_matches * 3
 
         # Non-empty cell count bonus (headers tend to have many filled cells)
@@ -191,13 +195,14 @@ def _detect_header_row_csv(
             continue
 
         score = 0.0
-        text_count = sum(1 for v in row_values if not v.replace(".", "").replace("-", "").isdigit())
+        text_count = sum(
+            1 for v in row_values if not v.replace(".", "").replace("-", "").isdigit()
+        )
         text_ratio = text_count / max(1, len(row_values))
         score += text_ratio * 5
 
         keyword_matches = sum(
-            1 for v in row_values
-            if any(kw in v for kw in HEADER_KEYWORDS)
+            1 for v in row_values if any(kw in v for kw in HEADER_KEYWORDS)
         )
         score += keyword_matches * 2
 
@@ -222,6 +227,7 @@ def _detect_header_row_csv(
 
 
 # ─── Target Type Detection ───────────────────────────────────────
+
 
 def detect_target_type(
     headers: list[str],
@@ -296,6 +302,7 @@ def detect_target_type(
 
 
 # ─── Column Property Mapping ─────────────────────────────────────
+
 
 def build_property_mapping(
     headers: list[str],
@@ -409,7 +416,11 @@ def build_property_mapping(
                     if p.name == prop_name:
                         prop_def_label = p.label.lower()
                         break
-            score_label = SequenceMatcher(None, lower, prop_def_label).ratio() if prop_def_label else 0.0
+            score_label = (
+                SequenceMatcher(None, lower, prop_def_label).ratio()
+                if prop_def_label
+                else 0.0
+            )
             best_score = max(score_name, score_label)
 
             if best_score > 0.6:
@@ -433,6 +444,7 @@ def build_property_mapping(
 
 
 # ─── Identifier Column Detection ─────────────────────────────────
+
 
 def detect_identifier_column(
     headers: list[str],
@@ -468,6 +480,7 @@ def detect_identifier_column(
 
 
 # ─── File Header Extraction ──────────────────────────────────────
+
 
 def extract_headers(
     file_bytes: bytes,
@@ -522,6 +535,7 @@ def _extract_headers_csv(file_bytes: bytes, header_row: int) -> list[str]:
 
 # ─── Orchestrator ─────────────────────────────────────────────────
 
+
 def propose_mapping(
     file_bytes: bytes,
     file_type: str = "excel",
@@ -569,7 +583,9 @@ def propose_mapping(
     target_type, type_confidence, _ = detect_target_type(headers, user_aliases)
 
     # Step 4: Detect identifier column
-    identifier_col, identifier_confidence = detect_identifier_column(headers, user_aliases)
+    identifier_col, identifier_confidence = detect_identifier_column(
+        headers, user_aliases
+    )
 
     # Step 5: Build property mapping
     if target_type:
@@ -582,7 +598,8 @@ def propose_mapping(
 
     # Step 6: Assemble results
     unmatched = [
-        cp.column_name for cp in column_proposals
+        cp.column_name
+        for cp in column_proposals
         if cp.match_method == "none" and cp.proposed_property is None
     ]
 
@@ -595,7 +612,11 @@ def propose_mapping(
     tc = get_type_config(target_type)
 
     for cp in column_proposals:
-        if cp.proposed_property and cp.proposed_property != "__identifier__" and cp.match_method != "ignored":
+        if (
+            cp.proposed_property
+            and cp.proposed_property != "__identifier__"
+            and cp.match_method != "ignored"
+        ):
             property_mapping[cp.column_name] = cp.proposed_property
 
             # Auto-assign normalization based on PropertyDef
@@ -603,23 +624,30 @@ def propose_mapping(
                 for prop_def in tc.properties:
                     if prop_def.name == cp.proposed_property:
                         if prop_def.normalization:
-                            normalizations[cp.proposed_property] = prop_def.normalization
+                            normalizations[cp.proposed_property] = (
+                                prop_def.normalization
+                            )
                         elif prop_def.unit:
                             normalizations[cp.proposed_property] = "dimension"
                         break
 
-    proposed_config = ImportMappingConfig(
-        file_type=file_type,
-        identifier_column=identifier_col,
-        target_item_type=target_type,
-        header_row=header_row,
-        property_mapping=property_mapping,
-        normalizations=normalizations,
-    ) if target_type and identifier_col else None
+    proposed_config = (
+        ImportMappingConfig(
+            file_type=file_type,
+            identifier_column=identifier_col,
+            target_item_type=target_type,
+            header_row=header_row,
+            property_mapping=property_mapping,
+            normalizations=normalizations,
+        )
+        if target_type and identifier_col
+        else None
+    )
 
     # Calculate overall confidence
     mapped_confidences = [
-        cp.confidence for cp in column_proposals
+        cp.confidence
+        for cp in column_proposals
         if cp.match_method not in ("ignored", "identifier", "none")
     ]
     if mapped_confidences:
@@ -628,17 +656,21 @@ def propose_mapping(
         avg_confidence = 0.0
 
     overall = (
-        header_confidence * 0.15 +
-        type_confidence * 0.25 +
-        identifier_confidence * 0.15 +
-        avg_confidence * 0.45
+        header_confidence * 0.15
+        + type_confidence * 0.25
+        + identifier_confidence * 0.15
+        + avg_confidence * 0.45
     )
 
     # Needs review if any mapped column has low confidence, or if there are unmatched columns
     needs_review = (
-        any(cp.confidence < 0.8 for cp in column_proposals if cp.match_method not in ("ignored",)) or
-        len(unmatched) > 0 or
-        overall < 0.8
+        any(
+            cp.confidence < 0.8
+            for cp in column_proposals
+            if cp.match_method not in ("ignored",)
+        )
+        or len(unmatched) > 0
+        or overall < 0.8
     )
 
     return ProposedMapping(

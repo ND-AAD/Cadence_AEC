@@ -101,11 +101,13 @@ async def ensure_property_connection(
     if result.scalar_one_or_none():
         return False
 
-    db.add(Connection(
-        source_item_id=property_item.id,
-        target_item_id=instance_item.id,
-        properties={},
-    ))
+    db.add(
+        Connection(
+            source_item_id=property_item.id,
+            target_item_id=instance_item.id,
+            properties={},
+        )
+    )
     await db.flush()
     return True
 
@@ -144,9 +146,7 @@ async def seed_property_items_from_config(
 
     items = []
     for prop_def in tc.properties:
-        prop_item, _ = await get_or_create_property_item(
-            db, parent_type, prop_def.name
-        )
+        prop_item, _ = await get_or_create_property_item(db, parent_type, prop_def.name)
         items.append(prop_item)
 
     return items

@@ -26,7 +26,8 @@ from app.services.directive_fulfillment import (
 
 
 async def _make_directive(
-    db_session, make_item,
+    db_session,
+    make_item,
     affected_item_id: uuid.UUID,
     target_source_id: uuid.UUID,
     property_name: str,
@@ -34,7 +35,9 @@ async def _make_directive(
     status: str = "pending",
 ) -> Item:
     """Create a directive item with self-sourced snapshot."""
-    milestone = await make_item("milestone", f"M-{uuid.uuid4().hex[:6]}", {"ordinal": 100})
+    milestone = await make_item(
+        "milestone", f"M-{uuid.uuid4().hex[:6]}", {"ordinal": 100}
+    )
     directive = await make_item(
         "directive",
         f"Directive: test / {property_name}",
@@ -46,17 +49,19 @@ async def _make_directive(
             "status": status,
         },
     )
-    db_session.add(Snapshot(
-        item_id=directive.id,
-        context_id=milestone.id,
-        source_id=directive.id,
-        properties={
-            "property_name": property_name,
-            "target_value": target_value,
-            "target_source_id": str(target_source_id),
-            "status": status,
-        },
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=directive.id,
+            context_id=milestone.id,
+            source_id=directive.id,
+            properties={
+                "property_name": property_name,
+                "target_value": target_value,
+                "target_source_id": str(target_source_id),
+                "status": status,
+            },
+        )
+    )
     await db_session.flush()
     return directive
 
@@ -71,7 +76,8 @@ async def test_fulfillment_on_matching_value(make_item, db_session):
     schedule = await make_item("schedule", "Schedule A")
 
     directive = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door.id,
         target_source_id=schedule.id,
         property_name="finish",
@@ -94,7 +100,8 @@ async def test_no_fulfillment_on_non_matching_value(make_item, db_session):
     schedule = await make_item("schedule", "Schedule A")
 
     directive = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door.id,
         target_source_id=schedule.id,
         property_name="finish",
@@ -118,7 +125,8 @@ async def test_no_fulfillment_wrong_source(make_item, db_session):
     spec = await make_item("specification", "Spec B")
 
     directive = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door.id,
         target_source_id=schedule.id,  # Targets schedule
         property_name="finish",
@@ -143,7 +151,8 @@ async def test_no_fulfillment_wrong_item(make_item, db_session):
     schedule = await make_item("schedule", "Schedule A")
 
     directive = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door1.id,  # Targets door1
         target_source_id=schedule.id,
         property_name="finish",
@@ -167,7 +176,8 @@ async def test_already_fulfilled_not_counted(make_item, db_session):
     schedule = await make_item("schedule", "Schedule A")
 
     await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door.id,
         target_source_id=schedule.id,
         property_name="finish",
@@ -188,7 +198,8 @@ async def test_snapshot_updated_on_fulfillment(make_item, db_session):
     schedule = await make_item("schedule", "Schedule A")
 
     directive = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door.id,
         target_source_id=schedule.id,
         property_name="finish",
@@ -220,24 +231,29 @@ async def test_batch_fulfillment(make_item, db_session):
     schedule = await make_item("schedule", "Schedule A")
 
     d1 = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door1.id,
         target_source_id=schedule.id,
         property_name="finish",
         target_value="stain",
     )
     d2 = await _make_directive(
-        db_session, make_item,
+        db_session,
+        make_item,
         affected_item_id=door2.id,
         target_source_id=schedule.id,
         property_name="finish",
         target_value="stain",
     )
 
-    summary = await check_directive_fulfillment_batch(db_session, [
-        (schedule.id, door1.id, {"finish": "stain"}),  # match
-        (schedule.id, door2.id, {"finish": "paint"}),  # no match
-    ])
+    summary = await check_directive_fulfillment_batch(
+        db_session,
+        [
+            (schedule.id, door1.id, {"finish": "stain"}),  # match
+            (schedule.id, door2.id, {"finish": "paint"}),  # no match
+        ],
+    )
 
     assert summary.directives_fulfilled == 1
     await db_session.refresh(d1)

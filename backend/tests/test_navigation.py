@@ -21,9 +21,11 @@ from app.models.core import Item, Snapshot
 
 # ─── Local fixture: snapshot creation ──────────────────────────
 
+
 @pytest_asyncio.fixture
 async def make_snapshot(db_session: AsyncSession):
     """Factory fixture for creating snapshots (the triple)."""
+
     async def _make(
         item: Item,
         context: Item,
@@ -40,10 +42,12 @@ async def make_snapshot(db_session: AsyncSession):
         await db_session.flush()
         await db_session.refresh(snap)
         return snap
+
     return _make
 
 
 # ─── Connection-based navigation (existing tests) ─────────────
+
 
 @pytest.mark.asyncio
 async def test_direct_push(
@@ -104,7 +108,13 @@ async def test_sibling_bounce_back(
     response = await client.post(
         "/api/v1/navigate",
         json={
-            "breadcrumb": [str(project.id), str(building.id), str(floor.id), str(room.id), str(door101.id)],
+            "breadcrumb": [
+                str(project.id),
+                str(building.id),
+                str(floor.id),
+                str(room.id),
+                str(door101.id),
+            ],
             "target": str(door102.id),
         },
     )
@@ -208,7 +218,12 @@ async def test_target_already_in_breadcrumb(
     response = await client.post(
         "/api/v1/navigate",
         json={
-            "breadcrumb": [str(project.id), str(building.id), str(floor.id), str(room.id)],
+            "breadcrumb": [
+                str(project.id),
+                str(building.id),
+                str(floor.id),
+                str(room.id),
+            ],
             "target": str(building.id),
         },
     )
@@ -275,7 +290,12 @@ async def test_bounce_back_to_distant_ancestor(
     response = await client.post(
         "/api/v1/navigate",
         json={
-            "breadcrumb": [str(project.id), str(building.id), str(floor.id), str(room.id)],
+            "breadcrumb": [
+                str(project.id),
+                str(building.id),
+                str(floor.id),
+                str(room.id),
+            ],
             "target": str(schedule.id),
         },
     )
@@ -413,6 +433,7 @@ async def test_complex_navigation_sequence(
 
 # ─── Snapshot-based adjacency tests ───────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_milestone_to_door_via_snapshot(
     client: AsyncClient,
@@ -435,7 +456,9 @@ async def test_milestone_to_door_via_snapshot(
     Expected: [Project, Milestone, Door], action="push"
     """
     project = await make_item(item_type="project", identifier="P1")
-    milestone = await make_item(item_type="milestone", identifier="DD", properties={"ordinal": 300})
+    milestone = await make_item(
+        item_type="milestone", identifier="DD", properties={"ordinal": 300}
+    )
     schedule = await make_item(item_type="schedule", identifier="Door Schedule")
     door = await make_item(item_type="door", identifier="Door 101")
 
@@ -445,7 +468,9 @@ async def test_milestone_to_door_via_snapshot(
     await make_connection(schedule, door)
 
     # The snapshot triple: door described at milestone by schedule
-    await make_snapshot(item=door, context=milestone, source=schedule, properties={"finish": "paint"})
+    await make_snapshot(
+        item=door, context=milestone, source=schedule, properties={"finish": "paint"}
+    )
 
     # Navigate from milestone to door
     response = await client.post(
@@ -478,7 +503,9 @@ async def test_milestone_to_source_via_snapshot(
     Expected: push (Schedule is a source at this milestone)
     """
     project = await make_item(item_type="project", identifier="P1")
-    milestone = await make_item(item_type="milestone", identifier="DD", properties={"ordinal": 300})
+    milestone = await make_item(
+        item_type="milestone", identifier="DD", properties={"ordinal": 300}
+    )
     schedule = await make_item(item_type="schedule", identifier="Door Schedule")
     door = await make_item(item_type="door", identifier="Door 101")
 
@@ -487,7 +514,9 @@ async def test_milestone_to_source_via_snapshot(
     await make_connection(schedule, door)
 
     # Schedule submitted data at milestone
-    await make_snapshot(item=door, context=milestone, source=schedule, properties={"finish": "paint"})
+    await make_snapshot(
+        item=door, context=milestone, source=schedule, properties={"finish": "paint"}
+    )
 
     # Navigate from milestone to schedule
     response = await client.post(
@@ -524,7 +553,9 @@ async def test_milestone_to_door_no_snapshot_no_path(
     Expected: no_path (BFS can't route through the project ancestor).
     """
     project = await make_item(item_type="project", identifier="P1")
-    milestone = await make_item(item_type="milestone", identifier="DD", properties={"ordinal": 300})
+    milestone = await make_item(
+        item_type="milestone", identifier="DD", properties={"ordinal": 300}
+    )
     schedule = await make_item(item_type="schedule", identifier="Door Schedule")
     door = await make_item(item_type="door", identifier="Door 101")
 
@@ -618,7 +649,9 @@ async def test_door_to_milestone_reverse_adjacency(
     item_b (Milestone) is context type, item_a (Door) has snapshot at it. True.
     """
     project = await make_item(item_type="project", identifier="P1")
-    milestone = await make_item(item_type="milestone", identifier="DD", properties={"ordinal": 300})
+    milestone = await make_item(
+        item_type="milestone", identifier="DD", properties={"ordinal": 300}
+    )
     schedule = await make_item(item_type="schedule", identifier="Door Schedule")
     door = await make_item(item_type="door", identifier="Door 101")
 
@@ -626,7 +659,9 @@ async def test_door_to_milestone_reverse_adjacency(
     await make_connection(project, schedule)
     await make_connection(schedule, door)
 
-    await make_snapshot(item=door, context=milestone, source=schedule, properties={"finish": "paint"})
+    await make_snapshot(
+        item=door, context=milestone, source=schedule, properties={"finish": "paint"}
+    )
 
     response = await client.post(
         "/api/v1/navigate",
@@ -641,7 +676,10 @@ async def test_door_to_milestone_reverse_adjacency(
     # Door is snapshot-adjacent to Milestone (reverse check). Direct push.
     assert data["action"] == "push"
     assert data["breadcrumb"] == [
-        str(project.id), str(schedule.id), str(door.id), str(milestone.id),
+        str(project.id),
+        str(schedule.id),
+        str(door.id),
+        str(milestone.id),
     ]
 
 
@@ -657,8 +695,12 @@ async def test_multiple_milestones_correct_adjacency(
     should work. Navigating from CD to door should fail (no snapshot).
     """
     project = await make_item(item_type="project", identifier="P1")
-    dd = await make_item(item_type="milestone", identifier="DD", properties={"ordinal": 300})
-    cd = await make_item(item_type="milestone", identifier="CD", properties={"ordinal": 400})
+    dd = await make_item(
+        item_type="milestone", identifier="DD", properties={"ordinal": 300}
+    )
+    cd = await make_item(
+        item_type="milestone", identifier="CD", properties={"ordinal": 400}
+    )
     schedule = await make_item(item_type="schedule", identifier="Door Schedule")
     door = await make_item(item_type="door", identifier="Door 101")
 
@@ -668,7 +710,9 @@ async def test_multiple_milestones_correct_adjacency(
     await make_connection(schedule, door)
 
     # Door described at DD only.
-    await make_snapshot(item=door, context=dd, source=schedule, properties={"finish": "paint"})
+    await make_snapshot(
+        item=door, context=dd, source=schedule, properties={"finish": "paint"}
+    )
 
     # DD → Door: should work (snapshot adjacency).
     resp_dd = await client.post(
@@ -712,7 +756,9 @@ async def test_full_powers_of_ten_sequence(
     Every step should produce a clean, non-duplicated breadcrumb.
     """
     project = await make_item(item_type="project", identifier="P1")
-    milestone = await make_item(item_type="milestone", identifier="DD", properties={"ordinal": 300})
+    milestone = await make_item(
+        item_type="milestone", identifier="DD", properties={"ordinal": 300}
+    )
     schedule = await make_item(item_type="schedule", identifier="Door Schedule")
     door101 = await make_item(item_type="door", identifier="Door 101")
     door102 = await make_item(item_type="door", identifier="Door 102")
@@ -723,23 +769,33 @@ async def test_full_powers_of_ten_sequence(
     await make_connection(schedule, door102)
 
     # Both doors described at this milestone
-    await make_snapshot(item=door101, context=milestone, source=schedule, properties={"finish": "paint"})
-    await make_snapshot(item=door102, context=milestone, source=schedule, properties={"finish": "stain"})
+    await make_snapshot(
+        item=door101, context=milestone, source=schedule, properties={"finish": "paint"}
+    )
+    await make_snapshot(
+        item=door102, context=milestone, source=schedule, properties={"finish": "stain"}
+    )
 
     # Step 1: Project → Milestone (connection-based push)
-    r1 = await client.post("/api/v1/navigate", json={
-        "breadcrumb": [str(project.id)],
-        "target": str(milestone.id),
-    })
+    r1 = await client.post(
+        "/api/v1/navigate",
+        json={
+            "breadcrumb": [str(project.id)],
+            "target": str(milestone.id),
+        },
+    )
     assert r1.json()["action"] == "push"
     bc1 = r1.json()["breadcrumb"]
     assert bc1 == [str(project.id), str(milestone.id)]
 
     # Step 2: Milestone → Door 101 (snapshot adjacency push)
-    r2 = await client.post("/api/v1/navigate", json={
-        "breadcrumb": bc1,
-        "target": str(door101.id),
-    })
+    r2 = await client.post(
+        "/api/v1/navigate",
+        json={
+            "breadcrumb": bc1,
+            "target": str(door101.id),
+        },
+    )
     assert r2.json()["action"] == "push"
     bc2 = r2.json()["breadcrumb"]
     assert bc2 == [str(project.id), str(milestone.id), str(door101.id)]
@@ -748,10 +804,13 @@ async def test_full_powers_of_ten_sequence(
     # Door 102 is not connected to Door 101, but both are snapshot-adjacent
     # to Milestone. Ancestor walk: Milestone is connected to Door 102 via
     # snapshot. Bounce back to Milestone, push Door 102.
-    r3 = await client.post("/api/v1/navigate", json={
-        "breadcrumb": bc2,
-        "target": str(door102.id),
-    })
+    r3 = await client.post(
+        "/api/v1/navigate",
+        json={
+            "breadcrumb": bc2,
+            "target": str(door102.id),
+        },
+    )
     assert r3.json()["action"] == "bounce_back"
     bc3 = r3.json()["breadcrumb"]
     assert bc3 == [str(project.id), str(milestone.id), str(door102.id)]

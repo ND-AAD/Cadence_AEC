@@ -58,9 +58,7 @@ async def test_import_creates_property_items(
     assert resp.status_code == 201
 
     # Check property items exist
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "property")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "property"))
     prop_items = result.scalars().all()
 
     # Should have one property item per mapped column
@@ -112,9 +110,7 @@ async def test_property_connections_to_all_instances(
 
 
 @pytest.mark.asyncio
-async def test_reimport_no_duplicates(
-    client, import_setup, db_session: AsyncSession
-):
+async def test_reimport_no_duplicates(client, import_setup, db_session: AsyncSession):
     """Re-importing same schedule doesn't create duplicate property items."""
     setup = import_setup
     file_bytes = make_door_schedule_excel(5)
@@ -141,17 +137,29 @@ def _make_spec_excel(rows_data):
     """Helper to create an Excel file with custom door data."""
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.append(["DOOR NO.", "WIDTH", "HEIGHT", "FINISH", "MATERIAL", "HARDWARE SET", "FIRE RATING"])
+    ws.append(
+        [
+            "DOOR NO.",
+            "WIDTH",
+            "HEIGHT",
+            "FINISH",
+            "MATERIAL",
+            "HARDWARE SET",
+            "FIRE RATING",
+        ]
+    )
     for row_data in rows_data:
-        ws.append([
-            row_data.get("id", ""),
-            "3'-0\"",
-            "7'-0\"",
-            row_data.get("finish", ""),
-            row_data.get("material", ""),
-            row_data.get("hardware_set", ""),
-            row_data.get("fire_rating", ""),
-        ])
+        ws.append(
+            [
+                row_data.get("id", ""),
+                "3'-0\"",
+                "7'-0\"",
+                row_data.get("finish", ""),
+                row_data.get("material", ""),
+                row_data.get("hardware_set", ""),
+                row_data.get("fire_rating", ""),
+            ]
+        )
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -165,10 +173,16 @@ async def test_conflict_connects_to_property_item(
     """Conflict item has connection to property item."""
     # Setup with two sources
     project = await make_item("project", "Project Alpha")
-    schedule = await make_item("schedule", "Finish Schedule",
-                                {"name": "Finish Schedule", "discipline": "Architectural"})
-    spec = await make_item("specification", "Door Spec",
-                            {"name": "Door Spec", "discipline": "Architectural"})
+    schedule = await make_item(
+        "schedule",
+        "Finish Schedule",
+        {"name": "Finish Schedule", "discipline": "Architectural"},
+    )
+    spec = await make_item(
+        "specification",
+        "Door Spec",
+        {"name": "Door Spec", "discipline": "Architectural"},
+    )
     dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 100})
     await make_connection(project, schedule)
     await make_connection(project, spec)
@@ -182,9 +196,23 @@ async def test_conflict_connects_to_property_item(
             "time_context_id": str(dd.id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("s.xlsx", _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                                       "hardware_set": "HW-1", "fire_rating": ""}]),
-                        "application/octet-stream")},
+        files={
+            "file": (
+                "s.xlsx",
+                _make_spec_excel(
+                    [
+                        {
+                            "id": "Door 001",
+                            "finish": "paint",
+                            "material": "wood",
+                            "hardware_set": "HW-1",
+                            "fire_rating": "",
+                        }
+                    ]
+                ),
+                "application/octet-stream",
+            )
+        },
     )
     # Spec: finish=stain → conflict
     await client.post(
@@ -194,15 +222,32 @@ async def test_conflict_connects_to_property_item(
             "time_context_id": str(dd.id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("s.xlsx", _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "wood",
-                                                       "hardware_set": "HW-1", "fire_rating": ""}]),
-                        "application/octet-stream")},
+        files={
+            "file": (
+                "s.xlsx",
+                _make_spec_excel(
+                    [
+                        {
+                            "id": "Door 001",
+                            "finish": "stain",
+                            "material": "wood",
+                            "hardware_set": "HW-1",
+                            "fire_rating": "",
+                        }
+                    ]
+                ),
+                "application/octet-stream",
+            )
+        },
     )
 
     # Find conflict
     conflict_result = await db_session.execute(
         select(Item).where(
-            and_(Item.item_type == "conflict", Item.identifier.like("Door 001 / finish / %"))
+            and_(
+                Item.item_type == "conflict",
+                Item.identifier.like("Door 001 / finish / %"),
+            )
         )
     )
     conflict = conflict_result.scalar_one()
@@ -232,8 +277,11 @@ async def test_change_connects_to_property_items(
     """Change item connects to property items for each changed property."""
     # Setup
     project = await make_item("project", "Project Alpha")
-    schedule = await make_item("schedule", "Finish Schedule",
-                                {"name": "Finish Schedule", "discipline": "Architectural"})
+    schedule = await make_item(
+        "schedule",
+        "Finish Schedule",
+        {"name": "Finish Schedule", "discipline": "Architectural"},
+    )
     dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 100})
     dd2 = await make_item("milestone", "DD2", {"name": "DD2", "ordinal": 200})
     await make_connection(project, schedule)
@@ -248,9 +296,23 @@ async def test_change_connects_to_property_items(
             "time_context_id": str(dd.id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("s.xlsx", _make_spec_excel([{"id": "Door 001", "finish": "paint", "material": "wood",
-                                                       "hardware_set": "HW-1", "fire_rating": ""}]),
-                        "application/octet-stream")},
+        files={
+            "file": (
+                "s.xlsx",
+                _make_spec_excel(
+                    [
+                        {
+                            "id": "Door 001",
+                            "finish": "paint",
+                            "material": "wood",
+                            "hardware_set": "HW-1",
+                            "fire_rating": "",
+                        }
+                    ]
+                ),
+                "application/octet-stream",
+            )
+        },
     )
 
     # Second import: finish and material both changed
@@ -261,9 +323,23 @@ async def test_change_connects_to_property_items(
             "time_context_id": str(dd2.id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("s.xlsx", _make_spec_excel([{"id": "Door 001", "finish": "stain", "material": "steel",
-                                                       "hardware_set": "HW-1", "fire_rating": ""}]),
-                        "application/octet-stream")},
+        files={
+            "file": (
+                "s.xlsx",
+                _make_spec_excel(
+                    [
+                        {
+                            "id": "Door 001",
+                            "finish": "stain",
+                            "material": "steel",
+                            "hardware_set": "HW-1",
+                            "fire_rating": "",
+                        }
+                    ]
+                ),
+                "application/octet-stream",
+            )
+        },
     )
 
     # Find change item

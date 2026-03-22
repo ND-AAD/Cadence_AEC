@@ -44,16 +44,22 @@ async def propagation_setup(make_item, make_connection, db_session):
     - extraction_results with one noun (door) and flat extractions
     """
     project = await make_item("project", "Project Alpha")
-    spec = await make_item("specification", "Project Spec", {"discipline": "Architectural"})
+    spec = await make_item(
+        "specification", "Project Spec", {"discipline": "Architectural"}
+    )
     milestone = await make_item("milestone", "DD", {"name": "DD", "ordinal": 100})
     await make_connection(project, spec)
     await make_connection(project, milestone)
 
     # Spec section
-    section = await make_item("spec_section", "08 11 13", {
-        "title": "Hollow Metal Doors and Frames",
-        "division": "08",
-    })
+    section = await make_item(
+        "spec_section",
+        "08 11 13",
+        {
+            "title": "Hollow Metal Doors and Frames",
+            "division": "08",
+        },
+    )
     await make_connection(spec, section)
 
     # Elements
@@ -61,48 +67,56 @@ async def propagation_setup(make_item, make_connection, db_session):
     door2 = await make_item("door", "Door 102", {"mark": "102"})
 
     # Preprocess batch (parent)
-    preprocess = await make_item("preprocess_batch", "PP-1", {
-        "status": "completed",
-        "spec_item_id": str(spec.id),
-    })
+    preprocess = await make_item(
+        "preprocess_batch",
+        "PP-1",
+        {
+            "status": "completed",
+            "spec_item_id": str(spec.id),
+        },
+    )
 
     # Extraction batch — confirmed
-    batch = await make_item("extraction_batch", "EX-1", {
-        "status": "confirmed",
-        "milestone_id": str(milestone.id),
-        "preprocess_batch_id": str(preprocess.id),
-        "extraction_results": {
-            "sections": {
-                "08 11 13": {
-                    "status": "extracted",
-                    "section_item_id": str(section.id),
-                    "nouns": [
-                        {
-                            "noun_phrase": "hollow metal door",
-                            "matched_type": "door",
-                            "attribution_status": "matched",
-                            "attributed_elements": [
-                                str(door1.id),
-                                str(door2.id),
-                            ],
-                            "extractions": [
-                                {
-                                    "property_name": "material",
-                                    "value": "hollow metal",
-                                    "assertion_type": "flat",
-                                },
-                                {
-                                    "property_name": "finish",
-                                    "value": "prime coat",
-                                    "assertion_type": "flat",
-                                },
-                            ],
-                        },
-                    ],
+    batch = await make_item(
+        "extraction_batch",
+        "EX-1",
+        {
+            "status": "confirmed",
+            "milestone_id": str(milestone.id),
+            "preprocess_batch_id": str(preprocess.id),
+            "extraction_results": {
+                "sections": {
+                    "08 11 13": {
+                        "status": "extracted",
+                        "section_item_id": str(section.id),
+                        "nouns": [
+                            {
+                                "noun_phrase": "hollow metal door",
+                                "matched_type": "door",
+                                "attribution_status": "matched",
+                                "attributed_elements": [
+                                    str(door1.id),
+                                    str(door2.id),
+                                ],
+                                "extractions": [
+                                    {
+                                        "property_name": "material",
+                                        "value": "hollow metal",
+                                        "assertion_type": "flat",
+                                    },
+                                    {
+                                        "property_name": "finish",
+                                        "value": "prime coat",
+                                        "assertion_type": "flat",
+                                    },
+                                ],
+                            },
+                        ],
+                    },
                 },
             },
         },
-    })
+    )
 
     return {
         "project": project,
@@ -125,59 +139,71 @@ async def conditional_setup(make_item, make_connection, db_session):
     spec = await make_item("specification", "Project Spec B")
     milestone = await make_item("milestone", "DD", {"name": "DD", "ordinal": 100})
 
-    section = await make_item("spec_section", "08 71 00", {
-        "title": "Door Hardware",
-        "division": "08",
-    })
+    section = await make_item(
+        "spec_section",
+        "08 71 00",
+        {
+            "title": "Door Hardware",
+            "division": "08",
+        },
+    )
     await make_connection(spec, section)
 
     door1 = await make_item("door", "Door 201")
     door2 = await make_item("door", "Door 202")
 
-    preprocess = await make_item("preprocess_batch", "PP-2", {
-        "status": "completed",
-        "spec_item_id": str(spec.id),
-    })
+    preprocess = await make_item(
+        "preprocess_batch",
+        "PP-2",
+        {
+            "status": "completed",
+            "spec_item_id": str(spec.id),
+        },
+    )
 
-    batch = await make_item("extraction_batch", "EX-2", {
-        "status": "confirmed",
-        "milestone_id": str(milestone.id),
-        "preprocess_batch_id": str(preprocess.id),
-        "extraction_results": {
-            "sections": {
-                "08 71 00": {
-                    "status": "extracted",
-                    "section_item_id": str(section.id),
-                    "nouns": [
-                        {
-                            "noun_phrase": "door",
-                            "matched_type": "door",
-                            "attribution_status": "matched",
-                            "attributed_elements": [
-                                str(door1.id),
-                                str(door2.id),
-                            ],
-                            "extractions": [
-                                {
-                                    "property_name": "hardware_set",
-                                    "assertion_type": "conditional",
-                                    "assertions": [
-                                        {"value": "HW-1", "condition": "exterior"},
-                                        {"value": "HW-2", "condition": "interior"},
-                                    ],
-                                },
-                                {
-                                    "property_name": "closer",
-                                    "value": "LCN 4041",
-                                    "assertion_type": "flat",
-                                },
-                            ],
-                        },
-                    ],
+    batch = await make_item(
+        "extraction_batch",
+        "EX-2",
+        {
+            "status": "confirmed",
+            "milestone_id": str(milestone.id),
+            "preprocess_batch_id": str(preprocess.id),
+            "extraction_results": {
+                "sections": {
+                    "08 71 00": {
+                        "status": "extracted",
+                        "section_item_id": str(section.id),
+                        "nouns": [
+                            {
+                                "noun_phrase": "door",
+                                "matched_type": "door",
+                                "attribution_status": "matched",
+                                "attributed_elements": [
+                                    str(door1.id),
+                                    str(door2.id),
+                                ],
+                                "extractions": [
+                                    {
+                                        "property_name": "hardware_set",
+                                        "assertion_type": "conditional",
+                                        "assertions": [
+                                            {"value": "HW-1", "condition": "exterior"},
+                                            {"value": "HW-2", "condition": "interior"},
+                                        ],
+                                    },
+                                    {
+                                        "property_name": "closer",
+                                        "value": "LCN 4041",
+                                        "assertion_type": "flat",
+                                    },
+                                ],
+                            },
+                        ],
+                    },
                 },
             },
         },
-    })
+    )
 
     return {
         "project": project,
@@ -312,13 +338,17 @@ async def test_propagation_detects_conflicts(propagation_setup, db_session, make
     setup = propagation_setup
 
     # Create a schedule source with a conflicting snapshot
-    schedule = await make_item("schedule", "Finish Schedule", {"discipline": "Architectural"})
-    db_session.add(Snapshot(
-        item_id=setup["door1"].id,
-        context_id=setup["milestone"].id,
-        source_id=schedule.id,
-        properties={"material": "wood"},  # Disagrees with spec's "hollow metal"
-    ))
+    schedule = await make_item(
+        "schedule", "Finish Schedule", {"discipline": "Architectural"}
+    )
+    db_session.add(
+        Snapshot(
+            item_id=setup["door1"].id,
+            context_id=setup["milestone"].id,
+            source_id=schedule.id,
+            properties={"material": "wood"},  # Disagrees with spec's "hollow metal"
+        )
+    )
     await db_session.flush()
 
     result = await propagate_extractions(db_session, setup["batch"].id)
@@ -335,17 +365,23 @@ async def test_propagation_detects_conflicts(propagation_setup, db_session, make
 
 
 @pytest.mark.asyncio
-async def test_propagation_no_conflict_on_agreement(propagation_setup, db_session, make_item):
+async def test_propagation_no_conflict_on_agreement(
+    propagation_setup, db_session, make_item
+):
     """If schedule and spec agree on material → no conflict."""
     setup = propagation_setup
 
-    schedule = await make_item("schedule", "Finish Schedule", {"discipline": "Architectural"})
-    db_session.add(Snapshot(
-        item_id=setup["door1"].id,
-        context_id=setup["milestone"].id,
-        source_id=schedule.id,
-        properties={"material": "hollow metal"},  # Agrees with spec
-    ))
+    schedule = await make_item(
+        "schedule", "Finish Schedule", {"discipline": "Architectural"}
+    )
+    db_session.add(
+        Snapshot(
+            item_id=setup["door1"].id,
+            context_id=setup["milestone"].id,
+            source_id=schedule.id,
+            properties={"material": "hollow metal"},  # Agrees with spec
+        )
+    )
     await db_session.flush()
 
     result = await propagate_extractions(db_session, setup["batch"].id)
@@ -357,25 +393,33 @@ async def test_propagation_no_conflict_on_agreement(propagation_setup, db_sessio
 
 
 @pytest.mark.asyncio
-async def test_propagation_fulfills_directives(propagation_setup, db_session, make_item):
+async def test_propagation_fulfills_directives(
+    propagation_setup, db_session, make_item
+):
     """Spec propagation fulfills directive targeting the spec section."""
     setup = propagation_setup
 
     # Create directive targeting spec section for door1 material
-    directive = await make_item("directive", "Dir: Door 101 / material", {
-        "property_name": "material",
-        "target_value": "hollow metal",
-        "target_source_id": str(setup["section"].id),  # Targets spec section
-        "affected_item_id": str(setup["door1"].id),
-        "status": "pending",
-    })
+    directive = await make_item(
+        "directive",
+        "Dir: Door 101 / material",
+        {
+            "property_name": "material",
+            "target_value": "hollow metal",
+            "target_source_id": str(setup["section"].id),  # Targets spec section
+            "affected_item_id": str(setup["door1"].id),
+            "status": "pending",
+        },
+    )
     # Self-sourced snapshot
-    db_session.add(Snapshot(
-        item_id=directive.id,
-        context_id=setup["milestone"].id,
-        source_id=directive.id,
-        properties={"status": "pending", "target_value": "hollow metal"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=directive.id,
+            context_id=setup["milestone"].id,
+            source_id=directive.id,
+            properties={"status": "pending", "target_value": "hollow metal"},
+        )
+    )
     await db_session.flush()
 
     result = await propagate_extractions(db_session, setup["batch"].id)
@@ -426,13 +470,15 @@ async def test_assign_conditional_values(conditional_setup, db_session):
 
     result = await assign_conditional_values(
         db_session,
-        [{
-            "element_ids": [str(setup["door1"].id)],
-            "property_name": "hardware_set",
-            "value": "HW-1",
-            "source_condition": "exterior",
-            "section_item_id": str(setup["section"].id),
-        }],
+        [
+            {
+                "element_ids": [str(setup["door1"].id)],
+                "property_name": "hardware_set",
+                "value": "HW-1",
+                "source_condition": "exterior",
+                "section_item_id": str(setup["section"].id),
+            }
+        ],
         setup["batch"].id,
     )
 
@@ -458,10 +504,14 @@ async def test_assign_conditional_values(conditional_setup, db_session):
 async def test_propagation_rejects_wrong_status(make_item, db_session):
     """Batch must be in 'confirmed' status to propagate."""
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
-    batch = await make_item("extraction_batch", "EX-bad", {
-        "status": "processing",
-        "milestone_id": str(milestone.id),
-    })
+    batch = await make_item(
+        "extraction_batch",
+        "EX-bad",
+        {
+            "status": "processing",
+            "milestone_id": str(milestone.id),
+        },
+    )
 
     with pytest.raises(ValueError, match="must be in 'confirmed' status"):
         await propagate_extractions(db_session, batch.id)
@@ -507,10 +557,14 @@ async def test_propagate_api_endpoint(client: AsyncClient, propagation_setup):
 async def test_propagate_api_rejects_bad_status(client: AsyncClient, make_item):
     """POST /api/v1/spec/propagate returns 400 for wrong status."""
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
-    batch = await make_item("extraction_batch", "EX-bad", {
-        "status": "processing",
-        "milestone_id": str(milestone.id),
-    })
+    batch = await make_item(
+        "extraction_batch",
+        "EX-bad",
+        {
+            "status": "processing",
+            "milestone_id": str(milestone.id),
+        },
+    )
 
     resp = await client.post(
         "/api/v1/spec/propagate",
@@ -521,7 +575,8 @@ async def test_propagate_api_rejects_bad_status(client: AsyncClient, make_item):
 
 @pytest.mark.asyncio
 async def test_assign_conditionals_api_endpoint(
-    client: AsyncClient, conditional_setup,
+    client: AsyncClient,
+    conditional_setup,
 ):
     """POST /api/v1/spec/propagate/assign resolves conditionals."""
     setup = conditional_setup

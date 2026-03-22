@@ -95,6 +95,7 @@ def make_room_properties(floor_num: int, room_idx: int) -> dict:
 
 # ─── Seed function ─────────────────────────────────────────────
 
+
 async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     """
     Create the complete Project Alpha hierarchy.
@@ -102,7 +103,9 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     """
     ids: dict[str, uuid.UUID] = {}
 
-    def make_item(item_type: str, identifier: str, properties: dict | None = None) -> Item:
+    def make_item(
+        item_type: str, identifier: str, properties: dict | None = None
+    ) -> Item:
         item = Item(
             item_type=item_type,
             identifier=identifier,
@@ -127,35 +130,55 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     ids["user"] = user.id
 
     # ── Project ────────────────────────────────────────────
-    project = make_item("project", "Project Alpha", {
-        "name": "Project Alpha",
-        "description": "Mixed-use renovation — 3 floors, 50 doors",
-    })
+    project = make_item(
+        "project",
+        "Project Alpha",
+        {
+            "name": "Project Alpha",
+            "description": "Mixed-use renovation — 3 floors, 50 doors",
+        },
+    )
     await db.flush()
     ids["project"] = project.id
 
     # ── Phases & Milestones ────────────────────────────────
     # Standard AEC phase progression: Concept(100) → SD(200) → DD(300) → CD(400)
-    sd_phase = make_item("phase", "Schematic Design", {
-        "name": "Schematic Design",
-        "abbreviation": "SD",
-    })
-    dd_phase = make_item("phase", "Design Development", {
-        "name": "Design Development",
-        "abbreviation": "DD",
-    })
+    sd_phase = make_item(
+        "phase",
+        "Schematic Design",
+        {
+            "name": "Schematic Design",
+            "abbreviation": "SD",
+        },
+    )
+    dd_phase = make_item(
+        "phase",
+        "Design Development",
+        {
+            "name": "Design Development",
+            "abbreviation": "DD",
+        },
+    )
     await db.flush()
 
-    sd_milestone = make_item("milestone", "100% SD", {
-        "name": "Schematic Design",
-        "ordinal": 200,
-        "phase": "SD",
-    })
-    dd_milestone = make_item("milestone", "100% DD", {
-        "name": "Design Development",
-        "ordinal": 300,
-        "phase": "DD",
-    })
+    sd_milestone = make_item(
+        "milestone",
+        "100% SD",
+        {
+            "name": "Schematic Design",
+            "ordinal": 200,
+            "phase": "SD",
+        },
+    )
+    dd_milestone = make_item(
+        "milestone",
+        "100% DD",
+        {
+            "name": "Design Development",
+            "ordinal": 300,
+            "phase": "DD",
+        },
+    )
     await db.flush()
     ids["sd_phase"] = sd_phase.id
     ids["dd_phase"] = dd_phase.id
@@ -169,16 +192,24 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     connect(dd_phase, dd_milestone)
 
     # ── Sources ────────────────────────────────────────────
-    schedule = make_item("schedule", "Finish Schedule", {
-        "name": "Finish Schedule",
-        "document_number": "A-601",
-        "discipline": "Architecture",
-    })
-    spec = make_item("specification", "Spec §08 — Openings", {
-        "name": "Specification Section 08 — Openings",
-        "section_number": "08 00 00",
-        "discipline": "Architecture",
-    })
+    schedule = make_item(
+        "schedule",
+        "Finish Schedule",
+        {
+            "name": "Finish Schedule",
+            "document_number": "A-601",
+            "discipline": "Architecture",
+        },
+    )
+    spec = make_item(
+        "specification",
+        "Spec §08 — Openings",
+        {
+            "name": "Specification Section 08 — Openings",
+            "section_number": "08 00 00",
+            "discipline": "Architecture",
+        },
+    )
     await db.flush()
     ids["schedule"] = schedule.id
     ids["spec"] = spec.id
@@ -187,10 +218,14 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     connect(project, spec)
 
     # ── Building ───────────────────────────────────────────
-    building = make_item("building", "Building A", {
-        "name": "Building A",
-        "address": "100 Main Street",
-    })
+    building = make_item(
+        "building",
+        "Building A",
+        {
+            "name": "Building A",
+            "address": "100 Main Street",
+        },
+    )
     await db.flush()
     ids["building"] = building.id
     connect(project, building)
@@ -198,10 +233,14 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     # ── Floors ─────────────────────────────────────────────
     floors = []
     for f in range(1, 4):
-        floor = make_item("floor", f"Floor {f}", {
-            "name": f"Floor {f}",
-            "level": f,
-        })
+        floor = make_item(
+            "floor",
+            f"Floor {f}",
+            {
+                "name": f"Floor {f}",
+                "level": f,
+            },
+        )
         floors.append(floor)
     await db.flush()
     for f_idx, floor in enumerate(floors):
@@ -246,7 +285,10 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     await db.flush()
 
     # ─── Property items for all spatial types ──────────────────
-    from app.services.property_service import seed_property_items_from_config, ensure_property_connection
+    from app.services.property_service import (
+        seed_property_items_from_config,
+        ensure_property_connection,
+    )
 
     property_item_count = 0
 
@@ -268,6 +310,7 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
 
     # ── MasterFormat Hierarchy (WP-14) ────────────────────────
     from scripts.seed_masterformat import seed_masterformat
+
     mf_ids = await seed_masterformat(db, specification_id=spec.id)
     ids.update(mf_ids)
 
@@ -279,18 +322,25 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
     print(f"  Doors:       {len(doors)}")
     print(f"  Milestones:  SD ({ids['sd_milestone']}), DD ({ids['dd_milestone']})")
     print(f"  Sources:     Schedule ({ids['schedule']}), Spec ({ids['spec']})")
-    print(f"  Properties:  {property_item_count} ({len(door_prop_items)} door + {len(room_prop_items)} room)")
+    print(
+        f"  Properties:  {property_item_count} ({len(door_prop_items)} door + {len(room_prop_items)} room)"
+    )
     print(f"  MasterFormat: {len(mf_ids)} sections")
-    print(f"  Connections: ~{len(doors) * 3 + len(rooms) + len(floors) + 6 + len(mf_ids)}")
+    print(
+        f"  Connections: ~{len(doors) * 3 + len(rooms) + len(floors) + 6 + len(mf_ids)}"
+    )
 
     return ids
 
 
 # ─── CLI entry point ───────────────────────────────────────────
 
+
 async def main():
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with session_factory() as session:
         async with session.begin():

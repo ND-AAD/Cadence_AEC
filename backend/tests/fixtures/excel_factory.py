@@ -49,12 +49,12 @@ def make_door_schedule_excel(
     for i in range(1, num_doors + 1):
         row = [
             f"{identifier_prefix} {i:03d}",  # DOOR NO.
-            "3'-0\"",                          # WIDTH
-            "7'-0\"",                          # HEIGHT
-            finishes[i % len(finishes)],       # FINISH
-            materials[i % len(materials)],     # MATERIAL
+            "3'-0\"",  # WIDTH
+            "7'-0\"",  # HEIGHT
+            finishes[i % len(finishes)],  # FINISH
+            materials[i % len(materials)],  # MATERIAL
             hardware_sets[i % len(hardware_sets)],  # HARDWARE SET
-            fire_ratings[i % len(fire_ratings)],    # FIRE RATING
+            fire_ratings[i % len(fire_ratings)],  # FIRE RATING
         ]
         if extra_columns:
             for col_name, values in extra_columns.items():

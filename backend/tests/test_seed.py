@@ -9,6 +9,7 @@ from scripts.seed_data import seed_project
 
 # ─── Seed Project Execution ────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_project_creates_hierarchy(db_session):
     """Seed script creates complete Project Alpha hierarchy."""
@@ -27,14 +28,13 @@ async def test_seed_project_creates_hierarchy(db_session):
 
 # ─── Project-level Items ───────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_creates_one_project(db_session):
     """Seed creates exactly one project named Project Alpha."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "project")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "project"))
     projects = result.scalars().all()
 
     assert len(projects) == 1
@@ -47,9 +47,7 @@ async def test_seed_creates_one_building(db_session):
     """Seed creates exactly one building connected to project."""
     ids = await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "building")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "building"))
     buildings = result.scalars().all()
 
     assert len(buildings) == 1
@@ -59,14 +57,13 @@ async def test_seed_creates_one_building(db_session):
 
 # ─── Spatial Hierarchy ─────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_creates_three_floors(db_session):
     """Seed creates exactly 3 floors."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "floor")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "floor"))
     floors = result.scalars().all()
 
     assert len(floors) == 3
@@ -82,9 +79,7 @@ async def test_seed_creates_ten_rooms(db_session):
     """Seed creates exactly 10 rooms distributed across floors."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "room")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "room"))
     rooms = result.scalars().all()
 
     assert len(rooms) == 10
@@ -95,9 +90,7 @@ async def test_seed_creates_fifty_doors(db_session):
     """Seed creates exactly 50 doors."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "door")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "door"))
     doors = result.scalars().all()
 
     assert len(doors) == 50
@@ -105,30 +98,28 @@ async def test_seed_creates_fifty_doors(db_session):
 
 # ─── Connection Structure ──────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_each_door_connected_to_room(db_session):
     """Each door is connected to a room (room → door)."""
     await seed_project(db_session)
 
     # Get all doors
-    door_result = await db_session.execute(
-        select(Item).where(Item.item_type == "door")
-    )
+    door_result = await db_session.execute(select(Item).where(Item.item_type == "door"))
     doors = door_result.scalars().all()
 
     # Each door should be a target of exactly one connection from a room
     for door in doors:
         conn_result = await db_session.execute(
-            select(Connection).where(
-                Connection.target_item_id == door.id
-            ).join(
-                Item, Connection.source_item_id == Item.id
-            ).where(
-                Item.item_type == "room"
-            )
+            select(Connection)
+            .where(Connection.target_item_id == door.id)
+            .join(Item, Connection.source_item_id == Item.id)
+            .where(Item.item_type == "room")
         )
         room_connections = conn_result.scalars().all()
-        assert len(room_connections) == 1, f"Door {door.identifier} has {len(room_connections)} room connections"
+        assert len(room_connections) == 1, (
+            f"Door {door.identifier} has {len(room_connections)} room connections"
+        )
 
 
 @pytest.mark.asyncio
@@ -136,21 +127,16 @@ async def test_rooms_connected_to_floors(db_session):
     """Each room is connected to a floor (floor → room)."""
     await seed_project(db_session)
 
-    room_result = await db_session.execute(
-        select(Item).where(Item.item_type == "room")
-    )
+    room_result = await db_session.execute(select(Item).where(Item.item_type == "room"))
     rooms = room_result.scalars().all()
 
     # Each room should be a target of exactly one floor connection
     for room in rooms:
         conn_result = await db_session.execute(
-            select(Connection).where(
-                Connection.target_item_id == room.id
-            ).join(
-                Item, Connection.source_item_id == Item.id
-            ).where(
-                Item.item_type == "floor"
-            )
+            select(Connection)
+            .where(Connection.target_item_id == room.id)
+            .join(Item, Connection.source_item_id == Item.id)
+            .where(Item.item_type == "floor")
         )
         floor_connections = conn_result.scalars().all()
         assert len(floor_connections) == 1
@@ -169,13 +155,10 @@ async def test_floors_connected_to_building(db_session):
     # Each floor should be a target of the building
     for floor in floors:
         conn_result = await db_session.execute(
-            select(Connection).where(
-                Connection.target_item_id == floor.id
-            ).join(
-                Item, Connection.source_item_id == Item.id
-            ).where(
-                Item.item_type == "building"
-            )
+            select(Connection)
+            .where(Connection.target_item_id == floor.id)
+            .join(Item, Connection.source_item_id == Item.id)
+            .where(Item.item_type == "building")
         )
         building_connections = conn_result.scalars().all()
         assert len(building_connections) == 1
@@ -201,14 +184,13 @@ async def test_building_connected_to_project(db_session):
 
 # ─── Temporal Structure ────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_creates_two_phases(db_session):
     """Seed creates DD and CD phases."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "phase")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "phase"))
     phases = result.scalars().all()
 
     assert len(phases) == 2
@@ -223,9 +205,7 @@ async def test_seed_creates_two_milestones_with_correct_ordinals(db_session):
     ids = await seed_project(db_session)
 
     # Get milestones
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "milestone")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "milestone"))
     milestones = result.scalars().all()
 
     assert len(milestones) == 2
@@ -242,15 +222,14 @@ async def test_seed_creates_two_milestones_with_correct_ordinals(db_session):
 
 # ─── Document Sources ─────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_creates_schedule_source(db_session):
     """Seed creates a Schedule source document."""
     ids = await seed_project(db_session)
 
     schedule_id = ids["schedule"]
-    result = await db_session.execute(
-        select(Item).where(Item.id == schedule_id)
-    )
+    result = await db_session.execute(select(Item).where(Item.id == schedule_id))
     schedule = result.scalar_one()
 
     assert schedule.item_type == "schedule"
@@ -264,9 +243,7 @@ async def test_seed_creates_specification_source(db_session):
     ids = await seed_project(db_session)
 
     spec_id = ids["spec"]
-    result = await db_session.execute(
-        select(Item).where(Item.id == spec_id)
-    )
+    result = await db_session.execute(select(Item).where(Item.id == spec_id))
     spec = result.scalar_one()
 
     assert spec.item_type == "specification"
@@ -274,6 +251,7 @@ async def test_seed_creates_specification_source(db_session):
 
 
 # ─── Source Connections ────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_schedule_connected_to_project(db_session):
@@ -319,18 +297,16 @@ async def test_schedule_connected_to_all_doors(db_session):
     schedule_id = ids["schedule"]
 
     # Count connections from schedule to doors
-    door_ids_subquery = select(Item.id).where(
-        Item.item_type == "door"
-    ).scalar_subquery()
+    door_ids_subquery = (
+        select(Item.id).where(Item.item_type == "door").scalar_subquery()
+    )
 
     result = await db_session.execute(
-        select(func.count(Connection.id)).where(
-            Connection.source_item_id == schedule_id
-        ).select_from(Connection).join(
-            Item, Connection.target_item_id == Item.id
-        ).where(
-            Item.item_type == "door"
-        )
+        select(func.count(Connection.id))
+        .where(Connection.source_item_id == schedule_id)
+        .select_from(Connection)
+        .join(Item, Connection.target_item_id == Item.id)
+        .where(Item.item_type == "door")
     )
     count = result.scalar()
     assert count == 50
@@ -345,13 +321,11 @@ async def test_specification_connected_to_all_doors(db_session):
 
     # Count connections from spec to doors
     result = await db_session.execute(
-        select(func.count(Connection.id)).where(
-            Connection.source_item_id == spec_id
-        ).select_from(Connection).join(
-            Item, Connection.target_item_id == Item.id
-        ).where(
-            Item.item_type == "door"
-        )
+        select(func.count(Connection.id))
+        .where(Connection.source_item_id == spec_id)
+        .select_from(Connection)
+        .join(Item, Connection.target_item_id == Item.id)
+        .where(Item.item_type == "door")
     )
     count = result.scalar()
     assert count == 50
@@ -359,14 +333,13 @@ async def test_specification_connected_to_all_doors(db_session):
 
 # ─── Door Properties ───────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_doors_have_required_properties(db_session):
     """All doors have mark, width, height properties."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "door")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "door"))
     doors = result.scalars().all()
 
     for door in doors:
@@ -380,9 +353,7 @@ async def test_doors_have_material_and_finish(db_session):
     """All doors have material and finish properties for specification."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "door")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "door"))
     doors = result.scalars().all()
 
     for door in doors:
@@ -392,14 +363,13 @@ async def test_doors_have_material_and_finish(db_session):
 
 # ─── Room Properties ──────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_rooms_have_name_and_number(db_session):
     """All rooms have name and number properties."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "room")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "room"))
     rooms = result.scalars().all()
 
     for room in rooms:
@@ -412,9 +382,7 @@ async def test_rooms_have_finishes(db_session):
     """All rooms have floor, wall, ceiling finish properties."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "room")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "room"))
     rooms = result.scalars().all()
 
     for room in rooms:
@@ -424,6 +392,7 @@ async def test_rooms_have_finishes(db_session):
 
 
 # ─── Floor Distribution ────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_rooms_distributed_across_floors(db_session):
@@ -439,9 +408,10 @@ async def test_rooms_distributed_across_floors(db_session):
     floor_room_counts = []
     for floor in floors:
         room_result = await db_session.execute(
-            select(func.count(Item.id)).where(
-                Item.item_type == "room"
-            ).select_from(Connection).where(
+            select(func.count(Item.id))
+            .where(Item.item_type == "room")
+            .select_from(Connection)
+            .where(
                 Connection.source_item_id == floor.id,
                 Connection.target_item_id == Item.id,
             )
@@ -458,16 +428,15 @@ async def test_doors_distributed_across_rooms(db_session):
     """50 doors are distributed across 10 rooms (5 per room)."""
     await seed_project(db_session)
 
-    room_result = await db_session.execute(
-        select(Item).where(Item.item_type == "room")
-    )
+    room_result = await db_session.execute(select(Item).where(Item.item_type == "room"))
     rooms = room_result.scalars().all()
 
     for room in rooms:
         door_result = await db_session.execute(
-            select(func.count(Item.id)).where(
-                Item.item_type == "door"
-            ).select_from(Connection).where(
+            select(func.count(Item.id))
+            .where(Item.item_type == "door")
+            .select_from(Connection)
+            .where(
                 Connection.source_item_id == room.id,
                 Connection.target_item_id == Item.id,
             )
@@ -478,14 +447,13 @@ async def test_doors_distributed_across_rooms(db_session):
 
 # ─── Property Items (WP-PROP-4) ────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_creates_property_items(db_session):
     """Seed data includes property items for door and room types."""
     await seed_project(db_session)
 
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "property")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "property"))
     prop_items = result.scalars().all()
     assert len(prop_items) > 0
 
@@ -525,7 +493,9 @@ async def test_property_items_connected_to_doors(db_session):
                 )
             )
             conn = conn_result.scalar_one_or_none()
-            assert conn is not None, f"Property {prop_item.identifier} not connected to door {door.identifier}"
+            assert conn is not None, (
+                f"Property {prop_item.identifier} not connected to door {door.identifier}"
+            )
 
 
 @pytest.mark.asyncio
@@ -558,4 +528,6 @@ async def test_property_items_connected_to_rooms(db_session):
                 )
             )
             conn = conn_result.scalar_one_or_none()
-            assert conn is not None, f"Property {prop_item.identifier} not connected to room {room.identifier}"
+            assert conn is not None, (
+                f"Property {prop_item.identifier} not connected to room {room.identifier}"
+            )

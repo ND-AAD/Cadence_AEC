@@ -24,6 +24,7 @@ from app.services.property_service import get_or_create_property_item
 
 # ─── Helpers ──────────────────────────────────────────────────
 
+
 async def _get_connected_items_by_type(
     db: AsyncSession,
     source_item_id: uuid.UUID,
@@ -119,6 +120,7 @@ async def _ensure_connection(
 
 # ─── Conflict Resolution ─────────────────────────────────────
 
+
 async def resolve_conflict(
     db: AsyncSession,
     conflict_item: Item,
@@ -158,9 +160,7 @@ async def resolve_conflict(
     # Validate status
     current_status = conflict_item.properties.get("status", "")
     if current_status in ("resolved", "resolved_by_agreement"):
-        raise ValueError(
-            f"Conflict is already resolved (status: {current_status})"
-        )
+        raise ValueError(f"Conflict is already resolved (status: {current_status})")
 
     # Gather related items
     affected_item = await _find_conflict_affected_item(db, conflict_item)
@@ -339,12 +339,15 @@ async def resolve_conflict(
 
         # 4 connections: directive → affected_item, target_source, decision, milestone
         await _ensure_connection(db, directive.id, affected_item.id)
-        await _ensure_connection(db, directive.id, source.id,
-                                 {"relationship": "target_source"})
-        await _ensure_connection(db, directive.id, decision_item.id,
-                                 {"relationship": "created_by"})
-        await _ensure_connection(db, directive.id, milestone.id,
-                                 {"relationship": "context"})
+        await _ensure_connection(
+            db, directive.id, source.id, {"relationship": "target_source"}
+        )
+        await _ensure_connection(
+            db, directive.id, decision_item.id, {"relationship": "created_by"}
+        )
+        await _ensure_connection(
+            db, directive.id, milestone.id, {"relationship": "context"}
+        )
 
         # Connect directive to property item
         prop_item, _ = await get_or_create_property_item(
@@ -358,6 +361,7 @@ async def resolve_conflict(
 
 
 # ─── Change Acknowledgment ───────────────────────────────────
+
 
 async def acknowledge_change(
     db: AsyncSession,
@@ -407,6 +411,7 @@ async def acknowledge_change(
 
 
 # ─── Directive Fulfillment ───────────────────────────────────
+
 
 async def fulfill_directive(
     db: AsyncSession,
@@ -571,7 +576,11 @@ async def hold_item(
         Previous status.
     """
     return await _transition_status(
-        db, item, "hold", _HOLD_FROM, "hold",
+        db,
+        item,
+        "hold",
+        _HOLD_FROM,
+        "hold",
         store_pre_hold=True,
     )
 
@@ -590,12 +599,17 @@ async def resume_review(
         Previous status (hold).
     """
     return await _transition_status(
-        db, item, "", _RESUME_FROM, "resume review",
+        db,
+        item,
+        "",
+        _RESUME_FROM,
+        "resume review",
         restore_pre_hold=True,
     )
 
 
 # ─── Action Item Queries ─────────────────────────────────────
+
 
 async def get_action_items_rollup(
     db: AsyncSession,
@@ -612,9 +626,7 @@ async def get_action_items_rollup(
     """
     # Load all workflow items
     workflow_types = ("change", "conflict", "directive")
-    result = await db.execute(
-        select(Item).where(Item.item_type.in_(workflow_types))
-    )
+    result = await db.execute(select(Item).where(Item.item_type.in_(workflow_types)))
     all_items = result.scalars().all()
 
     changes_pending = 0
@@ -668,7 +680,8 @@ async def list_directives(
         (list_of_directive_items, pending_by_source_dict)
     """
     result = await db.execute(
-        select(Item).where(Item.item_type == "directive")
+        select(Item)
+        .where(Item.item_type == "directive")
         .order_by(Item.created_at.desc())
     )
     all_directives = result.scalars().all()

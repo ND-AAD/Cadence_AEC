@@ -38,7 +38,9 @@ async def test_create_registered_property(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_create_unregistered_property(db_session: AsyncSession):
     """Unregistered property gets fallback metadata."""
-    prop, is_new = await get_or_create_property_item(db_session, "door", "acoustic_rating")
+    prop, is_new = await get_or_create_property_item(
+        db_session, "door", "acoustic_rating"
+    )
     assert is_new is True
     assert prop.identifier == "door/acoustic_rating"
     assert prop.properties["label"] == "Acoustic Rating"

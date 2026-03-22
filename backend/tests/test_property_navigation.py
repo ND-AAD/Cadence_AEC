@@ -70,7 +70,9 @@ async def test_door_shows_property_items_in_connected(client: AsyncClient, nav_s
 
 
 @pytest.mark.asyncio
-async def test_property_item_shows_instances_in_connected(client: AsyncClient, nav_setup):
+async def test_property_item_shows_instances_in_connected(
+    client: AsyncClient, nav_setup
+):
     """GET /api/items/:property_id/connected shows door instances."""
     setup = nav_setup
     resp = await client.get(

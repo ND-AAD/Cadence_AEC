@@ -23,6 +23,7 @@ from app.models.core import Connection, Item, Snapshot
 
 # ─── Helpers ──────────────────────────────────────────────────
 
+
 async def _get_project_item_ids(
     db: AsyncSession,
     project_id: uuid.UUID,
@@ -57,9 +58,7 @@ async def _get_project_item_ids(
 
     # Phase 2: reverse lookup — items that connect TO base items
     reverse_result = await db.execute(
-        select(Connection.source_item_id).where(
-            Connection.target_item_id.in_(base_ids)
-        )
+        select(Connection.source_item_id).where(Connection.target_item_id.in_(base_ids))
     )
     reverse_ids = {row[0] for row in reverse_result.all()}
     visited |= reverse_ids
@@ -68,6 +67,7 @@ async def _get_project_item_ids(
 
 
 # ─── Project Health ──────────────────────────────────────────
+
 
 async def get_project_health(
     db: AsyncSession,
@@ -84,9 +84,7 @@ async def get_project_health(
     # Fetch items (optionally scoped to project)
     if project_id:
         item_ids = await _get_project_item_ids(db, project_id)
-        result = await db.execute(
-            select(Item).where(Item.id.in_(item_ids))
-        )
+        result = await db.execute(select(Item).where(Item.id.in_(item_ids)))
     else:
         result = await db.execute(select(Item))
 
@@ -117,20 +115,26 @@ async def get_project_health(
         if item.item_type == "change" and status in ("detected", "acknowledged"):
             unresolved_changes += 1
             if prop_name:
-                entry = by_property.setdefault(prop_name, {"changes": 0, "conflicts": 0, "directives": 0})
+                entry = by_property.setdefault(
+                    prop_name, {"changes": 0, "conflicts": 0, "directives": 0}
+                )
                 entry["changes"] += 1
 
         elif item.item_type == "conflict" and status == "detected":
             unresolved_conflicts += 1
             if prop_name:
-                entry = by_property.setdefault(prop_name, {"changes": 0, "conflicts": 0, "directives": 0})
+                entry = by_property.setdefault(
+                    prop_name, {"changes": 0, "conflicts": 0, "directives": 0}
+                )
                 entry["conflicts"] += 1
 
         elif item.item_type == "directive":
             if status == "pending":
                 pending_directives += 1
                 if prop_name:
-                    entry = by_property.setdefault(prop_name, {"changes": 0, "conflicts": 0, "directives": 0})
+                    entry = by_property.setdefault(
+                        prop_name, {"changes": 0, "conflicts": 0, "directives": 0}
+                    )
                     entry["directives"] += 1
             elif status == "fulfilled":
                 fulfilled_directives += 1
@@ -155,10 +159,9 @@ async def get_project_health(
             continue
 
         # Find subject via affected_item_id property (generic, not category-filtered)
-        affected_id_str = (
-            wf_item.properties.get("affected_item_id")
-            or wf_item.properties.get("affected_item")
-        )
+        affected_id_str = wf_item.properties.get(
+            "affected_item_id"
+        ) or wf_item.properties.get("affected_item")
         if not affected_id_str:
             continue
 
@@ -172,8 +175,7 @@ async def get_project_health(
             continue
 
         entry = by_affected_type.setdefault(
-            affected.item_type,
-            {"changes": 0, "conflicts": 0, "directives": 0}
+            affected.item_type, {"changes": 0, "conflicts": 0, "directives": 0}
         )
         if wf_item.item_type == "change":
             entry["changes"] += 1
@@ -185,7 +187,8 @@ async def get_project_health(
     # ── by_source_pair: conflict counts by source pair ────────
     by_source_pair: dict[str, int] = {}
     conflict_items = [
-        i for i in all_items
+        i
+        for i in all_items
         if i.item_type == "conflict"
         and (i.properties.get("status") or "").lower() == "detected"
     ]
@@ -193,16 +196,15 @@ async def get_project_health(
     if conflict_items:
         conflict_ids = [c.id for c in conflict_items]
         conn_result = await db.execute(
-            select(Connection).where(
-                Connection.source_item_id.in_(conflict_ids)
-            )
+            select(Connection).where(Connection.source_item_id.in_(conflict_ids))
         )
         conflict_connections = list(conn_result.scalars().all())
 
         for conflict in conflict_items:
             # Gather source items connected to this conflict
             connected_target_ids = [
-                c.target_item_id for c in conflict_connections
+                c.target_item_id
+                for c in conflict_connections
                 if c.source_item_id == conflict.id
             ]
             source_names: list[str] = []
@@ -229,20 +231,27 @@ async def get_project_health(
             "decisions_made": decisions_made,
         },
         "by_property": {
-            k: {"changes": v["changes"], "conflicts": v["conflicts"], "directives": v["directives"]}
+            k: {
+                "changes": v["changes"],
+                "conflicts": v["conflicts"],
+                "directives": v["directives"],
+            }
             for k, v in by_property.items()
         },
-        "by_source_pair": {
-            k: {"conflicts": v} for k, v in by_source_pair.items()
-        },
+        "by_source_pair": {k: {"conflicts": v} for k, v in by_source_pair.items()},
         "by_affected_type": {
-            k: {"changes": v["changes"], "conflicts": v["conflicts"], "directives": v["directives"]}
+            k: {
+                "changes": v["changes"],
+                "conflicts": v["conflicts"],
+                "directives": v["directives"],
+            }
             for k, v in by_affected_type.items()
         },
     }
 
 
 # ─── Import Summary ─────────────────────────────────────────
+
 
 async def get_import_summary(
     db: AsyncSession,
@@ -288,10 +297,7 @@ async def get_import_summary(
     # If project-scoped, filter batches connected to project items
     if project_id:
         project_item_ids = await _get_project_item_ids(db, project_id)
-        batches = [
-            b for b in batches
-            if _batch_related_to_project(b, project_item_ids)
-        ]
+        batches = [b for b in batches if _batch_related_to_project(b, project_item_ids)]
         if not batches:
             return {
                 "batch_id": None,
@@ -384,6 +390,7 @@ def _safe_int(val: Any) -> int:
 
 # ─── Temporal Trend ──────────────────────────────────────────
 
+
 async def get_temporal_trend(
     db: AsyncSession,
     project_id: uuid.UUID | None = None,
@@ -397,9 +404,7 @@ async def get_temporal_trend(
     GET /api/v1/dashboard/temporal-trend?project=uuid
     """
     # Fetch milestones ordered by ordinal
-    result = await db.execute(
-        select(Item).where(Item.item_type == "milestone")
-    )
+    result = await db.execute(select(Item).where(Item.item_type == "milestone"))
     milestones = list(result.scalars().all())
 
     # Sort by ordinal (Python-side for SQLite compat)
@@ -410,9 +415,7 @@ async def get_temporal_trend(
 
     # Fetch all workflow items
     workflow_types = ("change", "conflict", "directive")
-    wf_result = await db.execute(
-        select(Item).where(Item.item_type.in_(workflow_types))
-    )
+    wf_result = await db.execute(select(Item).where(Item.item_type.in_(workflow_types)))
     workflow_items = list(wf_result.scalars().all())
 
     if not workflow_items:
@@ -510,6 +513,7 @@ async def get_temporal_trend(
 
 # ─── Directive Status Rollup ────────────────────────────────
 
+
 async def get_directive_status(
     db: AsyncSession,
     project_id: uuid.UUID | None = None,
@@ -523,9 +527,7 @@ async def get_directive_status(
     GET /api/v1/dashboard/directive-status?project=uuid
     """
     # Fetch all directives
-    result = await db.execute(
-        select(Item).where(Item.item_type == "directive")
-    )
+    result = await db.execute(select(Item).where(Item.item_type == "directive"))
     all_directives = list(result.scalars().all())
 
     total_pending = 0
@@ -555,21 +557,21 @@ async def get_directive_status(
         source_uuid = None
         try:
             source_uuid = uuid.UUID(source_id_str)
-            src_result = await db.execute(
-                select(Item).where(Item.id == source_uuid)
-            )
+            src_result = await db.execute(select(Item).where(Item.id == source_uuid))
             src_item = src_result.scalar_one_or_none()
             if src_item:
                 source_identifier = src_item.identifier
         except (ValueError, TypeError):
             pass
 
-        source_rollups.append({
-            "source_id": source_uuid or source_id_str,
-            "source_identifier": source_identifier,
-            "pending": counts["pending"],
-            "fulfilled": counts["fulfilled"],
-        })
+        source_rollups.append(
+            {
+                "source_id": source_uuid or source_id_str,
+                "source_identifier": source_identifier,
+                "pending": counts["pending"],
+                "fulfilled": counts["fulfilled"],
+            }
+        )
 
     return {
         "total_pending": total_pending,
@@ -579,6 +581,7 @@ async def get_directive_status(
 
 
 # ─── Graph-Based Property Rollup ──────────────────────────────
+
 
 async def get_action_items_by_property_graph(
     db: AsyncSession,
@@ -598,9 +601,7 @@ async def get_action_items_by_property_graph(
     }
     """
     # 1. Load all property items
-    prop_result = await db.execute(
-        select(Item).where(Item.item_type == "property")
-    )
+    prop_result = await db.execute(select(Item).where(Item.item_type == "property"))
     property_items = {p.id: p for p in prop_result.scalars().all()}
 
     if not property_items:
@@ -608,9 +609,7 @@ async def get_action_items_by_property_graph(
 
     # 2. Load all workflow items
     workflow_types = ("change", "conflict", "directive")
-    wf_result = await db.execute(
-        select(Item).where(Item.item_type.in_(workflow_types))
-    )
+    wf_result = await db.execute(select(Item).where(Item.item_type.in_(workflow_types)))
     workflow_items = {w.id: w for w in wf_result.scalars().all()}
 
     if not workflow_items:
@@ -653,6 +652,7 @@ async def get_action_items_by_property_graph(
 
 # ─── Affected Items for Workflow Perspective ──────────────
 
+
 async def get_affected_items(
     db: AsyncSession,
     project_id: uuid.UUID | None = None,
@@ -669,9 +669,7 @@ async def get_affected_items(
     # Phase 1: Get all items in the project (or all items globally)
     if project_id:
         item_ids = await _get_project_item_ids(db, project_id)
-        result = await db.execute(
-            select(Item).where(Item.id.in_(item_ids))
-        )
+        result = await db.execute(select(Item).where(Item.id.in_(item_ids)))
     else:
         result = await db.execute(select(Item))
 
@@ -699,10 +697,9 @@ async def get_affected_items(
             continue
 
         # Find subject via affected_item_id property
-        affected_id_str = (
-            wf_item.properties.get("affected_item_id")
-            or wf_item.properties.get("affected_item")
-        )
+        affected_id_str = wf_item.properties.get(
+            "affected_item_id"
+        ) or wf_item.properties.get("affected_item")
         if not affected_id_str:
             continue
 
@@ -715,7 +712,11 @@ async def get_affected_items(
             continue
 
         if affected_id not in item_action_counts:
-            item_action_counts[affected_id] = {"changes": 0, "conflicts": 0, "directives": 0}
+            item_action_counts[affected_id] = {
+                "changes": 0,
+                "conflicts": 0,
+                "directives": 0,
+            }
 
         if wf_item.item_type == "change":
             item_action_counts[affected_id]["changes"] += 1
@@ -741,22 +742,26 @@ async def get_affected_items(
                 "items": [],
             }
 
-        groups_dict[item_type]["items"].append({
-            "id": affected_id,
-            "identifier": affected_item.identifier,
-            "item_type": item_type,
-            "action_counts": action_counts,
-        })
+        groups_dict[item_type]["items"].append(
+            {
+                "id": affected_id,
+                "identifier": affected_item.identifier,
+                "item_type": item_type,
+                "action_counts": action_counts,
+            }
+        )
 
     # Phase 5: Build final response
     groups = []
     for item_type in sorted(groups_dict.keys()):
         group = groups_dict[item_type]
-        groups.append({
-            "item_type": item_type,
-            "label": group["label"],
-            "count": len(group["items"]),
-            "items": group["items"],
-        })
+        groups.append(
+            {
+                "item_type": item_type,
+                "label": group["label"],
+                "count": len(group["items"]),
+                "items": group["items"],
+            }
+        )
 
     return {"groups": groups}

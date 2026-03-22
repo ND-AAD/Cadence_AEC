@@ -46,7 +46,7 @@ class TestDimensionNormalization:
         assert normalize_dimension_to_inches("3'-6\"") == Decimal("42")
 
     def test_inches_only_quote(self):
-        assert normalize_dimension_to_inches("36\"") == Decimal("36")
+        assert normalize_dimension_to_inches('36"') == Decimal("36")
 
     def test_inches_only_text(self):
         assert normalize_dimension_to_inches("36 in") == Decimal("36")
@@ -90,12 +90,12 @@ class TestDimensionToMm:
 
     # Fraction support
     def test_fraction_half(self):
-        result = normalize_dimension_to_mm('3\'-6 1/2"')
+        result = normalize_dimension_to_mm("3'-6 1/2\"")
         expected = Decimal("42.5") * Decimal("25.4")
         assert result == expected
 
     def test_fraction_three_quarter(self):
-        result = normalize_dimension_to_mm('3\'-0 3/4"')
+        result = normalize_dimension_to_mm("3'-0 3/4\"")
         expected = Decimal("36.75") * Decimal("25.4")
         assert result == expected
 
@@ -203,11 +203,11 @@ class TestDualStorage:
 
     def test_dimension_property_gets_dual(self):
         props = build_snapshot_properties(
-            {"width": '3\'-0"', "material": "HM"},
+            {"width": "3'-0\"", "material": "HM"},
             {"width"},
         )
         assert props["width"] == "914.4"
-        assert props["width_raw"] == '3\'-0"'
+        assert props["width_raw"] == "3'-0\""
         assert props["material"] == "HM"
         assert "material_raw" not in props
 

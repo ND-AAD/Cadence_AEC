@@ -10,14 +10,18 @@ from app.schemas.items import ItemSummary
 
 class SnapshotCreate(BaseModel):
     """Schema for creating a snapshot (or upserting on the triple)."""
+
     item_id: uuid.UUID = Field(..., description="WHAT: the item being described")
     context_id: uuid.UUID = Field(..., description="WHEN: the milestone context")
     source_id: uuid.UUID = Field(..., description="WHO SAYS: the asserting source")
-    properties: dict = Field(default_factory=dict, description="Asserted property values")
+    properties: dict = Field(
+        default_factory=dict, description="Asserted property values"
+    )
 
 
 class SnapshotResponse(BaseModel):
     """Schema for snapshot in API responses."""
+
     id: uuid.UUID
     item_id: uuid.UUID
     context_id: uuid.UUID
@@ -31,6 +35,7 @@ class SnapshotResponse(BaseModel):
 
 class SnapshotDetail(BaseModel):
     """Snapshot with expanded item references."""
+
     id: uuid.UUID
     item: ItemSummary
     context: ItemSummary
@@ -43,6 +48,7 @@ class SnapshotDetail(BaseModel):
 
 # ─── Resolved View ────────────────────────────────────────────
 
+
 class PropertyWorkflowRefs(BaseModel):
     """
     Navigation handles for workflow items connected to a property.
@@ -52,15 +58,19 @@ class PropertyWorkflowRefs(BaseModel):
     PropertyResolution's core fields (property_name, status, value, sources)
     which are about what the property IS.
     """
+
     conflict_id: uuid.UUID | None = None
     change_ids: list[uuid.UUID] = Field(default_factory=list)
     decision_id: uuid.UUID | None = None
     directive_ids: list[uuid.UUID] = Field(default_factory=list)
-    resolution_metadata: dict | None = None  # { decided_by, resolved_at, method, rationale, chosen_source }
+    resolution_metadata: dict | None = (
+        None  # { decided_by, resolved_at, method, rationale, chosen_source }
+    )
 
 
 class PropertyResolution(BaseModel):
     """Resolution status for a single property across sources."""
+
     property_name: str
     status: str  # "agreed", "single_source", "conflicted", "resolved"
     value: str | int | float | bool | None = None  # Agreed/resolved value
@@ -78,6 +88,7 @@ class ResolvedView(BaseModel):
     For each property, shows whether sources agree, disagree,
     or only one source has spoken.
     """
+
     item: ItemSummary
     context: ItemSummary
     properties: list[PropertyResolution]
@@ -87,8 +98,10 @@ class ResolvedView(BaseModel):
 
 # ─── Effective Value ───────────────────────────────────────────
 
+
 class EffectiveValue(BaseModel):
     """The effective (most recent by milestone ordinal) value from a source."""
+
     properties: dict
     as_of_context: ItemSummary
     source: ItemSummary

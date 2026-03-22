@@ -64,7 +64,7 @@ async def test_compare_simple_modified_items(
             item_id=door.id,
             context_id=dd.id,
             source_id=spec.id,
-            properties={"finish": finish, "width": "36\""},
+            properties={"finish": finish, "width": '36"'},
         )
         db_session.add(snapshot)
 
@@ -79,7 +79,7 @@ async def test_compare_simple_modified_items(
             item_id=door.id,
             context_id=cd.id,
             source_id=spec.id,
-            properties={"finish": finish, "width": "36\""},
+            properties={"finish": finish, "width": '36"'},
         )
         db_session.add(snapshot)
 
@@ -107,7 +107,9 @@ async def test_compare_simple_modified_items(
     assert result["summary"]["total"] == 50
 
     # Verify the 10 modified items are the last ones
-    modified_items = [item for item in result["items"] if item["category"] == "modified"]
+    modified_items = [
+        item for item in result["items"] if item["category"] == "modified"
+    ]
     assert len(modified_items) == 10
 
     for item in modified_items:
@@ -407,8 +409,8 @@ async def test_compare_property_changes_show_values(
         source_id=spec.id,
         properties={
             "finish": "wood",
-            "width": "36\"",
-            "height": "84\"",
+            "width": '36"',
+            "height": '84"',
         },
     )
     snapshot_cd = Snapshot(
@@ -417,8 +419,8 @@ async def test_compare_property_changes_show_values(
         source_id=spec.id,
         properties={
             "finish": "glass",
-            "width": "36\"",
-            "height": "84\"",
+            "width": '36"',
+            "height": '84"',
             "hardware": "chrome",
         },
     )
@@ -826,13 +828,13 @@ async def test_compare_multiple_sources_effective_values(
         item_id=door.id,
         context_id=dd.id,
         source_id=spec.id,
-        properties={"width": "36\"", "hardware": "wood"},
+        properties={"width": '36"', "hardware": "wood"},
     )
     spec_cd = Snapshot(
         item_id=door.id,
         context_id=cd.id,
         source_id=spec.id,
-        properties={"width": "36\"", "hardware": "chrome"},  # Hardware changed
+        properties={"width": '36"', "hardware": "chrome"},  # Hardware changed
     )
     db_session.add(spec_dd)
     db_session.add(spec_cd)

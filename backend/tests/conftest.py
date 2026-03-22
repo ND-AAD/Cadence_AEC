@@ -25,6 +25,7 @@ from app.models.infrastructure import User, Permission, Notification  # noqa: F4
 
 # ─── SQLite compatibility: JSONB → JSON, UUID → CHAR(36) ──────
 
+
 @compiles(JSONB, "sqlite")
 def compile_jsonb_sqlite(type_, compiler, **kw):
     return "JSON"
@@ -84,9 +85,11 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 # ─── Helper factories ─────────────────────────────────────────
 
+
 @pytest_asyncio.fixture
 async def make_item(db_session: AsyncSession):
     """Factory fixture for creating items."""
+
     async def _make(
         item_type: str = "door",
         identifier: str | None = None,
@@ -101,13 +104,17 @@ async def make_item(db_session: AsyncSession):
         await db_session.flush()
         await db_session.refresh(item)
         return item
+
     return _make
 
 
 @pytest_asyncio.fixture
 async def make_connection(db_session: AsyncSession):
     """Factory fixture for creating connections."""
-    async def _make(source: Item, target: Item, properties: dict | None = None) -> Connection:
+
+    async def _make(
+        source: Item, target: Item, properties: dict | None = None
+    ) -> Connection:
         conn = Connection(
             source_item_id=source.id,
             target_item_id=target.id,
@@ -117,4 +124,5 @@ async def make_connection(db_session: AsyncSession):
         await db_session.flush()
         await db_session.refresh(conn)
         return conn
+
     return _make

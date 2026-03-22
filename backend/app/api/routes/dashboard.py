@@ -38,6 +38,7 @@ router = APIRouter(tags=["dashboard"])
 
 # ─── Project Health ──────────────────────────────────────────
 
+
 @router.get(
     "/dashboard/health",
     response_model=ProjectHealthResponse,
@@ -59,9 +60,7 @@ async def get_project_health(
         total_items=data["total_items"],
         by_type=data["by_type"],
         action_items=ActionItemCounts(**data["action_items"]),
-        by_property={
-            k: PropertyBreakdown(**v) for k, v in data["by_property"].items()
-        },
+        by_property={k: PropertyBreakdown(**v) for k, v in data["by_property"].items()},
         by_source_pair={
             k: SourcePairBreakdown(**v) for k, v in data["by_source_pair"].items()
         },
@@ -70,6 +69,7 @@ async def get_project_health(
 
 
 # ─── Import Summary ─────────────────────────────────────────
+
 
 @router.get(
     "/dashboard/import-summary",
@@ -94,6 +94,7 @@ async def get_import_summary(
 
 # ─── Temporal Trend ──────────────────────────────────────────
 
+
 @router.get(
     "/dashboard/temporal-trend",
     response_model=TemporalTrendResponse,
@@ -112,13 +113,12 @@ async def get_temporal_trend(
     data = await dashboard_service.get_temporal_trend(db, project_id=project)
 
     return TemporalTrendResponse(
-        milestones=[
-            MilestoneTrend(**m) for m in data["milestones"]
-        ]
+        milestones=[MilestoneTrend(**m) for m in data["milestones"]]
     )
 
 
 # ─── Directive Status ───────────────────────────────────────
+
 
 @router.get(
     "/dashboard/directive-status",
@@ -147,12 +147,14 @@ async def get_directive_status(
             except (ValueError, TypeError):
                 continue  # Skip entries with non-UUID source IDs
 
-        by_source.append(SourceDirectiveRollup(
-            source_id=source_id,
-            source_identifier=entry["source_identifier"],
-            pending=entry["pending"],
-            fulfilled=entry["fulfilled"],
-        ))
+        by_source.append(
+            SourceDirectiveRollup(
+                source_id=source_id,
+                source_identifier=entry["source_identifier"],
+                pending=entry["pending"],
+                fulfilled=entry["fulfilled"],
+            )
+        )
 
     return DirectiveStatusResponse(
         total_pending=data["total_pending"],
@@ -162,6 +164,7 @@ async def get_directive_status(
 
 
 # ─── Affected Items ─────────────────────────────────────
+
 
 @router.get(
     "/dashboard/affected-items",

@@ -33,15 +33,17 @@ BATCH_SIZE = 50
 
 # ─── Data Types ──────────────────────────────────────────────
 
+
 @dataclass
 class ClassificationResult:
     """Result of classifying a single element."""
+
     item_id: uuid.UUID
     item_identifier: str | None
     section_id: uuid.UUID
-    section_identifier: str       # e.g., "08"
-    section_title: str            # e.g., "Openings"
-    confidence: str               # "high", "medium", "low"
+    section_identifier: str  # e.g., "08"
+    section_title: str  # e.g., "Openings"
+    confidence: str  # "high", "medium", "low"
     needs_review: bool = False
 
 
@@ -67,6 +69,7 @@ async def _default_llm_caller(prompt: str) -> str:
 
 
 # ─── Core Classification ────────────────────────────────────
+
 
 async def classify_elements(
     db: AsyncSession,
@@ -108,11 +111,15 @@ async def classify_elements(
     all_results: list[ClassificationResult] = []
 
     for batch_start in range(0, len(unclassified), BATCH_SIZE):
-        batch = unclassified[batch_start:batch_start + BATCH_SIZE]
+        batch = unclassified[batch_start : batch_start + BATCH_SIZE]
 
         try:
             batch_results = await _classify_batch(
-                db, batch, item_properties, divisions, caller,
+                db,
+                batch,
+                item_properties,
+                divisions,
+                caller,
             )
             all_results.extend(batch_results)
         except Exception as e:
@@ -123,6 +130,7 @@ async def classify_elements(
 
 
 # ─── Helpers ─────────────────────────────────────────────────
+
 
 async def _load_divisions(
     db: AsyncSession,
@@ -255,11 +263,13 @@ def _parse_classification_response(
             if division_id not in divisions:
                 continue
 
-            results.append({
-                "item": items[element_idx - 1],
-                "division": divisions[division_id],
-                "confidence": confidence,
-            })
+            results.append(
+                {
+                    "item": items[element_idx - 1],
+                    "division": divisions[division_id],
+                    "confidence": confidence,
+                }
+            )
         except (ValueError, TypeError, IndexError):
             continue
 
@@ -316,14 +326,16 @@ async def _classify_batch(
         db.add(conn)
         await db.flush()
 
-        results.append(ClassificationResult(
-            item_id=item.id,
-            item_identifier=item.identifier,
-            section_id=division.id,
-            section_identifier=division.identifier,
-            section_title=division.properties.get("title", ""),
-            confidence=confidence,
-            needs_review=needs_review,
-        ))
+        results.append(
+            ClassificationResult(
+                item_id=item.id,
+                item_identifier=item.identifier,
+                section_id=division.id,
+                section_identifier=division.identifier,
+                section_title=division.properties.get("title", ""),
+                confidence=confidence,
+                needs_review=needs_review,
+            )
+        )
 
     return results

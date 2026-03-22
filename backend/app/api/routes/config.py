@@ -9,6 +9,7 @@ router = APIRouter()
 
 # ─── Type Configuration ────────────────────────────────────────
 
+
 @router.get("/types")
 async def get_type_config():
     """
@@ -49,6 +50,7 @@ async def get_type_config():
 
 
 # ─── Milestone Template ────────────────────────────────────────
+
 
 @router.get("/milestone-template")
 async def get_milestone_template():

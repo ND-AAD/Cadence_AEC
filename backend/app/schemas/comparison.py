@@ -10,18 +10,22 @@ from app.schemas.items import ItemSummary
 
 class PropertyChange(BaseModel):
     """A property change between two milestones."""
+
     property_name: str = Field(..., description="Name of the property that changed")
     old_value: Any = Field(..., description="Value at the earlier milestone")
     new_value: Any = Field(..., description="Value at the later milestone")
     from_context: uuid.UUID = Field(..., description="Earlier milestone ID")
     to_context: uuid.UUID = Field(..., description="Later milestone ID")
-    source: uuid.UUID | None = Field(None, description="Source that reported this change (None if merged)")
+    source: uuid.UUID | None = Field(
+        None, description="Source that reported this change (None if merged)"
+    )
 
     model_config = {"from_attributes": True}
 
 
 class ItemComparison(BaseModel):
     """Comparison of an item across two milestones."""
+
     item_id: uuid.UUID = Field(..., description="The item being compared")
     identifier: str | None = Field(None, description="Human-readable identifier")
     item_type: str = Field(..., description="Type of the item")
@@ -39,6 +43,7 @@ class ItemComparison(BaseModel):
 
 class ComparisonSummary(BaseModel):
     """Summary counts from a comparison."""
+
     added: int = Field(..., description="Number of items added")
     removed: int = Field(..., description="Number of items removed")
     modified: int = Field(..., description="Number of items modified")
@@ -50,6 +55,7 @@ class ComparisonSummary(BaseModel):
 
 class ComparisonRequest(BaseModel):
     """Request payload for comparing snapshots across milestones."""
+
     item_ids: list[uuid.UUID] | None = Field(
         None,
         description="Specific items to compare (mutually exclusive with parent_item_id)",
@@ -78,6 +84,7 @@ class ComparisonRequest(BaseModel):
 
 class ComparisonResult(BaseModel):
     """Result of a temporal comparison."""
+
     from_context: ItemSummary = Field(..., description="Earlier milestone")
     to_context: ItemSummary = Field(..., description="Later milestone")
     items: list[ItemComparison] = Field(

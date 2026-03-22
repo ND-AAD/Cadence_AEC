@@ -283,4 +283,6 @@ class Snapshot(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Snapshot item={self.item_id} ctx={self.context_id} src={self.source_id}>"
+        return (
+            f"<Snapshot item={self.item_id} ctx={self.context_id} src={self.source_id}>"
+        )

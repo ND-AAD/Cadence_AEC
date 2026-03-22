@@ -7,7 +7,9 @@ class Settings(BaseSettings):
     """Application settings loaded from environment."""
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://cadence:cadence_dev@localhost:5432/cadence"
+    DATABASE_URL: str = (
+        "postgresql+asyncpg://cadence:cadence_dev@localhost:5432/cadence"
+    )
     DATABASE_URL_SYNC: str = "postgresql://cadence:cadence_dev@localhost:5432/cadence"
 
     # Application
@@ -43,16 +45,23 @@ class Settings(BaseSettings):
     def model_post_init(self, __context) -> None:
         """Fix Render's database URL format for asyncpg."""
         # Render provides postgresql:// — asyncpg needs postgresql+asyncpg://
-        if self.DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in self.DATABASE_URL:
+        if (
+            self.DATABASE_URL.startswith("postgresql://")
+            and "+asyncpg" not in self.DATABASE_URL
+        ):
             object.__setattr__(
-                self, "DATABASE_URL",
+                self,
+                "DATABASE_URL",
                 self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1),
             )
         # Ensure SYNC URL uses plain postgresql://
         if "+asyncpg" in self.DATABASE_URL_SYNC:
             object.__setattr__(
-                self, "DATABASE_URL_SYNC",
-                self.DATABASE_URL_SYNC.replace("postgresql+asyncpg://", "postgresql://", 1),
+                self,
+                "DATABASE_URL_SYNC",
+                self.DATABASE_URL_SYNC.replace(
+                    "postgresql+asyncpg://", "postgresql://", 1
+                ),
             )
 
 

@@ -200,7 +200,9 @@ def build_extraction_prompt(
             f"{_format_property_list(type_name, props)}"
         )
 
-    properties_block = "\n\n".join(prop_sections) if prop_sections else "No target properties defined."
+    properties_block = (
+        "\n\n".join(prop_sections) if prop_sections else "No target properties defined."
+    )
 
     # Build the list of all type names for the output schema
     all_types = []
@@ -240,7 +242,7 @@ Respond with JSON only. No markdown fencing, no explanation.
   "extractions": [
     {{
       "property": "<property_name>",
-      "element_type": "<type_name from: {', '.join(all_types) if all_types else 'unknown'}>",
+      "element_type": "<type_name from: {", ".join(all_types) if all_types else "unknown"}>",
       "assertion_type": "flat",
       "value": "<extracted value>",
       "confidence": <0.0-1.0>,
@@ -407,12 +409,14 @@ def parse_noun_identification_response(
 
             context = str(entry.get("context", ""))
 
-            nouns.append(NounIdentification(
-                noun_phrase=noun_phrase,
-                matched_type=matched_type,
-                qualifiers=qualifiers,
-                context=context,
-            ))
+            nouns.append(
+                NounIdentification(
+                    noun_phrase=noun_phrase,
+                    matched_type=matched_type,
+                    qualifiers=qualifiers,
+                    context=context,
+                )
+            )
 
         except (ValueError, TypeError, KeyError) as e:
             logger.warning(f"Skipping malformed noun entry: {e}")
@@ -581,7 +585,9 @@ def parse_per_noun_extraction_response(
                 if matched_type in valid_types:
                     element_type = matched_type
                 else:
-                    logger.warning(f"Per-noun extraction references unknown type '{element_type}', skipping")
+                    logger.warning(
+                        f"Per-noun extraction references unknown type '{element_type}', skipping"
+                    )
                     continue
 
             # Validate property name
@@ -599,51 +605,61 @@ def parse_per_noun_extraction_response(
                 raw_assertions = entry.get("assertions", [])
                 cond_assertions = []
                 for a in raw_assertions:
-                    cond_assertions.append(ConditionalAssertion(
-                        value=str(a.get("value", "")),
-                        condition=str(a.get("condition", "")),
-                        source_text=str(a.get("source_text", "")),
-                    ))
-                extractions.append(ExtractionItem(
-                    property=prop_name,
-                    element_type=element_type,
-                    assertion_type="conditional",
-                    assertions=cond_assertions,
-                    confidence=float(entry.get("confidence", 0.0)),
-                    source_text=str(entry.get("source_text", "")),
-                ))
+                    cond_assertions.append(
+                        ConditionalAssertion(
+                            value=str(a.get("value", "")),
+                            condition=str(a.get("condition", "")),
+                            source_text=str(a.get("source_text", "")),
+                        )
+                    )
+                extractions.append(
+                    ExtractionItem(
+                        property=prop_name,
+                        element_type=element_type,
+                        assertion_type="conditional",
+                        assertions=cond_assertions,
+                        confidence=float(entry.get("confidence", 0.0)),
+                        source_text=str(entry.get("source_text", "")),
+                    )
+                )
             else:
-                extractions.append(ExtractionItem(
-                    property=prop_name,
-                    element_type=element_type,
-                    assertion_type="flat",
-                    value=str(entry.get("value", "")),
-                    confidence=float(entry.get("confidence", 0.0)),
-                    source_text=str(entry.get("source_text", "")),
-                ))
+                extractions.append(
+                    ExtractionItem(
+                        property=prop_name,
+                        element_type=element_type,
+                        assertion_type="flat",
+                        value=str(entry.get("value", "")),
+                        confidence=float(entry.get("confidence", 0.0)),
+                        source_text=str(entry.get("source_text", "")),
+                    )
+                )
         except (ValueError, TypeError, KeyError) as e:
             logger.warning(f"Skipping malformed per-noun extraction entry: {e}")
             continue
 
     for entry in parsed.get("unrecognized", []):
         try:
-            unrecognized.append(UnrecognizedItem(
-                term=str(entry.get("term", "")),
-                value=str(entry.get("value", "")),
-                context=str(entry.get("context", "")),
-                source_text=str(entry.get("source_text", "")),
-            ))
+            unrecognized.append(
+                UnrecognizedItem(
+                    term=str(entry.get("term", "")),
+                    value=str(entry.get("value", "")),
+                    context=str(entry.get("context", "")),
+                    source_text=str(entry.get("source_text", "")),
+                )
+            )
         except (ValueError, TypeError) as e:
             logger.warning(f"Skipping malformed unrecognized entry: {e}")
             continue
 
     for entry in parsed.get("cross_references", []):
         try:
-            cross_references.append(CrossReferenceItem(
-                section_number=str(entry.get("section_number", "")),
-                relationship=str(entry.get("relationship", "")),
-                source_text=str(entry.get("source_text", "")),
-            ))
+            cross_references.append(
+                CrossReferenceItem(
+                    section_number=str(entry.get("section_number", "")),
+                    relationship=str(entry.get("relationship", "")),
+                    source_text=str(entry.get("source_text", "")),
+                )
+            )
         except (ValueError, TypeError) as e:
             logger.warning(f"Skipping malformed cross-reference entry: {e}")
             continue
@@ -815,29 +831,35 @@ def parse_extraction_response(
                 raw_assertions = entry.get("assertions", [])
                 cond_assertions = []
                 for a in raw_assertions:
-                    cond_assertions.append(ConditionalAssertion(
-                        value=str(a.get("value", "")),
-                        condition=str(a.get("condition", "")),
-                        source_text=str(a.get("source_text", "")),
-                    ))
+                    cond_assertions.append(
+                        ConditionalAssertion(
+                            value=str(a.get("value", "")),
+                            condition=str(a.get("condition", "")),
+                            source_text=str(a.get("source_text", "")),
+                        )
+                    )
 
-                extractions.append(ExtractionItem(
-                    property=prop_name,
-                    element_type=element_type,
-                    assertion_type="conditional",
-                    assertions=cond_assertions,
-                    confidence=float(entry.get("confidence", 0.0)),
-                    source_text=str(entry.get("source_text", "")),
-                ))
+                extractions.append(
+                    ExtractionItem(
+                        property=prop_name,
+                        element_type=element_type,
+                        assertion_type="conditional",
+                        assertions=cond_assertions,
+                        confidence=float(entry.get("confidence", 0.0)),
+                        source_text=str(entry.get("source_text", "")),
+                    )
+                )
             else:
-                extractions.append(ExtractionItem(
-                    property=prop_name,
-                    element_type=element_type,
-                    assertion_type="flat",
-                    value=str(entry.get("value", "")),
-                    confidence=float(entry.get("confidence", 0.0)),
-                    source_text=str(entry.get("source_text", "")),
-                ))
+                extractions.append(
+                    ExtractionItem(
+                        property=prop_name,
+                        element_type=element_type,
+                        assertion_type="flat",
+                        value=str(entry.get("value", "")),
+                        confidence=float(entry.get("confidence", 0.0)),
+                        source_text=str(entry.get("source_text", "")),
+                    )
+                )
 
         except (ValueError, TypeError, KeyError) as e:
             logger.warning(f"Skipping malformed extraction entry: {e}")
@@ -846,12 +868,14 @@ def parse_extraction_response(
     # Parse unrecognized terms
     for entry in parsed.get("unrecognized", []):
         try:
-            unrecognized.append(UnrecognizedItem(
-                term=str(entry.get("term", "")),
-                value=str(entry.get("value", "")),
-                context=str(entry.get("context", "")),
-                source_text=str(entry.get("source_text", "")),
-            ))
+            unrecognized.append(
+                UnrecognizedItem(
+                    term=str(entry.get("term", "")),
+                    value=str(entry.get("value", "")),
+                    context=str(entry.get("context", "")),
+                    source_text=str(entry.get("source_text", "")),
+                )
+            )
         except (ValueError, TypeError) as e:
             logger.warning(f"Skipping malformed unrecognized entry: {e}")
             continue
@@ -859,16 +883,20 @@ def parse_extraction_response(
     # Parse cross-references
     for entry in parsed.get("cross_references", []):
         try:
-            cross_references.append(CrossReferenceItem(
-                section_number=str(entry.get("section_number", "")),
-                relationship=str(entry.get("relationship", "")),
-                source_text=str(entry.get("source_text", "")),
-            ))
+            cross_references.append(
+                CrossReferenceItem(
+                    section_number=str(entry.get("section_number", "")),
+                    relationship=str(entry.get("relationship", "")),
+                    source_text=str(entry.get("source_text", "")),
+                )
+            )
         except (ValueError, TypeError) as e:
             logger.warning(f"Skipping malformed cross-reference entry: {e}")
             continue
 
-    status = "extracted" if extractions or unrecognized or cross_references else "extracted"
+    status = (
+        "extracted" if extractions or unrecognized or cross_references else "extracted"
+    )
 
     return SectionExtraction(
         section_number=section_number,
@@ -1083,7 +1111,9 @@ async def extract_per_noun(
             continue
 
         extractions, unrec, xrefs = parse_per_noun_extraction_response(
-            response_text, noun.matched_type, valid_props,
+            response_text,
+            noun.matched_type,
+            valid_props,
         )
 
         ne.extractions = extractions
@@ -1220,9 +1250,12 @@ async def _load_preprocess_sections(
     """
     # Get connections from specification to spec_sections
     result = await db.execute(
-        select(Connection, Item).join(
-            Item, Item.id == Connection.target_item_id,
-        ).where(
+        select(Connection, Item)
+        .join(
+            Item,
+            Item.id == Connection.target_item_id,
+        )
+        .where(
             and_(
                 Connection.source_item_id == specification_id,
                 Item.item_type == "spec_section",
@@ -1240,17 +1273,19 @@ async def _load_preprocess_sections(
         identifier = section_item.identifier or ""
         division = identifier.replace(" ", "")[:2] if identifier else ""
 
-        sections.append({
-            "section_number": conn_props.get("section_number", identifier),
-            "section_title": conn_props.get("detected_title")
-                            or section_props.get("title"),
-            "part1_text": conn_props.get("part1_text"),
-            "part2_text": conn_props.get("part2_text"),
-            "part3_text": conn_props.get("part3_text"),
-            "division": division,
-            "spec_section_item_id": section_item.id,
-            "match_confidence": conn_props.get("match_confidence", 0.0),
-        })
+        sections.append(
+            {
+                "section_number": conn_props.get("section_number", identifier),
+                "section_title": conn_props.get("detected_title")
+                or section_props.get("title"),
+                "part1_text": conn_props.get("part1_text"),
+                "part2_text": conn_props.get("part2_text"),
+                "part3_text": conn_props.get("part3_text"),
+                "division": division,
+                "spec_section_item_id": section_item.id,
+                "match_confidence": conn_props.get("match_confidence", 0.0),
+            }
+        )
 
     return sections
 
@@ -1307,17 +1342,13 @@ async def run_extraction(
         )
 
     # Validate specification exists
-    spec_result = await db.execute(
-        select(Item).where(Item.id == specification_id)
-    )
+    spec_result = await db.execute(select(Item).where(Item.id == specification_id))
     spec_item = spec_result.scalar_one_or_none()
     if not spec_item:
         raise ValueError(f"Specification {specification_id} not found")
 
     # Validate context exists
-    ctx_result = await db.execute(
-        select(Item).where(Item.id == context_id)
-    )
+    ctx_result = await db.execute(select(Item).where(Item.id == context_id))
     ctx_item = ctx_result.scalar_one_or_none()
     if not ctx_item:
         raise ValueError(f"Context milestone {context_id} not found")
@@ -1352,11 +1383,13 @@ async def run_extraction(
 
     # Create connections: extraction_batch → preprocess_batch, spec, milestone
     for target_id in [preprocess_batch_id, specification_id, context_id]:
-        db.add(Connection(
-            source_item_id=extraction_batch.id,
-            target_item_id=target_id,
-            properties={"relationship": "extraction_provenance"},
-        ))
+        db.add(
+            Connection(
+                source_item_id=extraction_batch.id,
+                target_item_id=target_id,
+                properties={"relationship": "extraction_provenance"},
+            )
+        )
 
     # Run multi-pass extraction per section
     results: dict[str, SectionExtraction] = {}
@@ -1400,9 +1433,7 @@ async def run_extraction(
     batch_props["sections_extracted"] = sections_extracted
     batch_props["sections_failed"] = sections_failed
     batch_props["extraction_results"] = {
-        "sections": {
-            num: ext.model_dump() for num, ext in results.items()
-        }
+        "sections": {num: ext.model_dump() for num, ext in results.items()}
     }
     extraction_batch.properties = batch_props
 

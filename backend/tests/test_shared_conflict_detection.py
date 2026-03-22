@@ -90,7 +90,9 @@ async def test_different_properties_different_conflicts(make_item, db_session):
     source_b = uuid.uuid4()
 
     c1, _ = await get_or_create_conflict(db_session, door, "finish", source_a, source_b)
-    c2, is_new = await get_or_create_conflict(db_session, door, "material", source_a, source_b)
+    c2, is_new = await get_or_create_conflict(
+        db_session, door, "material", source_a, source_b
+    )
 
     assert is_new is True
     assert c1.id != c2.id
@@ -119,10 +121,14 @@ async def test_effective_snapshots_excludes_current_source(make_item, db_session
     schedule = await make_item("schedule", "Schedule A")
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
 
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=milestone.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=milestone.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
     await db_session.flush()
 
     # Asking for other sources from schedule's perspective → empty
@@ -138,10 +144,14 @@ async def test_effective_snapshots_returns_other_sources(make_item, db_session):
     spec = await make_item("specification", "Spec B")
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
 
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=milestone.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=milestone.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
     await db_session.flush()
 
     # From spec's perspective, schedule is another source
@@ -160,14 +170,22 @@ async def test_effective_snapshots_respects_ordinal(make_item, db_session):
     cd = await make_item("milestone", "CD", {"ordinal": 200})
 
     # Schedule has snapshot at DD and CD
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=dd.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=cd.id,
-        source_id=schedule.id, properties={"finish": "stain"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=dd.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=cd.id,
+            source_id=schedule.id,
+            properties={"finish": "stain"},
+        )
+    )
     await db_session.flush()
 
     # At DD ordinal, only DD snapshot is effective
@@ -191,10 +209,14 @@ async def test_detect_conflict_on_disagreement(make_item, db_session):
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
 
     # Schedule says finish=paint
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=milestone.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=milestone.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
     await db_session.flush()
 
     # Spec says finish=stain → conflict
@@ -216,10 +238,14 @@ async def test_no_conflict_on_agreement(make_item, db_session):
     spec = await make_item("specification", "Spec B")
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
 
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=milestone.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=milestone.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
     await db_session.flush()
 
     conflicts, resolutions = await detect_conflicts_for_item(
@@ -240,10 +266,14 @@ async def test_auto_resolution_on_agreement(make_item, db_session):
     cd = await make_item("milestone", "CD", {"ordinal": 200})
 
     # Schedule says paint at DD
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=dd.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=dd.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
     await db_session.flush()
 
     # Spec says stain at DD → conflict
@@ -253,10 +283,14 @@ async def test_auto_resolution_on_agreement(make_item, db_session):
     assert len(conflicts) == 1
 
     # Now schedule agrees at CD (changed to stain)
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=cd.id,
-        source_id=schedule.id, properties={"finish": "stain"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=cd.id,
+            source_id=schedule.id,
+            properties={"finish": "stain"},
+        )
+    )
     await db_session.flush()
 
     # Spec still says stain at CD → auto-resolve
@@ -280,10 +314,14 @@ async def test_no_conflict_when_other_source_lacks_property(make_item, db_sessio
     milestone = await make_item("milestone", "DD", {"ordinal": 100})
 
     # Schedule only has 'finish', not 'fire_rating'
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=milestone.id,
-        source_id=schedule.id, properties={"finish": "paint"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=milestone.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
     await db_session.flush()
 
     # Spec asserts fire_rating (schedule has no fire_rating) → no conflict
@@ -307,10 +345,14 @@ async def test_batch_detection(make_item, db_session):
 
     # Schedule: both doors finish=paint
     for door in [door1, door2]:
-        db_session.add(Snapshot(
-            item_id=door.id, context_id=milestone.id,
-            source_id=schedule.id, properties={"finish": "paint"},
-        ))
+        db_session.add(
+            Snapshot(
+                item_id=door.id,
+                context_id=milestone.id,
+                source_id=schedule.id,
+                properties={"finish": "paint"},
+            )
+        )
     await db_session.flush()
 
     # Spec: door1 finish=stain (conflict), door2 finish=paint (agree)

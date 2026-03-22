@@ -49,25 +49,15 @@ HEADER_FOOTER_THRESHOLD = 3
 # Section detection regex patterns (priority order)
 SECTION_PATTERNS: list[tuple[str, re.Pattern]] = [
     # "SECTION 08 14 00" — standard CSI header
-    ("csi_keyword", re.compile(
-        r"(?i)\bSECTION\s+(\d{2})\s+(\d{2})\s+(\d{2})\b"
-    )),
+    ("csi_keyword", re.compile(r"(?i)\bSECTION\s+(\d{2})\s+(\d{2})\s+(\d{2})\b")),
     # "08 14 00 -" or "08 14 00 —" — number with separator at line start
-    ("number_dash", re.compile(
-        r"(?m)^\s*(\d{2})\s+(\d{2})\s+(\d{2})\s*[-—–]"
-    )),
+    ("number_dash", re.compile(r"(?m)^\s*(\d{2})\s+(\d{2})\s+(\d{2})\s*[-—–]")),
     # "08 14 00" — standalone at line start (no separator required)
-    ("standalone", re.compile(
-        r"(?m)^\s*(\d{2})\s+(\d{2})\s+(\d{2})\s"
-    )),
+    ("standalone", re.compile(r"(?m)^\s*(\d{2})\s+(\d{2})\s+(\d{2})\s")),
     # "SECTION 081400" — compressed with keyword
-    ("compressed_keyword", re.compile(
-        r"(?i)\bSECTION\s+(\d{2})(\d{2})(\d{2})\b"
-    )),
+    ("compressed_keyword", re.compile(r"(?i)\bSECTION\s+(\d{2})(\d{2})(\d{2})\b")),
     # "081400" — compressed standalone at line start
-    ("compressed_standalone", re.compile(
-        r"(?m)^\s*(\d{2})(\d{2})(\d{2})\s"
-    )),
+    ("compressed_standalone", re.compile(r"(?m)^\s*(\d{2})(\d{2})(\d{2})\s")),
 ]
 
 # Part boundary patterns
@@ -84,9 +74,7 @@ PART_PATTERNS: list[tuple[int, re.Pattern]] = [
 ]
 
 # End-of-section marker
-END_OF_SECTION_PATTERN = re.compile(
-    r"(?im)^\s*END\s+OF\s+SECTION\b"
-)
+END_OF_SECTION_PATTERN = re.compile(r"(?im)^\s*END\s+OF\s+SECTION\b")
 
 
 # ─── 1. PDF Text Extraction ──────────────────────────────────────
@@ -116,10 +104,12 @@ def extract_pdf_text(pdf_bytes: bytes) -> tuple[list[PageContent], str]:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             for i, page in enumerate(pdf.pages):
                 text = page.extract_text() or ""
-                pages.append(PageContent(
-                    page_number=i + 1,
-                    text=text,
-                ))
+                pages.append(
+                    PageContent(
+                        page_number=i + 1,
+                        text=text,
+                    )
+                )
     except Exception as e:
         raise ValueError(f"Failed to parse PDF: {e}") from e
 
@@ -157,8 +147,7 @@ def _strip_headers_footers(pages: list[PageContent]) -> list[PageContent]:
 
     # Identify repeated lines
     repeated_lines = {
-        line for line, count in line_counts.items()
-        if count >= HEADER_FOOTER_THRESHOLD
+        line for line, count in line_counts.items() if count >= HEADER_FOOTER_THRESHOLD
     }
 
     if not repeated_lines:
@@ -168,13 +157,16 @@ def _strip_headers_footers(pages: list[PageContent]) -> list[PageContent]:
     cleaned: list[PageContent] = []
     for page in pages:
         filtered_lines = [
-            line for line in page.text.splitlines()
+            line
+            for line in page.text.splitlines()
             if line.strip() not in repeated_lines
         ]
-        cleaned.append(PageContent(
-            page_number=page.page_number,
-            text="\n".join(filtered_lines),
-        ))
+        cleaned.append(
+            PageContent(
+                page_number=page.page_number,
+                text="\n".join(filtered_lines),
+            )
+        )
 
     return cleaned
 
@@ -241,14 +233,16 @@ def detect_section_boundaries(full_text: str) -> list[RawSectionMatch]:
             # Determine page number (approximate from text position)
             page_number = _estimate_page_number(full_text, offset)
 
-            matches.append(RawSectionMatch(
-                section_number=normalized,
-                raw_match=m.group(0),
-                pattern_name=pattern_name,
-                char_offset=offset,
-                page_number=page_number,
-                context_line=context_line,
-            ))
+            matches.append(
+                RawSectionMatch(
+                    section_number=normalized,
+                    raw_match=m.group(0),
+                    pattern_name=pattern_name,
+                    char_offset=offset,
+                    page_number=page_number,
+                    context_line=context_line,
+                )
+            )
             seen_offsets.add(offset)
 
     # Sort by position in text
@@ -374,11 +368,11 @@ def extract_part_text(
     part3 = None
 
     if boundaries.part1_start is not None and boundaries.part1_end is not None:
-        part1 = section_text[boundaries.part1_start:boundaries.part1_end].strip()
+        part1 = section_text[boundaries.part1_start : boundaries.part1_end].strip()
     if boundaries.part2_start is not None and boundaries.part2_end is not None:
-        part2 = section_text[boundaries.part2_start:boundaries.part2_end].strip()
+        part2 = section_text[boundaries.part2_start : boundaries.part2_end].strip()
     if boundaries.part3_start is not None and boundaries.part3_end is not None:
-        part3 = section_text[boundaries.part3_start:boundaries.part3_end].strip()
+        part3 = section_text[boundaries.part3_start : boundaries.part3_end].strip()
 
     return part1, part2, part3
 
@@ -459,11 +453,15 @@ async def match_sections_to_masterformat(
         section_text = full_text[section_start:section_end]
 
         # Detect title from context line
-        detected_title = _extract_title_from_context(raw.context_line, raw.section_number)
+        detected_title = _extract_title_from_context(
+            raw.context_line, raw.section_number
+        )
 
         # Page range
         page_start = raw.page_number
-        page_end = raw_matches[i + 1].page_number if i + 1 < len(raw_matches) else page_start
+        page_end = (
+            raw_matches[i + 1].page_number if i + 1 < len(raw_matches) else page_start
+        )
 
         # Find Part 1/2/3
         boundaries = find_part_boundaries(section_text)
@@ -492,26 +490,30 @@ async def match_sections_to_masterformat(
             if isinstance(matched_item.properties, dict):
                 mf_title = matched_item.properties.get("title")
 
-            identified.append(IdentifiedSection(
-                section_number=normalized,
-                detected_title=detected_title,
-                page_start=page_start,
-                page_end=page_end,
-                part1_text=part1,
-                part2_text=part2,
-                part3_text=part3,
-                masterformat_item_id=matched_item.id,
-                masterformat_identifier=matched_item.identifier,
-                masterformat_title=mf_title,
-                match_confidence=confidence,
-            ))
+            identified.append(
+                IdentifiedSection(
+                    section_number=normalized,
+                    detected_title=detected_title,
+                    page_start=page_start,
+                    page_end=page_end,
+                    part1_text=part1,
+                    part2_text=part2,
+                    part3_text=part3,
+                    masterformat_item_id=matched_item.id,
+                    masterformat_identifier=matched_item.identifier,
+                    masterformat_title=mf_title,
+                    match_confidence=confidence,
+                )
+            )
         else:
-            unmatched.append(UnmatchedSection(
-                section_number=normalized,
-                detected_title=detected_title,
-                page_number=raw.page_number,
-                context_line=raw.context_line,
-            ))
+            unmatched.append(
+                UnmatchedSection(
+                    section_number=normalized,
+                    detected_title=detected_title,
+                    page_number=raw.page_number,
+                    context_line=raw.context_line,
+                )
+            )
 
     return identified, unmatched
 
@@ -701,7 +703,10 @@ async def confirm_sections(
     if not batch:
         raise ValueError(f"Preprocess batch {batch_id} not found")
 
-    if isinstance(batch.properties, dict) and batch.properties.get("status") == "confirmed":
+    if (
+        isinstance(batch.properties, dict)
+        and batch.properties.get("status") == "confirmed"
+    ):
         raise ValueError(f"Batch {batch_id} already confirmed")
 
     # Load stored document from batch
@@ -730,7 +735,8 @@ async def confirm_sections(
     else:
         spec_item = Item(
             item_type="specification",
-            identifier=spec_name or f"Specification ({batch.properties.get('original_filename', 'unknown')})",
+            identifier=spec_name
+            or f"Specification ({batch.properties.get('original_filename', 'unknown')})",
             properties={
                 "name": spec_name or "Specification",
             },

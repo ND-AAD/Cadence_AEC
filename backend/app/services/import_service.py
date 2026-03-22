@@ -64,13 +64,16 @@ from app.services.directive_fulfillment import (
 
 SYSTEM_NORMALIZATIONS = {
     "lowercase_trim": lambda v: normalize_case(normalize_whitespace(str(v))),
-    "imperial_door_dimensions": lambda v: str(normalize_dimension_to_inches(str(v)) or v),
+    "imperial_door_dimensions": lambda v: str(
+        normalize_dimension_to_inches(str(v)) or v
+    ),
     "dimension": lambda v: str(normalize_dimension_to_mm(str(v)) or v),
     "numeric": lambda v: normalize_numeric(str(v)),
 }
 
 
 # ─── File Parsing ─────────────────────────────────────────────
+
 
 def _strip_to_alphanum(s: str) -> str:
     """Strip all non-alphanumeric characters and lowercase. Used for identifier matching."""
@@ -137,7 +140,9 @@ def parse_excel(
             row_num += 1
             continue
 
-        identifier_val = row_values[id_col_idx] if id_col_idx < len(row_values) else None
+        identifier_val = (
+            row_values[id_col_idx] if id_col_idx < len(row_values) else None
+        )
         if identifier_val is None or str(identifier_val).strip() == "":
             row_num += 1
             continue
@@ -209,7 +214,9 @@ def parse_csv(
             row_num += 1
             continue
 
-        identifier_val = row_values[id_col_idx] if id_col_idx < len(row_values) else None
+        identifier_val = (
+            row_values[id_col_idx] if id_col_idx < len(row_values) else None
+        )
         if identifier_val is None or identifier_val.strip() == "":
             row_num += 1
             continue
@@ -234,6 +241,7 @@ def parse_csv(
 
 
 # ─── Identifier Matching ──────────────────────────────────────
+
 
 async def match_item(
     db: AsyncSession,
@@ -267,9 +275,7 @@ async def match_item(
     # 2. Normalized match: strip non-alphanumeric, lowercase
     normalized = _strip_to_alphanum(raw_identifier)
     # Load all items of this type and compare normalized identifiers
-    all_items_result = await db.execute(
-        select(Item).where(Item.item_type == item_type)
-    )
+    all_items_result = await db.execute(select(Item).where(Item.item_type == item_type))
     all_items = all_items_result.scalars().all()
 
     for item in all_items:
@@ -280,6 +286,7 @@ async def match_item(
 
 
 # ─── Change Detection Helpers ─────────────────────────────────
+
 
 async def _find_prior_context(
     db: AsyncSession,
@@ -315,16 +322,14 @@ async def _find_prior_context(
 
     # Get all milestones where this source has snapshots
     result = await db.execute(
-        select(Snapshot.context_id).where(
-            Snapshot.source_id == source_item_id
-        ).distinct()
+        select(Snapshot.context_id)
+        .where(Snapshot.source_id == source_item_id)
+        .distinct()
     )
     context_ids = result.scalars().all()
 
     # Load all context items
-    contexts_result = await db.execute(
-        select(Item).where(Item.id.in_(context_ids))
-    )
+    contexts_result = await db.execute(select(Item).where(Item.id.in_(context_ids)))
     contexts = contexts_result.scalars().all()
 
     # Filter to milestones with ordinal < current, find max
@@ -350,6 +355,7 @@ async def _find_prior_context(
 
 
 # ─── Core Import Logic ────────────────────────────────────────
+
 
 async def run_import(
     db: AsyncSession,
@@ -498,7 +504,9 @@ async def run_import(
     source_self_props = {
         "row_count": len(parsed_rows),
         "columns_mapped": list(mapping.property_mapping.values()),
-        "import_date": batch_item.created_at.isoformat() if batch_item.created_at else None,
+        "import_date": batch_item.created_at.isoformat()
+        if batch_item.created_at
+        else None,
         "file_type": mapping.file_type,
         "batch_id": str(batch_item.id),
     }
@@ -506,12 +514,14 @@ async def run_import(
         source_self.properties = source_self_props
         await db.flush()
     else:
-        db.add(Snapshot(
-            item_id=source_item.id,
-            context_id=time_context.id,
-            source_id=source_item.id,
-            properties=source_self_props,
-        ))
+        db.add(
+            Snapshot(
+                item_id=source_item.id,
+                context_id=time_context.id,
+                source_id=source_item.id,
+                properties=source_self_props,
+            )
+        )
         await db.flush()
 
     # Step 2.5: Ensure property items exist and connect to imported instances
@@ -655,11 +665,13 @@ async def run_import(
                         )
                     )
                     if not existing_prop_conn.scalar_one_or_none():
-                        db.add(Connection(
-                            source_item_id=change_item.id,
-                            target_item_id=prop_item.id,
-                            properties={},
-                        ))
+                        db.add(
+                            Connection(
+                                source_item_id=change_item.id,
+                                target_item_id=prop_item.id,
+                                properties={},
+                            )
+                        )
                         await db.flush()
 
                 summary.source_changes += len(changes)
@@ -700,14 +712,16 @@ async def run_import(
         for cr in conflicts:
             if cr.is_new:
                 summary.new_conflicts += 1
-            conflict_items_result.append(ConflictItemResult(
-                conflict_item_id=cr.conflict_item.id,
-                affected_item_id=cr.affected_item_id,
-                affected_item_identifier=cr.affected_item_identifier,
-                property_name=cr.property_name,
-                values=cr.values,
-                context_id=cr.context_id,
-            ))
+            conflict_items_result.append(
+                ConflictItemResult(
+                    conflict_item_id=cr.conflict_item.id,
+                    affected_item_id=cr.affected_item_id,
+                    affected_item_identifier=cr.affected_item_identifier,
+                    property_name=cr.property_name,
+                    values=cr.values,
+                    context_id=cr.context_id,
+                )
+            )
 
         summary.resolved_conflicts += len(auto_resolutions)
 
@@ -730,22 +744,27 @@ async def run_import(
                         break
 
             classification_results = await classify_elements(
-                db, list(row_to_item.values()), classification_props,
+                db,
+                list(row_to_item.values()),
+                classification_props,
             )
 
             for cr in classification_results:
                 summary.items_classified += 1
-                classification_items_result.append(ClassificationItemResult(
-                    item_id=cr.item_id,
-                    item_identifier=cr.item_identifier,
-                    section_id=cr.section_id,
-                    section_identifier=cr.section_identifier,
-                    section_title=cr.section_title,
-                    confidence=cr.confidence,
-                    needs_review=cr.needs_review,
-                ))
+                classification_items_result.append(
+                    ClassificationItemResult(
+                        item_id=cr.item_id,
+                        item_identifier=cr.item_identifier,
+                        section_id=cr.section_id,
+                        section_identifier=cr.section_identifier,
+                        section_title=cr.section_title,
+                        confidence=cr.confidence,
+                        needs_review=cr.needs_review,
+                    )
+                )
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).error(f"Classification step failed: {e}")
 
     # Step 5: Directive Fulfillment Check (Decision 10)
@@ -810,12 +829,14 @@ async def confirm_match(
         )
     )
     if not existing_snap.scalar_one_or_none():
-        db.add(Snapshot(
-            item_id=matched_item_id,
-            context_id=time_context_id,
-            source_id=source_item_id,
-            properties=properties or {},
-        ))
+        db.add(
+            Snapshot(
+                item_id=matched_item_id,
+                context_id=time_context_id,
+                source_id=source_item_id,
+                properties=properties or {},
+            )
+        )
         await db.flush()
         snapshot_created = True
 
@@ -830,11 +851,13 @@ async def confirm_match(
         )
     )
     if not existing_conn.scalar_one_or_none():
-        db.add(Connection(
-            source_item_id=source_item_id,
-            target_item_id=matched_item_id,
-            properties={},
-        ))
+        db.add(
+            Connection(
+                source_item_id=source_item_id,
+                target_item_id=matched_item_id,
+                properties={},
+            )
+        )
         await db.flush()
         connection_created = True
 

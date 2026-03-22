@@ -76,60 +76,62 @@ PART 1 - GENERAL
     A. Product Data.
 """
 
-MOCK_LLM_RESPONSE_METAL_DOORS = json.dumps({
-    "section_number": "08 11 00",
-    "extractions": [
-        {
-            "property": "material",
-            "element_type": "door",
-            "assertion_type": "flat",
-            "value": "hollow metal",
-            "confidence": 0.95,
-            "source_text": "Material: Hollow metal, cold-rolled steel."
-        },
-        {
-            "property": "finish",
-            "element_type": "door",
-            "assertion_type": "flat",
-            "value": "factory applied rust-inhibitive primer",
-            "confidence": 0.90,
-            "source_text": "Finish: Factory applied rust-inhibitive primer."
-        },
-        {
-            "property": "fire_rating",
-            "element_type": "door",
-            "assertion_type": "conditional",
-            "assertions": [
-                {
-                    "value": "B-Label",
-                    "condition": "doors in 1-hour rated partitions",
-                    "source_text": "Doors in 1-hour rated partitions: UL listed, B-Label minimum."
-                },
-                {
-                    "value": "A-Label",
-                    "condition": "doors in 2-hour rated partitions",
-                    "source_text": "Doors in 2-hour rated partitions: UL listed, A-Label."
-                }
-            ],
-            "confidence": 0.90
-        }
-    ],
-    "unrecognized": [
-        {
-            "term": "STC rating",
-            "value": "45",
-            "context": "door acoustic requirements",
-            "source_text": "Doors shall have a minimum STC rating of 45."
-        }
-    ],
-    "cross_references": [
-        {
-            "section_number": "08 71 00",
-            "relationship": "hardware requirements",
-            "source_text": "Hardware: Per Section 08 71 00."
-        }
-    ]
-})
+MOCK_LLM_RESPONSE_METAL_DOORS = json.dumps(
+    {
+        "section_number": "08 11 00",
+        "extractions": [
+            {
+                "property": "material",
+                "element_type": "door",
+                "assertion_type": "flat",
+                "value": "hollow metal",
+                "confidence": 0.95,
+                "source_text": "Material: Hollow metal, cold-rolled steel.",
+            },
+            {
+                "property": "finish",
+                "element_type": "door",
+                "assertion_type": "flat",
+                "value": "factory applied rust-inhibitive primer",
+                "confidence": 0.90,
+                "source_text": "Finish: Factory applied rust-inhibitive primer.",
+            },
+            {
+                "property": "fire_rating",
+                "element_type": "door",
+                "assertion_type": "conditional",
+                "assertions": [
+                    {
+                        "value": "B-Label",
+                        "condition": "doors in 1-hour rated partitions",
+                        "source_text": "Doors in 1-hour rated partitions: UL listed, B-Label minimum.",
+                    },
+                    {
+                        "value": "A-Label",
+                        "condition": "doors in 2-hour rated partitions",
+                        "source_text": "Doors in 2-hour rated partitions: UL listed, A-Label.",
+                    },
+                ],
+                "confidence": 0.90,
+            },
+        ],
+        "unrecognized": [
+            {
+                "term": "STC rating",
+                "value": "45",
+                "context": "door acoustic requirements",
+                "source_text": "Doors shall have a minimum STC rating of 45.",
+            }
+        ],
+        "cross_references": [
+            {
+                "section_number": "08 71 00",
+                "relationship": "hardware requirements",
+                "source_text": "Hardware: Per Section 08 71 00.",
+            }
+        ],
+    }
+)
 
 
 async def _mock_llm_caller(prompt: str) -> str:
@@ -139,12 +141,14 @@ async def _mock_llm_caller(prompt: str) -> str:
 
 async def _mock_llm_caller_empty(prompt: str) -> str:
     """Mock LLM that returns empty extractions."""
-    return json.dumps({
-        "section_number": "08 11 00",
-        "extractions": [],
-        "unrecognized": [],
-        "cross_references": [],
-    })
+    return json.dumps(
+        {
+            "section_number": "08 11 00",
+            "extractions": [],
+            "unrecognized": [],
+            "cross_references": [],
+        }
+    )
 
 
 async def _mock_llm_caller_invalid_json(prompt: str) -> str:
@@ -281,7 +285,10 @@ class TestPromptConstruction:
     def test_prompt_includes_section_text(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert "METAL DOORS" in prompt
         assert "Hollow metal" in prompt
@@ -289,7 +296,10 @@ class TestPromptConstruction:
     def test_prompt_includes_property_names(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert "material" in prompt
         assert "fire_rating" in prompt
@@ -298,21 +308,30 @@ class TestPromptConstruction:
     def test_prompt_includes_section_number(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert "08 11 00" in prompt
 
     def test_prompt_includes_title(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert "Metal Doors" in prompt
 
     def test_prompt_no_title(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", None, SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            None,
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         # Should not crash, title just omitted
         assert "08 11 00" in prompt
@@ -320,7 +339,10 @@ class TestPromptConstruction:
     def test_prompt_includes_secondary_vocabulary(self):
         vocab = assemble_vocabulary("08", related_divisions=["09"])
         prompt = build_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert "from related sections" in prompt
         assert "finish_floor" in prompt or "Floor Finish" in prompt
@@ -328,7 +350,10 @@ class TestPromptConstruction:
     def test_prompt_includes_extraction_rules(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", None, SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            None,
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert "Only extract values that are explicitly stated" in prompt
         assert "Do not infer" in prompt
@@ -336,7 +361,10 @@ class TestPromptConstruction:
     def test_prompt_includes_output_schema(self):
         vocab = assemble_vocabulary("08")
         prompt = build_extraction_prompt(
-            "08 11 00", None, SAMPLE_PART2_METAL_DOORS, vocab,
+            "08 11 00",
+            None,
+            SAMPLE_PART2_METAL_DOORS,
+            vocab,
         )
         assert '"assertion_type"' in prompt
         assert '"cross_references"' in prompt
@@ -358,7 +386,8 @@ class TestResponseParsing:
 
     def test_parse_valid_response(self):
         result = parse_extraction_response(
-            MOCK_LLM_RESPONSE_METAL_DOORS, self._valid_props(),
+            MOCK_LLM_RESPONSE_METAL_DOORS,
+            self._valid_props(),
         )
         assert result.status == "extracted"
         assert result.section_number == "08 11 00"
@@ -368,7 +397,8 @@ class TestResponseParsing:
 
     def test_flat_extraction(self):
         result = parse_extraction_response(
-            MOCK_LLM_RESPONSE_METAL_DOORS, self._valid_props(),
+            MOCK_LLM_RESPONSE_METAL_DOORS,
+            self._valid_props(),
         )
         material = next(e for e in result.extractions if e.property == "material")
         assert material.assertion_type == "flat"
@@ -378,7 +408,8 @@ class TestResponseParsing:
 
     def test_conditional_extraction(self):
         result = parse_extraction_response(
-            MOCK_LLM_RESPONSE_METAL_DOORS, self._valid_props(),
+            MOCK_LLM_RESPONSE_METAL_DOORS,
+            self._valid_props(),
         )
         fire = next(e for e in result.extractions if e.property == "fire_rating")
         assert fire.assertion_type == "conditional"
@@ -389,21 +420,24 @@ class TestResponseParsing:
 
     def test_unrecognized_items(self):
         result = parse_extraction_response(
-            MOCK_LLM_RESPONSE_METAL_DOORS, self._valid_props(),
+            MOCK_LLM_RESPONSE_METAL_DOORS,
+            self._valid_props(),
         )
         assert result.unrecognized[0].term == "STC rating"
         assert result.unrecognized[0].value == "45"
 
     def test_cross_references(self):
         result = parse_extraction_response(
-            MOCK_LLM_RESPONSE_METAL_DOORS, self._valid_props(),
+            MOCK_LLM_RESPONSE_METAL_DOORS,
+            self._valid_props(),
         )
         assert result.cross_references[0].section_number == "08 71 00"
         assert result.cross_references[0].relationship == "hardware requirements"
 
     def test_invalid_json(self):
         result = parse_extraction_response(
-            "Not valid JSON", self._valid_props(),
+            "Not valid JSON",
+            self._valid_props(),
         )
         assert result.status == "failed"
         assert result.error is not None
@@ -415,50 +449,56 @@ class TestResponseParsing:
         assert len(result.extractions) == 3
 
     def test_unknown_property_skipped(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "extractions": [
-                {
-                    "property": "nonexistent_prop",
-                    "element_type": "door",
-                    "assertion_type": "flat",
-                    "value": "something",
-                    "confidence": 0.5,
-                    "source_text": "..."
-                }
-            ],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "extractions": [
+                    {
+                        "property": "nonexistent_prop",
+                        "element_type": "door",
+                        "assertion_type": "flat",
+                        "value": "something",
+                        "confidence": 0.5,
+                        "source_text": "...",
+                    }
+                ],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
         result = parse_extraction_response(response, self._valid_props())
         assert len(result.extractions) == 0  # Invalid property skipped
 
     def test_unknown_element_type_skipped(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "extractions": [
-                {
-                    "property": "material",
-                    "element_type": "spaceship",
-                    "assertion_type": "flat",
-                    "value": "titanium",
-                    "confidence": 0.5,
-                    "source_text": "..."
-                }
-            ],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "extractions": [
+                    {
+                        "property": "material",
+                        "element_type": "spaceship",
+                        "assertion_type": "flat",
+                        "value": "titanium",
+                        "confidence": 0.5,
+                        "source_text": "...",
+                    }
+                ],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
         result = parse_extraction_response(response, self._valid_props())
         assert len(result.extractions) == 0  # Invalid type skipped
 
     def test_empty_extractions(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "extractions": [],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "extractions": [],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
         result = parse_extraction_response(response, self._valid_props())
         assert result.status == "extracted"
         assert len(result.extractions) == 0
@@ -619,42 +659,62 @@ class TestRunExtraction:
     async def setup_data(self, db_session, make_item, make_connection):
         """Create prerequisite items for extraction."""
         # Specification item
-        spec = await make_item("specification", "Test Specification", {
-            "name": "Test Specification",
-        })
+        spec = await make_item(
+            "specification",
+            "Test Specification",
+            {
+                "name": "Test Specification",
+            },
+        )
 
         # Milestone (context)
-        milestone = await make_item("milestone", "50CD", {
-            "name": "50% Construction Documents",
-            "ordinal": 500,
-        })
+        milestone = await make_item(
+            "milestone",
+            "50CD",
+            {
+                "name": "50% Construction Documents",
+                "ordinal": 500,
+            },
+        )
 
         # Spec section item
-        section = await make_item("spec_section", "08 11 00", {
-            "title": "Metal Doors and Frames",
-            "division": "08",
-            "level": 2,
-        })
+        section = await make_item(
+            "spec_section",
+            "08 11 00",
+            {
+                "title": "Metal Doors and Frames",
+                "division": "08",
+                "level": 2,
+            },
+        )
 
         # Preprocess batch (confirmed)
-        pp_batch = await make_item("preprocess_batch", "Preprocess-test.pdf", {
-            "original_filename": "test.pdf",
-            "status": "confirmed",
-            "page_count": 10,
-            "sections_identified": 1,
-            "sections_matched": 1,
-            "specification_item_id": str(spec.id),
-        })
+        pp_batch = await make_item(
+            "preprocess_batch",
+            "Preprocess-test.pdf",
+            {
+                "original_filename": "test.pdf",
+                "status": "confirmed",
+                "page_count": 10,
+                "sections_identified": 1,
+                "sections_matched": 1,
+                "specification_item_id": str(spec.id),
+            },
+        )
 
         # Connection: specification → spec_section (with Part 2 text)
-        await make_connection(spec, section, {
-            "confirmed_by": "user",
-            "section_number": "08 11 00",
-            "part2_text": SAMPLE_PART2_METAL_DOORS,
-            "part1_text": SAMPLE_PART1_WITH_RELATED,
-            "match_confidence": 1.0,
-            "detected_title": "Metal Doors and Frames",
-        })
+        await make_connection(
+            spec,
+            section,
+            {
+                "confirmed_by": "user",
+                "section_number": "08 11 00",
+                "part2_text": SAMPLE_PART2_METAL_DOORS,
+                "part1_text": SAMPLE_PART1_WITH_RELATED,
+                "match_confidence": 1.0,
+                "detected_title": "Metal Doors and Frames",
+            },
+        )
 
         return {
             "spec": spec,
@@ -705,6 +765,7 @@ class TestRunExtraction:
 
         # Should have connections to preprocess_batch, spec, and milestone
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(Connection).where(
                 Connection.source_item_id == batch.id,
@@ -731,13 +792,19 @@ class TestRunExtraction:
             )
 
     @pytest.mark.asyncio
-    async def test_preprocess_batch_not_confirmed(self, db_session, setup_data, make_item):
+    async def test_preprocess_batch_not_confirmed(
+        self, db_session, setup_data, make_item
+    ):
         data = setup_data
 
         # Create an unconfirmed batch
-        unconfirmed = await make_item("preprocess_batch", "Unconfirmed", {
-            "status": "identified",
-        })
+        unconfirmed = await make_item(
+            "preprocess_batch",
+            "Unconfirmed",
+            {
+                "status": "identified",
+            },
+        )
 
         with pytest.raises(ValueError, match="not confirmed"):
             await run_extraction(
@@ -804,8 +871,12 @@ class TestRunExtraction:
         )
 
         assert batch.properties["status"] == "extracted"
-        assert batch.properties["sections_failed"] == 0  # Pass 1 failed → empty nouns → "extracted" with 0 results
-        assert batch.properties["sections_extracted"] == 1  # No nouns found = "extracted" (empty but not failed)
+        assert (
+            batch.properties["sections_failed"] == 0
+        )  # Pass 1 failed → empty nouns → "extracted" with 0 results
+        assert (
+            batch.properties["sections_extracted"] == 1
+        )  # No nouns found = "extracted" (empty but not failed)
         assert results["08 11 00"].status == "extracted"
 
     @pytest.mark.asyncio

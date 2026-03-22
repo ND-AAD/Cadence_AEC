@@ -121,7 +121,9 @@ async def review_extractions(
 
     spec_id = props.get("specification_item_id")
     if spec_id:
-        spec_result = await db.execute(select(Item).where(Item.id == uuid.UUID(spec_id)))
+        spec_result = await db.execute(
+            select(Item).where(Item.id == uuid.UUID(spec_id))
+        )
         spec_item = spec_result.scalar_one_or_none()
         if spec_item:
             spec_name = (spec_item.properties or {}).get("name", spec_item.identifier)
@@ -138,9 +140,7 @@ async def review_extractions(
 
     for section_num, section_data in sections_data.items():
         # Parse extractions
-        extractions = [
-            ExtractionItem(**e) for e in section_data.get("extractions", [])
-        ]
+        extractions = [ExtractionItem(**e) for e in section_data.get("extractions", [])]
         unrecognized = [
             UnrecognizedItem(**u) for u in section_data.get("unrecognized", [])
         ]
@@ -160,13 +160,15 @@ async def review_extractions(
             )
             ref_item = ref_result.scalar_one_or_none()
 
-            cross_refs.append(CrossReferenceReviewItem(
-                section_number=ref_section_num,
-                relationship=cr.get("relationship", ""),
-                source_text=cr.get("source_text", ""),
-                navigable=ref_item is not None,
-                section_item_id=ref_item.id if ref_item else None,
-            ))
+            cross_refs.append(
+                CrossReferenceReviewItem(
+                    section_number=ref_section_num,
+                    relationship=cr.get("relationship", ""),
+                    source_text=cr.get("source_text", ""),
+                    navigable=ref_item is not None,
+                    section_item_id=ref_item.id if ref_item else None,
+                )
+            )
 
         # Get section title from spec_section item if available
         section_title = None
@@ -198,41 +200,45 @@ async def review_extractions(
                     )
                 )
                 nr_item = nr_result.scalar_one_or_none()
-                noun_xrefs.append(CrossReferenceReviewItem(
-                    section_number=nr_num,
-                    relationship=ncr.get("relationship", ""),
-                    source_text=ncr.get("source_text", ""),
-                    navigable=nr_item is not None,
-                    section_item_id=nr_item.id if nr_item else None,
-                ))
+                noun_xrefs.append(
+                    CrossReferenceReviewItem(
+                        section_number=nr_num,
+                        relationship=ncr.get("relationship", ""),
+                        source_text=ncr.get("source_text", ""),
+                        navigable=nr_item is not None,
+                        section_item_id=nr_item.id if nr_item else None,
+                    )
+                )
 
-            noun_reviews.append(NounExtractionReview(
-                noun_phrase=noun_data.get("noun_phrase", ""),
-                matched_type=noun_data.get("matched_type"),
-                qualifiers=noun_data.get("qualifiers", {}),
-                context=noun_data.get("context", ""),
-                extractions=[
-                    ExtractionItem(**e)
-                    for e in noun_data.get("extractions", [])
-                ],
-                unrecognized=[
-                    UnrecognizedItem(**u)
-                    for u in noun_data.get("unrecognized", [])
-                ],
-                cross_references=noun_xrefs,
-                attributed_elements=noun_data.get("attributed_elements", []),
-                attribution_status=noun_data.get("attribution_status", "pending"),
-            ))
+            noun_reviews.append(
+                NounExtractionReview(
+                    noun_phrase=noun_data.get("noun_phrase", ""),
+                    matched_type=noun_data.get("matched_type"),
+                    qualifiers=noun_data.get("qualifiers", {}),
+                    context=noun_data.get("context", ""),
+                    extractions=[
+                        ExtractionItem(**e) for e in noun_data.get("extractions", [])
+                    ],
+                    unrecognized=[
+                        UnrecognizedItem(**u) for u in noun_data.get("unrecognized", [])
+                    ],
+                    cross_references=noun_xrefs,
+                    attributed_elements=noun_data.get("attributed_elements", []),
+                    attribution_status=noun_data.get("attribution_status", "pending"),
+                )
+            )
 
-        sections.append(SectionExtractionReview(
-            section_number=section_num,
-            section_title=section_title,
-            status=section_data.get("status", "unknown"),
-            nouns=noun_reviews,
-            extractions=extractions,
-            unrecognized=unrecognized,
-            cross_references=cross_refs,
-        ))
+        sections.append(
+            SectionExtractionReview(
+                section_number=section_num,
+                section_title=section_title,
+                status=section_data.get("status", "unknown"),
+                nouns=noun_reviews,
+                extractions=extractions,
+                unrecognized=unrecognized,
+                cross_references=cross_refs,
+            )
+        )
 
     return ExtractionReviewResponse(
         batch_id=batch.id,

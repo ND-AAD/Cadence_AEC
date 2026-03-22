@@ -25,6 +25,7 @@ from app.models.core import Connection, Item, Snapshot
 
 # ─── Fixtures ─────────────────────────────────────────────────
 
+
 @pytest_asyncio.fixture
 async def conflict_scenario(db_session: AsyncSession, make_item, make_connection):
     """
@@ -45,8 +46,12 @@ async def conflict_scenario(db_session: AsyncSession, make_item, make_connection
     await make_connection(building, door)
 
     # Sources
-    schedule = await make_item("schedule", "Finish Schedule", {"name": "Finish Schedule"})
-    spec = await make_item("specification", "Spec Section 09", {"name": "Spec Section 09"})
+    schedule = await make_item(
+        "schedule", "Finish Schedule", {"name": "Finish Schedule"}
+    )
+    spec = await make_item(
+        "specification", "Spec Section 09", {"name": "Spec Section 09"}
+    )
     await make_connection(project, schedule)
     await make_connection(project, spec)
     await make_connection(schedule, door)
@@ -59,29 +64,39 @@ async def conflict_scenario(db_session: AsyncSession, make_item, make_connection
     # Conflicting snapshots
     # Schedule says finish = "paint"
     schedule_snap = Snapshot(
-        item_id=door.id, context_id=dd.id, source_id=schedule.id,
+        item_id=door.id,
+        context_id=dd.id,
+        source_id=schedule.id,
         properties={"finish": "paint", "material": "wood"},
     )
     db_session.add(schedule_snap)
 
     # Spec says finish = "stain"
     spec_snap = Snapshot(
-        item_id=door.id, context_id=dd.id, source_id=spec.id,
+        item_id=door.id,
+        context_id=dd.id,
+        source_id=spec.id,
         properties={"finish": "stain", "material": "wood"},
     )
     db_session.add(spec_snap)
     await db_session.flush()
 
     # Conflict item
-    conflict = await make_item("conflict", "101 / finish", {
-        "property_name": "finish",
-        "status": "detected",
-        "affected_item": str(door.id),
-    })
+    conflict = await make_item(
+        "conflict",
+        "101 / finish",
+        {
+            "property_name": "finish",
+            "status": "detected",
+            "affected_item": str(door.id),
+        },
+    )
 
     # Conflict self-sourced snapshot
     conflict_snap = Snapshot(
-        item_id=conflict.id, context_id=dd.id, source_id=conflict.id,
+        item_id=conflict.id,
+        context_id=dd.id,
+        source_id=conflict.id,
         properties={
             "status": "DETECTED",
             "property_path": "finish",
@@ -122,35 +137,51 @@ async def change_scenario(db_session: AsyncSession, make_item, make_connection):
     await make_connection(schedule, door)
 
     # Snapshots at SD and DD
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=sd.id, source_id=schedule.id,
-        properties={"finish": "paint"},
-    ))
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=dd.id, source_id=schedule.id,
-        properties={"finish": "stain"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=sd.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=dd.id,
+            source_id=schedule.id,
+            properties={"finish": "stain"},
+        )
+    )
     await db_session.flush()
 
     # Change item
-    change = await make_item("change", "Door Schedule / 201 / SD→DD", {
-        "status": "DETECTED",
-        "changes": {"finish": {"old": "paint", "new": "stain"}},
-        "from_context": str(sd.id),
-        "to_context": str(dd.id),
-        "source": str(schedule.id),
-        "affected_item": str(door.id),
-        "property_name": "finish",
-    })
-
-    # Self-sourced snapshot
-    db_session.add(Snapshot(
-        item_id=change.id, context_id=dd.id, source_id=change.id,
-        properties={
+    change = await make_item(
+        "change",
+        "Door Schedule / 201 / SD→DD",
+        {
             "status": "DETECTED",
             "changes": {"finish": {"old": "paint", "new": "stain"}},
+            "from_context": str(sd.id),
+            "to_context": str(dd.id),
+            "source": str(schedule.id),
+            "affected_item": str(door.id),
+            "property_name": "finish",
         },
-    ))
+    )
+
+    # Self-sourced snapshot
+    db_session.add(
+        Snapshot(
+            item_id=change.id,
+            context_id=dd.id,
+            source_id=change.id,
+            properties={
+                "status": "DETECTED",
+                "changes": {"finish": {"old": "paint", "new": "stain"}},
+            },
+        )
+    )
     await db_session.flush()
 
     await make_connection(change, schedule)
@@ -168,6 +199,7 @@ async def change_scenario(db_session: AsyncSession, make_item, make_connection):
 
 
 # ─── Test: Resolve Conflict (Chosen Source) ───────────────────
+
 
 @pytest.mark.asyncio
 async def test_resolve_conflict_chosen_source(client, conflict_scenario):
@@ -267,8 +299,11 @@ async def test_resolve_conflict_not_found(client):
 
 # ─── Test: Decision 8 Compliance ─────────────────────────────
 
+
 @pytest.mark.asyncio
-async def test_decision_8_resolution_snapshot_source(client, db_session, conflict_scenario):
+async def test_decision_8_resolution_snapshot_source(
+    client, db_session, conflict_scenario
+):
     """Resolution snapshot on conflict has source_id = decision_item_id."""
     s = conflict_scenario
     response = await client.post(
@@ -295,10 +330,11 @@ async def test_decision_8_resolution_snapshot_source(client, db_session, conflic
 
     # Find the resolution snapshot
     resolution_snaps = [
-        snap for snap in conflict_snaps
-        if snap.source_id == decision_id
+        snap for snap in conflict_snaps if snap.source_id == decision_id
     ]
-    assert len(resolution_snaps) == 1, "Decision 8: resolution snapshot must have source_id = decision_id"
+    assert len(resolution_snaps) == 1, (
+        "Decision 8: resolution snapshot must have source_id = decision_id"
+    )
 
     res_snap = resolution_snaps[0]
     assert res_snap.properties["status"] == "resolved"
@@ -306,6 +342,7 @@ async def test_decision_8_resolution_snapshot_source(client, db_session, conflic
 
 
 # ─── Test: Change Acknowledgment ─────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_acknowledge_change(client, change_scenario):
@@ -342,6 +379,7 @@ async def test_acknowledge_change_not_found(client):
 
 
 # ─── Test: Directive Fulfillment ─────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_fulfill_directive_manual(client, conflict_scenario):
@@ -381,19 +419,29 @@ async def test_fulfill_directive_manual(client, conflict_scenario):
 
 
 @pytest.mark.asyncio
-async def test_fulfill_directive_idempotent(client, db_session, make_item, make_connection):
+async def test_fulfill_directive_idempotent(
+    client, db_session, make_item, make_connection
+):
     """Fulfilling an already-fulfilled directive is idempotent."""
     dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 300})
-    directive = await make_item("directive", "Test directive", {
-        "property_name": "finish",
-        "target_value": "paint",
-        "target_source_id": str(uuid.uuid4()),
-        "status": "fulfilled",
-    })
-    db_session.add(Snapshot(
-        item_id=directive.id, context_id=dd.id, source_id=directive.id,
-        properties={"status": "fulfilled"},
-    ))
+    directive = await make_item(
+        "directive",
+        "Test directive",
+        {
+            "property_name": "finish",
+            "target_value": "paint",
+            "target_source_id": str(uuid.uuid4()),
+            "status": "fulfilled",
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=directive.id,
+            context_id=dd.id,
+            source_id=directive.id,
+            properties={"status": "fulfilled"},
+        )
+    )
     await db_session.flush()
 
     response = await client.post(f"/api/v1/items/{directive.id}/fulfill")
@@ -401,6 +449,7 @@ async def test_fulfill_directive_idempotent(client, db_session, make_item, make_
 
 
 # ─── Test: Bulk Resolution ───────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_bulk_resolve_success(client, db_session, make_item, make_connection):
@@ -415,25 +464,41 @@ async def test_bulk_resolve_success(client, db_session, make_item, make_connecti
     conflicts = []
     for door in [door1, door2]:
         # Snapshots
-        db_session.add(Snapshot(
-            item_id=door.id, context_id=dd.id, source_id=schedule.id,
-            properties={"finish": "paint"},
-        ))
-        db_session.add(Snapshot(
-            item_id=door.id, context_id=dd.id, source_id=spec.id,
-            properties={"finish": "stain"},
-        ))
+        db_session.add(
+            Snapshot(
+                item_id=door.id,
+                context_id=dd.id,
+                source_id=schedule.id,
+                properties={"finish": "paint"},
+            )
+        )
+        db_session.add(
+            Snapshot(
+                item_id=door.id,
+                context_id=dd.id,
+                source_id=spec.id,
+                properties={"finish": "stain"},
+            )
+        )
         await db_session.flush()
 
-        conflict = await make_item("conflict", f"{door.identifier} / finish", {
-            "property_name": "finish",
-            "status": "detected",
-            "affected_item": str(door.id),
-        })
-        db_session.add(Snapshot(
-            item_id=conflict.id, context_id=dd.id, source_id=conflict.id,
-            properties={"status": "DETECTED"},
-        ))
+        conflict = await make_item(
+            "conflict",
+            f"{door.identifier} / finish",
+            {
+                "property_name": "finish",
+                "status": "detected",
+                "affected_item": str(door.id),
+            },
+        )
+        db_session.add(
+            Snapshot(
+                item_id=conflict.id,
+                context_id=dd.id,
+                source_id=conflict.id,
+                properties={"status": "DETECTED"},
+            )
+        )
         await db_session.flush()
 
         await make_connection(conflict, door)
@@ -466,32 +531,50 @@ async def test_bulk_resolve_success(client, db_session, make_item, make_connecti
 
 
 @pytest.mark.asyncio
-async def test_bulk_resolve_partial_failure(client, db_session, make_item, make_connection):
+async def test_bulk_resolve_partial_failure(
+    client, db_session, make_item, make_connection
+):
     """Bulk resolve with 1 valid + 1 invalid conflict → partial success."""
     door = await make_item("door", "401", {"mark": "401"})
     schedule = await make_item("schedule", "Schedule", {"name": "Schedule"})
     spec = await make_item("specification", "Spec", {"name": "Spec"})
     dd = await make_item("milestone", "DD", {"name": "DD", "ordinal": 300})
 
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=dd.id, source_id=schedule.id,
-        properties={"finish": "paint"},
-    ))
-    db_session.add(Snapshot(
-        item_id=door.id, context_id=dd.id, source_id=spec.id,
-        properties={"finish": "stain"},
-    ))
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=dd.id,
+            source_id=schedule.id,
+            properties={"finish": "paint"},
+        )
+    )
+    db_session.add(
+        Snapshot(
+            item_id=door.id,
+            context_id=dd.id,
+            source_id=spec.id,
+            properties={"finish": "stain"},
+        )
+    )
     await db_session.flush()
 
-    conflict = await make_item("conflict", "401 / finish", {
-        "property_name": "finish",
-        "status": "detected",
-        "affected_item": str(door.id),
-    })
-    db_session.add(Snapshot(
-        item_id=conflict.id, context_id=dd.id, source_id=conflict.id,
-        properties={"status": "DETECTED"},
-    ))
+    conflict = await make_item(
+        "conflict",
+        "401 / finish",
+        {
+            "property_name": "finish",
+            "status": "detected",
+            "affected_item": str(door.id),
+        },
+    )
+    db_session.add(
+        Snapshot(
+            item_id=conflict.id,
+            context_id=dd.id,
+            source_id=conflict.id,
+            properties={"status": "DETECTED"},
+        )
+    )
     await db_session.flush()
     await make_connection(conflict, door)
     await make_connection(conflict, schedule)
@@ -533,6 +616,7 @@ async def test_bulk_resolve_partial_failure(client, db_session, make_item, make_
 
 
 # ─── Test: Action Items Rollup ───────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_action_items_rollup(client, conflict_scenario, change_scenario):
@@ -576,6 +660,7 @@ async def test_action_items_after_resolve(client, conflict_scenario):
 
 
 # ─── Test: Directive Listing ─────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_list_directives_filter_by_source(client, conflict_scenario):

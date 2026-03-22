@@ -98,9 +98,7 @@ async def test_set_import_mapping(client: AsyncClient, project_setup):
 async def test_get_import_mapping_when_none(client: AsyncClient, project_setup):
     """GET mapping when none has been stored returns null."""
     setup = project_setup
-    resp = await client.get(
-        f"/api/v1/items/{setup['schedule'].id}/import-mapping"
-    )
+    resp = await client.get(f"/api/v1/items/{setup['schedule'].id}/import-mapping")
     assert resp.status_code == 200
     assert resp.json() is None
 
@@ -149,9 +147,7 @@ async def test_parse_csv_50_doors():
     from app.services.import_service import parse_csv
 
     file_bytes = make_door_schedule_csv(50)
-    mapping = ImportMappingConfig(
-        **{**STANDARD_DOOR_MAPPING, "file_type": "csv"}
-    )
+    mapping = ImportMappingConfig(**{**STANDARD_DOOR_MAPPING, "file_type": "csv"})
     rows = parse_csv(file_bytes, mapping)
 
     assert len(rows) == 50
@@ -246,7 +242,13 @@ async def test_import_50_door_schedule(client: AsyncClient, project_setup):
             "time_context_id": str(setup["dd_milestone"].id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("door_schedule.xlsx", file_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                "door_schedule.xlsx",
+                file_bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
     assert resp.status_code == 201
     result = resp.json()
@@ -420,9 +422,7 @@ async def test_normalized_matching(client: AsyncClient, project_setup, make_item
 
 
 @pytest.mark.asyncio
-async def test_import_stores_mapping_on_source(
-    client: AsyncClient, project_setup
-):
+async def test_import_stores_mapping_on_source(client: AsyncClient, project_setup):
     """Import stores the mapping config on the source item for reuse."""
     setup = project_setup
     file_bytes = make_door_schedule_excel(5)
@@ -438,9 +438,7 @@ async def test_import_stores_mapping_on_source(
     )
 
     # Mapping should now be stored on the source
-    resp = await client.get(
-        f"/api/v1/items/{setup['schedule'].id}/import-mapping"
-    )
+    resp = await client.get(f"/api/v1/items/{setup['schedule'].id}/import-mapping")
     assert resp.status_code == 200
     data = resp.json()
     assert data is not None
@@ -478,7 +476,9 @@ async def test_import_reuses_stored_mapping(client: AsyncClient, project_setup):
 
 
 @pytest.mark.asyncio
-async def test_import_no_mapping_auto_mapping_fallback(client: AsyncClient, project_setup):
+async def test_import_no_mapping_auto_mapping_fallback(
+    client: AsyncClient, project_setup
+):
     """WP-6b: Import without mapping triggers auto-mapping fallback.
 
     With auto-mapping (WP-6b), the import endpoint no longer returns 400
@@ -671,9 +671,7 @@ async def test_import_connections_direction(
 
     # Check connections from schedule
     result = await db_session.execute(
-        select(Connection).where(
-            Connection.source_item_id == setup["schedule"].id
-        )
+        select(Connection).where(Connection.source_item_id == setup["schedule"].id)
     )
     conns = result.scalars().all()
     # 3 doors (project→schedule was created by fixture, not counted here

@@ -144,9 +144,7 @@ async def assign_conditionals(
     ]
 
     try:
-        result = await assign_conditional_values(
-            db, assignment_dicts, request.batch_id
-        )
+        result = await assign_conditional_values(db, assignment_dicts, request.batch_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

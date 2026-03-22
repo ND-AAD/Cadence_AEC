@@ -27,22 +27,29 @@ def make_multi_pass_mock(extractions_response: str):
             element_types.add(et)
 
     nouns = []
-    for et in (element_types or {"door"}):
-        nouns.append({
-            "noun_phrase": f"{et}s",
-            "matched_type": et,
-            "qualifiers": {},
-            "context": f"Section discusses {et}s",
-        })
+    for et in element_types or {"door"}:
+        nouns.append(
+            {
+                "noun_phrase": f"{et}s",
+                "matched_type": et,
+                "qualifiers": {},
+                "context": f"Section discusses {et}s",
+            }
+        )
 
-    noun_response = json.dumps({
-        "section_number": section_number,
-        "nouns": nouns,
-    })
+    noun_response = json.dumps(
+        {
+            "section_number": section_number,
+            "nouns": nouns,
+        }
+    )
 
     async def _caller(prompt: str) -> str:
         # Pass 1: noun identification
-        if "identify what things" in prompt.lower() or "products, assemblies, components" in prompt.lower():
+        if (
+            "identify what things" in prompt.lower()
+            or "products, assemblies, components" in prompt.lower()
+        ):
             return noun_response
         # Pass 2: per-noun extraction — return the full extraction response
         return extractions_response
@@ -52,6 +59,8 @@ def make_multi_pass_mock(extractions_response: str):
 
 def make_multi_pass_mock_error():
     """Mock that raises on any LLM call (tests error handling)."""
+
     async def _caller(prompt: str) -> str:
         raise RuntimeError("API connection failed")
+
     return _caller

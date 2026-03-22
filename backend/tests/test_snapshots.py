@@ -17,13 +17,17 @@ import pytest
 
 # ─── Helpers ───────────────────────────────────────────────────
 
+
 async def _create_item(client, item_type, identifier, properties=None):
     """Helper to create an item and return its response."""
-    resp = await client.post("/api/v1/items/", json={
-        "item_type": item_type,
-        "identifier": identifier,
-        "properties": properties or {},
-    })
+    resp = await client.post(
+        "/api/v1/items/",
+        json={
+            "item_type": item_type,
+            "identifier": identifier,
+            "properties": properties or {},
+        },
+    )
     assert resp.status_code == 201
     return resp.json()
 
@@ -33,40 +37,76 @@ async def _setup_basic_scenario(client):
     Create a basic scenario: door, 2 milestones, 2 sources.
     Returns dict with all created items.
     """
-    door = await _create_item(client, "door", "Door 101", {
-        "mark": "D101", "width": 36, "height": 80,
-    })
-    dd = await _create_item(client, "milestone", "DD", {
-        "name": "Design Development", "ordinal": 300,
-    })
-    cd = await _create_item(client, "milestone", "CD", {
-        "name": "Construction Documents", "ordinal": 400,
-    })
-    schedule = await _create_item(client, "schedule", "Finish Schedule", {
-        "name": "Finish Schedule",
-    })
-    spec = await _create_item(client, "specification", "Spec §08", {
-        "name": "Specification Section 08",
-    })
+    door = await _create_item(
+        client,
+        "door",
+        "Door 101",
+        {
+            "mark": "D101",
+            "width": 36,
+            "height": 80,
+        },
+    )
+    dd = await _create_item(
+        client,
+        "milestone",
+        "DD",
+        {
+            "name": "Design Development",
+            "ordinal": 300,
+        },
+    )
+    cd = await _create_item(
+        client,
+        "milestone",
+        "CD",
+        {
+            "name": "Construction Documents",
+            "ordinal": 400,
+        },
+    )
+    schedule = await _create_item(
+        client,
+        "schedule",
+        "Finish Schedule",
+        {
+            "name": "Finish Schedule",
+        },
+    )
+    spec = await _create_item(
+        client,
+        "specification",
+        "Spec §08",
+        {
+            "name": "Specification Section 08",
+        },
+    )
     return {
-        "door": door, "dd": dd, "cd": cd,
-        "schedule": schedule, "spec": spec,
+        "door": door,
+        "dd": dd,
+        "cd": cd,
+        "schedule": schedule,
+        "spec": spec,
     }
 
 
 # ─── Snapshot Creation ─────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_create_snapshot(client):
     """Can create a snapshot with the full triple."""
     s = await _setup_basic_scenario(client)
 
-    resp = await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint", "material": "wood"},
-    })
+    resp = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint", "material": "wood"},
+        },
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["item_id"] == s["door"]["id"]
@@ -81,21 +121,27 @@ async def test_two_sources_same_item_same_context(client):
     s = await _setup_basic_scenario(client)
 
     # Schedule says paint
-    resp1 = await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    resp1 = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
     assert resp1.status_code == 201
 
     # Spec says stain
-    resp2 = await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["spec"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    resp2 = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["spec"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
     assert resp2.status_code == 201
 
     # Both exist
@@ -110,14 +156,20 @@ async def test_context_must_be_milestone(client):
     """Creating snapshot with non-milestone context returns 400."""
     s = await _setup_basic_scenario(client)
 
-    resp = await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["schedule"]["id"],  # Not a milestone!
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    resp = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["schedule"]["id"],  # Not a milestone!
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
     assert resp.status_code == 400
-    assert "context" in resp.json()["detail"].lower() or "milestone" in resp.json()["detail"].lower()
+    assert (
+        "context" in resp.json()["detail"].lower()
+        or "milestone" in resp.json()["detail"].lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -125,16 +177,20 @@ async def test_snapshot_with_missing_item(client):
     """Snapshot referencing nonexistent item returns 404."""
     s = await _setup_basic_scenario(client)
 
-    resp = await client.post("/api/v1/snapshots/", json={
-        "item_id": str(uuid.uuid4()),
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {},
-    })
+    resp = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": str(uuid.uuid4()),
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {},
+        },
+    )
     assert resp.status_code == 404
 
 
 # ─── Upsert ───────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_upsert_same_triple(client):
@@ -142,22 +198,28 @@ async def test_upsert_same_triple(client):
     s = await _setup_basic_scenario(client)
 
     # First snapshot
-    resp1 = await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    resp1 = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
     assert resp1.status_code == 201
     snap_id = resp1.json()["id"]
 
     # Upsert with same triple, different properties
-    resp2 = await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    resp2 = await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
     assert resp2.status_code == 201
     # Same snapshot ID (upserted, not duplicated)
     assert resp2.json()["id"] == snap_id
@@ -174,26 +236,33 @@ async def test_upsert_same_triple(client):
 
 # ─── Effective Value ───────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_effective_value_basic(client):
     """Effective value returns most recent snapshot by ordinal."""
     s = await _setup_basic_scenario(client)
 
     # Create DD snapshot
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     # Create CD snapshot
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["cd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["cd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
 
     # Effective value should be CD (higher ordinal)
     resp = await client.get(
@@ -216,12 +285,15 @@ async def test_effective_value_carry_forward(client):
     s = await _setup_basic_scenario(client)
 
     # Only create DD snapshot — no CD submission
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     # Effective value should be DD (only one exists)
     resp = await client.get(
@@ -245,20 +317,26 @@ async def test_effective_value_ordinal_not_created_at(client):
     s = await _setup_basic_scenario(client)
 
     # Create CD snapshot FIRST (created_at is earlier)
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["cd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["cd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
 
     # Create DD snapshot SECOND (created_at is later, but ordinal is lower)
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     # Effective should be CD (ordinal 400 > 300), not DD despite DD created later
     resp = await client.get(
@@ -285,28 +363,34 @@ async def test_effective_value_no_snapshots(client):
 
 # ─── Resolved View ─────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_resolved_view_agreement(client):
     """Two sources agree → status='agreed'."""
     s = await _setup_basic_scenario(client)
 
     # Both say "paint"
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["spec"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["spec"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -323,22 +407,27 @@ async def test_resolved_view_conflict(client):
     s = await _setup_basic_scenario(client)
 
     # Schedule says paint, spec says stain
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["spec"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["spec"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
 
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -355,16 +444,18 @@ async def test_resolved_view_single_source(client):
     s = await _setup_basic_scenario(client)
 
     # Only schedule speaks
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -384,25 +475,30 @@ async def test_resolved_view_carry_forward_from_dd(client):
     s = await _setup_basic_scenario(client)
 
     # Schedule at DD says paint
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     # Spec at CD says stain
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["cd"]["id"],
-        "source_id": s["spec"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["cd"]["id"],
+            "source_id": s["spec"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
 
     # Resolved at CD: schedule's DD value vs spec's CD value
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['cd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['cd']['id']}"
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -421,8 +517,7 @@ async def test_resolved_view_no_snapshots(client):
     s = await _setup_basic_scenario(client)
 
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -439,22 +534,27 @@ async def test_resolved_view_mixed_properties(client):
     """
     s = await _setup_basic_scenario(client)
 
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint", "material": "wood"},
-    })
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["spec"]["id"],
-        "properties": {"material": "hollow metal"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint", "material": "wood"},
+        },
+    )
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["spec"]["id"],
+            "properties": {"material": "hollow metal"},
+        },
+    )
 
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     data = resp.json()
 
@@ -471,25 +571,30 @@ async def test_resolved_view_future_snapshots_excluded(client):
     s = await _setup_basic_scenario(client)
 
     # Schedule at DD says paint
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "paint"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "paint"},
+        },
+    )
 
     # Schedule at CD says stain (future relative to DD query)
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["cd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "stain"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["cd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "stain"},
+        },
+    )
 
     # Resolved at DD — should only see DD value
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     data = resp.json()
     finish = next(p for p in data["properties"] if p["property_name"] == "finish")
@@ -502,22 +607,27 @@ async def test_resolved_view_case_insensitive_agreement(client):
     """Values that differ only in case are considered agreed."""
     s = await _setup_basic_scenario(client)
 
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["schedule"]["id"],
-        "properties": {"finish": "Paint"},
-    })
-    await client.post("/api/v1/snapshots/", json={
-        "item_id": s["door"]["id"],
-        "context_id": s["dd"]["id"],
-        "source_id": s["spec"]["id"],
-        "properties": {"finish": "PAINT"},
-    })
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["schedule"]["id"],
+            "properties": {"finish": "Paint"},
+        },
+    )
+    await client.post(
+        "/api/v1/snapshots/",
+        json={
+            "item_id": s["door"]["id"],
+            "context_id": s["dd"]["id"],
+            "source_id": s["spec"]["id"],
+            "properties": {"finish": "PAINT"},
+        },
+    )
 
     resp = await client.get(
-        f"/api/v1/snapshots/item/{s['door']['id']}/resolved"
-        f"?context={s['dd']['id']}"
+        f"/api/v1/snapshots/item/{s['door']['id']}/resolved?context={s['dd']['id']}"
     )
     data = resp.json()
     finish = next(p for p in data["properties"] if p["property_name"] == "finish")

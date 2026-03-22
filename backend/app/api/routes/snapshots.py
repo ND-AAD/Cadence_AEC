@@ -36,7 +36,10 @@ router = APIRouter()
 
 # ─── Helpers ───────────────────────────────────────────────────
 
-async def _get_item_or_404(db: AsyncSession, item_id: uuid.UUID, label: str = "Item") -> Item:
+
+async def _get_item_or_404(
+    db: AsyncSession, item_id: uuid.UUID, label: str = "Item"
+) -> Item:
     """Fetch an item or raise 404."""
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
@@ -53,7 +56,7 @@ async def _validate_context(db: AsyncSession, context_id: uuid.UUID) -> Item:
         raise HTTPException(
             status_code=400,
             detail=f"Context must be a milestone item. Got type '{context.item_type}' "
-                   f"which is not a context type.",
+            f"which is not a context type.",
         )
     return context
 
@@ -64,6 +67,7 @@ def _get_ordinal(item: Item) -> int:
 
 
 # ─── CRUD ──────────────────────────────────────────────────────
+
 
 @router.post("/", response_model=SnapshotResponse, status_code=201)
 async def create_snapshot(
@@ -122,8 +126,12 @@ async def create_snapshot(
 @router.get("/", response_model=list[SnapshotResponse])
 async def list_snapshots(
     item_id: uuid.UUID | None = Query(None, description="Filter by item (WHAT)"),
-    context_id: uuid.UUID | None = Query(None, description="Filter by context/milestone (WHEN)"),
-    source_id: uuid.UUID | None = Query(None, description="Filter by source (WHO SAYS)"),
+    context_id: uuid.UUID | None = Query(
+        None, description="Filter by context/milestone (WHEN)"
+    ),
+    source_id: uuid.UUID | None = Query(
+        None, description="Filter by source (WHO SAYS)"
+    ),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -171,6 +179,7 @@ async def delete_snapshot(
 
 # ─── Effective Value ───────────────────────────────────────────
 
+
 @router.get("/item/{item_id}/effective", response_model=EffectiveValue)
 async def get_effective_value(
     item_id: uuid.UUID,
@@ -210,9 +219,7 @@ async def get_effective_value(
 
     # Load context items to get ordinals
     context_ids = {s.context_id for s in snapshots}
-    contexts_result = await db.execute(
-        select(Item).where(Item.id.in_(context_ids))
-    )
+    contexts_result = await db.execute(select(Item).where(Item.id.in_(context_ids)))
     contexts = {c.id: c for c in contexts_result.scalars().all()}
 
     # Sort by milestone ordinal (highest = most recent), not created_at
@@ -242,6 +249,7 @@ async def get_effective_value(
 
 
 # ─── Resolved View ────────────────────────────────────────────
+
 
 @router.get("/item/{item_id}/resolved", response_model=ResolvedView)
 async def get_resolved_view(
@@ -275,8 +283,14 @@ async def get_resolved_view(
 
     if not all_snapshots:
         return ResolvedView(
-            item=ItemSummary(id=item.id, item_type=item.item_type, identifier=item.identifier),
-            context=ItemSummary(id=context_item.id, item_type=context_item.item_type, identifier=context_item.identifier),
+            item=ItemSummary(
+                id=item.id, item_type=item.item_type, identifier=item.identifier
+            ),
+            context=ItemSummary(
+                id=context_item.id,
+                item_type=context_item.item_type,
+                identifier=context_item.identifier,
+            ),
             properties=[],
             source_count=0,
             snapshot_count=0,
@@ -295,7 +309,8 @@ async def get_resolved_view(
     # Filter to document sources (exclude types marked exclude_from_conflicts)
     excluded_types = get_conflict_excluded_types()
     document_snapshots = [
-        s for s in all_snapshots
+        s
+        for s in all_snapshots
         if s.source_id in sources
         and sources[s.source_id].item_type not in excluded_types
     ]
@@ -321,16 +336,18 @@ async def get_resolved_view(
 
     # Check for decision snapshots (resolved conflicts)
     decision_snapshots = [
-        s for s in all_snapshots
-        if s.source_id in sources
-        and sources[s.source_id].item_type == "decision"
+        s
+        for s in all_snapshots
+        if s.source_id in sources and sources[s.source_id].item_type == "decision"
     ]
     resolved_properties: set[str] = set()
     resolved_values: dict[str, object] = {}
     for ds in decision_snapshots:
         ds_ctx = contexts.get(ds.context_id)
         if ds_ctx and _get_ordinal(ds_ctx) <= context_ordinal:
-            rp = ds.properties.get("property_name") or ds.properties.get("property_path")
+            rp = ds.properties.get("property_name") or ds.properties.get(
+                "property_path"
+            )
             if rp:
                 resolved_properties.add(rp)
                 rv = ds.properties.get("resolved_value")
@@ -345,9 +362,9 @@ async def get_resolved_view(
 
     # Workflow items connected TO this item (workflow → item pattern)
     workflow_as_target = await db.execute(
-        select(Item).join(
-            Connection, Connection.source_item_id == Item.id
-        ).where(
+        select(Item)
+        .join(Connection, Connection.source_item_id == Item.id)
+        .where(
             and_(
                 Connection.target_item_id == item_id,
                 Item.item_type.in_(workflow_types),
@@ -356,9 +373,9 @@ async def get_resolved_view(
     )
     # Workflow items connected FROM this item (item → workflow, less common)
     workflow_as_source = await db.execute(
-        select(Item).join(
-            Connection, Connection.target_item_id == Item.id
-        ).where(
+        select(Item)
+        .join(Connection, Connection.target_item_id == Item.id)
+        .where(
             and_(
                 Connection.source_item_id == item_id,
                 Item.item_type.in_(workflow_types),
@@ -366,8 +383,9 @@ async def get_resolved_view(
         )
     )
 
-    all_workflow_items = list(workflow_as_target.scalars().all()) + \
-                         list(workflow_as_source.scalars().all())
+    all_workflow_items = list(workflow_as_target.scalars().all()) + list(
+        workflow_as_source.scalars().all()
+    )
 
     # Deduplicate
     seen_workflow: set[uuid.UUID] = set()
@@ -382,9 +400,8 @@ async def get_resolved_view(
         lambda: defaultdict(list)
     )
     for wi in unique_workflow:
-        prop_name = (
-            wi.properties.get("property_name")
-            or wi.properties.get("property_path")
+        prop_name = wi.properties.get("property_name") or wi.properties.get(
+            "property_path"
         )
         if prop_name:
             workflow_by_property[prop_name][wi.item_type].append(wi)
@@ -462,17 +479,25 @@ async def get_resolved_view(
                 resolution_metadata=res_metadata,
             )
 
-        property_resolutions.append(PropertyResolution(
-            property_name=prop_name,
-            status=status,
-            value=value,
-            sources=source_values,
-            workflow=workflow_refs,
-        ))
+        property_resolutions.append(
+            PropertyResolution(
+                property_name=prop_name,
+                status=status,
+                value=value,
+                sources=source_values,
+                workflow=workflow_refs,
+            )
+        )
 
     return ResolvedView(
-        item=ItemSummary(id=item.id, item_type=item.item_type, identifier=item.identifier),
-        context=ItemSummary(id=context_item.id, item_type=context_item.item_type, identifier=context_item.identifier),
+        item=ItemSummary(
+            id=item.id, item_type=item.item_type, identifier=item.identifier
+        ),
+        context=ItemSummary(
+            id=context_item.id,
+            item_type=context_item.item_type,
+            identifier=context_item.identifier,
+        ),
         properties=property_resolutions,
         source_count=len(effective_by_source),
         snapshot_count=len(document_snapshots),

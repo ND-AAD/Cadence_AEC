@@ -71,7 +71,9 @@ async def create_connection(
 
 @router.get("/", response_model=list[ConnectionResponse])
 async def list_connections(
-    item_id: uuid.UUID | None = Query(None, description="Filter by item (source or target)"),
+    item_id: uuid.UUID | None = Query(
+        None, description="Filter by item (source or target)"
+    ),
     source_item_id: uuid.UUID | None = Query(None, description="Filter by source item"),
     target_item_id: uuid.UUID | None = Query(None, description="Filter by target item"),
     limit: int = Query(100, ge=1, le=1000),
@@ -147,9 +149,7 @@ async def delete_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """Hard delete a connection. Use /disconnect for soft removal."""
-    result = await db.execute(
-        select(Connection).where(Connection.id == connection_id)
-    )
+    result = await db.execute(select(Connection).where(Connection.id == connection_id))
     connection = result.scalar_one_or_none()
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")

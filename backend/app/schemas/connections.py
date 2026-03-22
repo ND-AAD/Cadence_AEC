@@ -10,8 +10,13 @@ from app.schemas.items import ItemSummary
 
 class ConnectionCreate(BaseModel):
     """Schema for creating a connection."""
-    source_item_id: uuid.UUID = Field(..., description="The item this connection originates from")
-    target_item_id: uuid.UUID = Field(..., description="The item this connection points to")
+
+    source_item_id: uuid.UUID = Field(
+        ..., description="The item this connection originates from"
+    )
+    target_item_id: uuid.UUID = Field(
+        ..., description="The item this connection points to"
+    )
     properties: dict = Field(default_factory=dict, description="Connection metadata")
 
     @model_validator(mode="after")
@@ -23,6 +28,7 @@ class ConnectionCreate(BaseModel):
 
 class DisconnectRequest(BaseModel):
     """Schema for soft-disconnecting two items."""
+
     source_item_id: uuid.UUID
     target_item_id: uuid.UUID
     reason: str | None = Field(None, description="Why the disconnect happened")
@@ -30,6 +36,7 @@ class DisconnectRequest(BaseModel):
 
 class ConnectionResponse(BaseModel):
     """Schema for connection in API responses."""
+
     id: uuid.UUID
     source_item_id: uuid.UUID
     target_item_id: uuid.UUID
@@ -42,6 +49,7 @@ class ConnectionResponse(BaseModel):
 
 class ConnectionDetail(BaseModel):
     """Connection with expanded item info for navigation."""
+
     id: uuid.UUID
     source_item: ItemSummary
     target_item: ItemSummary

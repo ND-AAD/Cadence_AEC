@@ -118,7 +118,9 @@ async def test_import_detects_changes_on_reimport(client: AsyncClient, project_s
     """
     setup = project_setup
     original_file = make_door_schedule_excel(5)
-    updated_file = make_updated_door_schedule_excel(5, changed_indices=list(range(1, 6)), changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        5, changed_indices=list(range(1, 6)), changed_finish="lacquer"
+    )
 
     # First import at DD
     resp1 = await client.post(
@@ -207,7 +209,9 @@ async def test_change_item_has_correct_identifier(
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
-    updated_file = make_updated_door_schedule_excel(1, changed_indices=[1], changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        1, changed_indices=[1], changed_finish="lacquer"
+    )
 
     # First import at DD
     await client.post(
@@ -233,9 +237,7 @@ async def test_change_item_has_correct_identifier(
     assert resp.status_code == 201
 
     # Fetch the change item
-    result = await db_session.execute(
-        select(Item).where(Item.item_type == "change")
-    )
+    result = await db_session.execute(select(Item).where(Item.item_type == "change"))
     change_item = result.scalar_one_or_none()
     assert change_item is not None
 
@@ -255,7 +257,9 @@ async def test_change_item_has_self_sourced_snapshot(
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
-    updated_file = make_updated_door_schedule_excel(1, changed_indices=[1], changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        1, changed_indices=[1], changed_finish="lacquer"
+    )
 
     # First import at DD
     await client.post(
@@ -309,7 +313,9 @@ async def test_change_item_snapshot_has_correct_properties(
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
-    updated_file = make_updated_door_schedule_excel(1, changed_indices=[1], changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        1, changed_indices=[1], changed_finish="lacquer"
+    )
 
     # First import at DD
     await client.post(
@@ -374,7 +380,9 @@ async def test_change_item_has_four_connections(
 
     setup = project_setup
     original_file = make_door_schedule_excel(1)
-    updated_file = make_updated_door_schedule_excel(1, changed_indices=[1], changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        1, changed_indices=[1], changed_finish="lacquer"
+    )
 
     # First import at DD
     await client.post(
@@ -406,9 +414,7 @@ async def test_change_item_has_four_connections(
 
     # Get all outgoing connections from change item
     conns_result = await db_session.execute(
-        select(Connection).where(
-            Connection.source_item_id == change_item.id
-        )
+        select(Connection).where(Connection.source_item_id == change_item.id)
     )
     conns = conns_result.scalars().all()
 
@@ -476,12 +482,20 @@ async def test_normalized_comparison_no_false_change_on_case_difference(
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.append([
-        "DOOR NO.", "WIDTH", "HEIGHT", "FINISH", "MATERIAL", "HARDWARE SET", "FIRE RATING"
-    ])
-    ws.append([
-        "Door 001", "3'-0\"", "7'-0\"", "STAIN", "hollow metal", "HW-2", "20 min"
-    ])
+    ws.append(
+        [
+            "DOOR NO.",
+            "WIDTH",
+            "HEIGHT",
+            "FINISH",
+            "MATERIAL",
+            "HARDWARE SET",
+            "FIRE RATING",
+        ]
+    )
+    ws.append(
+        ["Door 001", "3'-0\"", "7'-0\"", "STAIN", "hollow metal", "HW-2", "20 min"]
+    )
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -538,14 +552,20 @@ async def test_multiple_properties_changed_single_change_item(
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.append([
-        "DOOR NO.", "WIDTH", "HEIGHT", "FINISH", "MATERIAL", "HARDWARE SET", "FIRE RATING"
-    ])
+    ws.append(
+        [
+            "DOOR NO.",
+            "WIDTH",
+            "HEIGHT",
+            "FINISH",
+            "MATERIAL",
+            "HARDWARE SET",
+            "FIRE RATING",
+        ]
+    )
     # Door 001 originals: finish="stain", material="hollow metal",
     # hardware_set="HW-2", fire_rating="20 min". Change only finish + material.
-    ws.append([
-        "Door 001", "3'-0\"", "7'-0\"", "lacquer", "aluminum", "HW-2", "20 min"
-    ])
+    ws.append(["Door 001", "3'-0\"", "7'-0\"", "lacquer", "aluminum", "HW-2", "20 min"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -575,6 +595,7 @@ async def test_multiple_properties_changed_single_change_item(
 
     # Its snapshot should contain both changes
     from sqlalchemy import and_
+
     snap_result = await db_session.execute(
         select(Snapshot).where(
             and_(
@@ -614,7 +635,9 @@ async def test_summary_source_changes_count(client: AsyncClient, project_setup):
     )
 
     # Second import with updated file where all 3 doors change finish
-    updated_file = make_updated_door_schedule_excel(3, changed_indices=[1, 2, 3], changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        3, changed_indices=[1, 2, 3], changed_finish="lacquer"
+    )
     resp = await client.post(
         "/api/v1/import",
         data={
@@ -651,7 +674,9 @@ async def test_summary_affected_items_count(client: AsyncClient, project_setup):
     )
 
     # Second import with only first 3 doors changed
-    updated_file = make_updated_door_schedule_excel(5, changed_indices=[1, 2, 3], changed_finish="lacquer")
+    updated_file = make_updated_door_schedule_excel(
+        5, changed_indices=[1, 2, 3], changed_finish="lacquer"
+    )
     resp = await client.post(
         "/api/v1/import",
         data={
@@ -711,9 +736,7 @@ async def test_find_prior_context_returns_max_ordinal_less_than_current(
 
 
 @pytest.mark.asyncio
-async def test_find_prior_context_returns_none_for_first_import(
-    db_session, make_item
-):
+async def test_find_prior_context_returns_none_for_first_import(db_session, make_item):
     """
     _find_prior_context returns None if there are no prior snapshots.
     """
@@ -727,9 +750,7 @@ async def test_find_prior_context_returns_none_for_first_import(
 
 
 @pytest.mark.asyncio
-async def test_find_prior_context_skips_future_contexts(
-    db_session, make_item
-):
+async def test_find_prior_context_skips_future_contexts(db_session, make_item):
     """
     _find_prior_context ignores milestones with ordinal >= current.
     """
@@ -843,12 +864,18 @@ async def test_change_items_only_from_prior_source(
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.append([
-        "DOOR NO.", "WIDTH", "HEIGHT", "FINISH", "MATERIAL", "HARDWARE SET", "FIRE RATING"
-    ])
-    ws.append([
-        "Door 001", "3'-0\"", "7'-0\"", "stain", "aluminum", "HW-2", "60 min"
-    ])
+    ws.append(
+        [
+            "DOOR NO.",
+            "WIDTH",
+            "HEIGHT",
+            "FINISH",
+            "MATERIAL",
+            "HARDWARE SET",
+            "FIRE RATING",
+        ]
+    )
+    ws.append(["Door 001", "3'-0\"", "7'-0\"", "stain", "aluminum", "HW-2", "60 min"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -861,7 +888,9 @@ async def test_change_items_only_from_prior_source(
             "time_context_id": str(setup["dd_milestone"].id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("schedule.xlsx", other_schedule_file, "application/octet-stream")},
+        files={
+            "file": ("schedule.xlsx", other_schedule_file, "application/octet-stream")
+        },
     )
 
     # Now import from schedule2 again at CD (same values as before in schedule2)
@@ -872,7 +901,9 @@ async def test_change_items_only_from_prior_source(
             "time_context_id": str(setup["cd_milestone"].id),
             "mapping_config": json.dumps(STANDARD_DOOR_MAPPING),
         },
-        files={"file": ("schedule.xlsx", other_schedule_file, "application/octet-stream")},
+        files={
+            "file": ("schedule.xlsx", other_schedule_file, "application/octet-stream")
+        },
     )
     assert resp.status_code == 201
     result = resp.json()

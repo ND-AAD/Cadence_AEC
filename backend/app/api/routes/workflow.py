@@ -43,6 +43,7 @@ router = APIRouter(tags=["workflow"])
 
 # ─── Conflict Resolution ─────────────────────────────────────
 
+
 @router.post(
     "/items/{conflict_id}/resolve",
     response_model=ConflictResolveResponse,
@@ -63,9 +64,7 @@ async def resolve_conflict(
     """
     # Load and validate conflict
     result = await db.execute(
-        select(Item).where(
-            and_(Item.id == conflict_id, Item.item_type == "conflict")
-        )
+        select(Item).where(and_(Item.id == conflict_id, Item.item_type == "conflict"))
     )
     conflict = result.scalar_one_or_none()
     if not conflict:
@@ -99,6 +98,7 @@ async def resolve_conflict(
 
 # ─── Change Acknowledgment ───────────────────────────────────
 
+
 @router.post(
     "/items/{change_id}/acknowledge",
     response_model=ChangeAcknowledgeResponse,
@@ -110,9 +110,7 @@ async def acknowledge_change(
 ):
     """Acknowledge a detected change."""
     result = await db.execute(
-        select(Item).where(
-            and_(Item.id == change_id, Item.item_type == "change")
-        )
+        select(Item).where(and_(Item.id == change_id, Item.item_type == "change"))
     )
     change = result.scalar_one_or_none()
     if not change:
@@ -128,6 +126,7 @@ async def acknowledge_change(
 
 # ─── Directive Fulfillment ───────────────────────────────────
 
+
 @router.post(
     "/items/{directive_id}/fulfill",
     response_model=DirectiveFulfillResponse,
@@ -139,9 +138,7 @@ async def fulfill_directive(
 ):
     """Manually fulfill a directive (for Phase A testing)."""
     result = await db.execute(
-        select(Item).where(
-            and_(Item.id == directive_id, Item.item_type == "directive")
-        )
+        select(Item).where(and_(Item.id == directive_id, Item.item_type == "directive"))
     )
     directive = result.scalar_one_or_none()
     if not directive:
@@ -156,6 +153,7 @@ async def fulfill_directive(
 
 
 # ─── Bulk Resolution ─────────────────────────────────────────
+
 
 @router.post(
     "/action-items/bulk-resolve",
@@ -187,11 +185,13 @@ async def bulk_resolve(
             )
             conflict = result.scalar_one_or_none()
             if not conflict:
-                results.append(BulkResolveResult(
-                    conflict_item_id=entry.conflict_item_id,
-                    success=False,
-                    error="Conflict not found",
-                ))
+                results.append(
+                    BulkResolveResult(
+                        conflict_item_id=entry.conflict_item_id,
+                        success=False,
+                        error="Conflict not found",
+                    )
+                )
                 continue
 
             decision_item, directives = await resolution_service.resolve_conflict(
@@ -204,18 +204,22 @@ async def bulk_resolve(
                 decided_by=entry.decided_by,
             )
 
-            results.append(BulkResolveResult(
-                conflict_item_id=entry.conflict_item_id,
-                success=True,
-                decision_item_id=decision_item.id,
-                directives_created=len(directives),
-            ))
+            results.append(
+                BulkResolveResult(
+                    conflict_item_id=entry.conflict_item_id,
+                    success=True,
+                    decision_item_id=decision_item.id,
+                    directives_created=len(directives),
+                )
+            )
         except Exception as e:
-            results.append(BulkResolveResult(
-                conflict_item_id=entry.conflict_item_id,
-                success=False,
-                error=str(e),
-            ))
+            results.append(
+                BulkResolveResult(
+                    conflict_item_id=entry.conflict_item_id,
+                    success=False,
+                    error=str(e),
+                )
+            )
 
     succeeded = sum(1 for r in results if r.success)
     return BulkResolveResponse(
@@ -342,6 +346,7 @@ async def resume_review(
 
 # ─── Action Items ────────────────────────────────────────────
 
+
 @router.get(
     "/action-items",
     response_model=ActionItemRollup,
@@ -363,6 +368,7 @@ async def get_action_items(
 
 # ─── Directives ──────────────────────────────────────────────
 
+
 @router.get(
     "/directives",
     response_model=DirectiveListResponse,
@@ -371,7 +377,9 @@ async def get_action_items(
 async def get_directives(
     source_id: uuid.UUID | None = Query(None, description="Filter by target source"),
     property_name: str | None = Query(None, description="Filter by property name"),
-    status: str | None = Query(None, description="Filter by status: pending, fulfilled, superseded"),
+    status: str | None = Query(
+        None, description="Filter by status: pending, fulfilled, superseded"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """

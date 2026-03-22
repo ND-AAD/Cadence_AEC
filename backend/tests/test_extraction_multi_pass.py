@@ -111,7 +111,10 @@ class TestNounIdentificationPrompt:
     def test_prompt_includes_known_types(self):
         vocab = assemble_vocabulary("08")
         prompt = build_noun_identification_prompt(
-            "08 11 00", "Metal Doors and Frames", SAMPLE_PART2, vocab,
+            "08 11 00",
+            "Metal Doors and Frames",
+            SAMPLE_PART2,
+            vocab,
         )
         assert "door" in prompt
         assert "frame" in prompt
@@ -119,7 +122,10 @@ class TestNounIdentificationPrompt:
     def test_prompt_includes_section_text(self):
         vocab = assemble_vocabulary("08")
         prompt = build_noun_identification_prompt(
-            "08 11 00", "Metal Doors and Frames", SAMPLE_PART2, vocab,
+            "08 11 00",
+            "Metal Doors and Frames",
+            SAMPLE_PART2,
+            vocab,
         )
         assert "Hollow metal" in prompt
         assert "16 gauge" in prompt
@@ -127,7 +133,10 @@ class TestNounIdentificationPrompt:
     def test_prompt_includes_identification_rules(self):
         vocab = assemble_vocabulary("08")
         prompt = build_noun_identification_prompt(
-            "08 11 00", None, SAMPLE_PART2, vocab,
+            "08 11 00",
+            None,
+            SAMPLE_PART2,
+            vocab,
         )
         assert "Identify each distinct product" in prompt
         assert "qualifying attributes" in prompt
@@ -135,7 +144,10 @@ class TestNounIdentificationPrompt:
     def test_prompt_includes_output_schema(self):
         vocab = assemble_vocabulary("08")
         prompt = build_noun_identification_prompt(
-            "08 11 00", None, SAMPLE_PART2, vocab,
+            "08 11 00",
+            None,
+            SAMPLE_PART2,
+            vocab,
         )
         assert '"noun_phrase"' in prompt
         assert '"matched_type"' in prompt
@@ -155,23 +167,25 @@ class TestNounIdentificationParsing:
         return set(vocab.get("primary", {}).keys())
 
     def test_parse_valid_response(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {
-                    "noun_phrase": "steel doors",
-                    "matched_type": "door",
-                    "qualifiers": {"material": "hollow metal"},
-                    "context": "Section describes hollow metal steel doors",
-                },
-                {
-                    "noun_phrase": "hollow metal frames",
-                    "matched_type": "frame",
-                    "qualifiers": {"material": "galvanized steel"},
-                    "context": "Section describes frames for doors",
-                },
-            ],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "steel doors",
+                        "matched_type": "door",
+                        "qualifiers": {"material": "hollow metal"},
+                        "context": "Section describes hollow metal steel doors",
+                    },
+                    {
+                        "noun_phrase": "hollow metal frames",
+                        "matched_type": "frame",
+                        "qualifiers": {"material": "galvanized steel"},
+                        "context": "Section describes frames for doors",
+                    },
+                ],
+            }
+        )
         result = parse_noun_identification_response(response, self._valid_types())
         assert result.section_number == "08 11 00"
         assert len(result.nouns) == 2
@@ -180,33 +194,37 @@ class TestNounIdentificationParsing:
         assert result.nouns[0].qualifiers == {"material": "hollow metal"}
 
     def test_parse_unknown_type_set_to_none(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {
-                    "noun_phrase": "weatherstripping",
-                    "matched_type": "weather_seal",
-                    "qualifiers": {},
-                    "context": "Unknown type",
-                },
-            ],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "weatherstripping",
+                        "matched_type": "weather_seal",
+                        "qualifiers": {},
+                        "context": "Unknown type",
+                    },
+                ],
+            }
+        )
         result = parse_noun_identification_response(response, self._valid_types())
         assert len(result.nouns) == 1
         assert result.nouns[0].matched_type is None  # Invalid type → None
 
     def test_parse_null_type_preserved(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {
-                    "noun_phrase": "hardware sets",
-                    "matched_type": None,
-                    "qualifiers": {},
-                    "context": "Section references hardware",
-                },
-            ],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "hardware sets",
+                        "matched_type": None,
+                        "qualifiers": {},
+                        "context": "Section references hardware",
+                    },
+                ],
+            }
+        )
         result = parse_noun_identification_response(response, self._valid_types())
         assert result.nouns[0].matched_type is None
 
@@ -221,22 +239,43 @@ class TestNounIdentificationParsing:
         assert len(result.nouns) == 0
 
     def test_parse_markdown_fencing(self):
-        inner = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [{"noun_phrase": "doors", "matched_type": "door", "qualifiers": {}, "context": ""}],
-        })
+        inner = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "doors",
+                        "matched_type": "door",
+                        "qualifiers": {},
+                        "context": "",
+                    }
+                ],
+            }
+        )
         fenced = f"```json\n{inner}\n```"
         result = parse_noun_identification_response(fenced, self._valid_types())
         assert len(result.nouns) == 1
 
     def test_parse_skips_empty_noun_phrase(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {"noun_phrase": "", "matched_type": "door", "qualifiers": {}, "context": ""},
-                {"noun_phrase": "frames", "matched_type": "frame", "qualifiers": {}, "context": ""},
-            ],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "",
+                        "matched_type": "door",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                    {
+                        "noun_phrase": "frames",
+                        "matched_type": "frame",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                ],
+            }
+        )
         result = parse_noun_identification_response(response, self._valid_types())
         assert len(result.nouns) == 1
         assert result.nouns[0].noun_phrase == "frames"
@@ -253,8 +292,12 @@ class TestPerNounExtractionPrompt:
     def test_prompt_scoped_to_noun(self):
         vocab = assemble_vocabulary("08")
         prompt = build_per_noun_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2,
-            "steel doors", "door", vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2,
+            "steel doors",
+            "door",
+            vocab,
         )
         assert "steel doors" in prompt
         assert "Focus ONLY on what the section says about" in prompt
@@ -262,8 +305,12 @@ class TestPerNounExtractionPrompt:
     def test_prompt_includes_type_properties(self):
         vocab = assemble_vocabulary("08")
         prompt = build_per_noun_extraction_prompt(
-            "08 11 00", "Metal Doors", SAMPLE_PART2,
-            "steel doors", "door", vocab,
+            "08 11 00",
+            "Metal Doors",
+            SAMPLE_PART2,
+            "steel doors",
+            "door",
+            vocab,
         )
         assert "material" in prompt
         assert "fire_rating" in prompt
@@ -271,8 +318,12 @@ class TestPerNounExtractionPrompt:
     def test_prompt_includes_section_text(self):
         vocab = assemble_vocabulary("08")
         prompt = build_per_noun_extraction_prompt(
-            "08 11 00", None, SAMPLE_PART2,
-            "hollow metal frames", "frame", vocab,
+            "08 11 00",
+            None,
+            SAMPLE_PART2,
+            "hollow metal frames",
+            "frame",
+            vocab,
         )
         assert "Galvanized steel" in prompt
 
@@ -290,24 +341,28 @@ class TestPerNounExtractionParsing:
         return build_valid_properties(vocab)
 
     def test_parse_valid_extraction(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "noun_phrase": "steel doors",
-            "extractions": [
-                {
-                    "property": "material",
-                    "element_type": "door",
-                    "assertion_type": "flat",
-                    "value": "hollow metal",
-                    "confidence": 0.95,
-                    "source_text": "Material: Hollow metal",
-                },
-            ],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "noun_phrase": "steel doors",
+                "extractions": [
+                    {
+                        "property": "material",
+                        "element_type": "door",
+                        "assertion_type": "flat",
+                        "value": "hollow metal",
+                        "confidence": 0.95,
+                        "source_text": "Material: Hollow metal",
+                    },
+                ],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
         exts, unrec, xrefs = parse_per_noun_extraction_response(
-            response, "door", self._valid_props(),
+            response,
+            "door",
+            self._valid_props(),
         )
         assert len(exts) == 1
         assert exts[0].property == "material"
@@ -315,72 +370,86 @@ class TestPerNounExtractionParsing:
 
     def test_element_type_fallback_to_matched(self):
         """If LLM returns wrong element_type, fall back to matched_type."""
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "noun_phrase": "frames",
-            "extractions": [
-                {
-                    "property": "material",
-                    "element_type": "FRAME",  # Wrong casing
-                    "assertion_type": "flat",
-                    "value": "galvanized steel",
-                    "confidence": 0.9,
-                    "source_text": "Material: Galvanized steel",
-                },
-            ],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "noun_phrase": "frames",
+                "extractions": [
+                    {
+                        "property": "material",
+                        "element_type": "FRAME",  # Wrong casing
+                        "assertion_type": "flat",
+                        "value": "galvanized steel",
+                        "confidence": 0.9,
+                        "source_text": "Material: Galvanized steel",
+                    },
+                ],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
         exts, _, _ = parse_per_noun_extraction_response(
-            response, "frame", self._valid_props(),
+            response,
+            "frame",
+            self._valid_props(),
         )
         assert len(exts) == 1
         assert exts[0].element_type == "frame"  # Corrected to matched_type
 
     def test_invalid_property_skipped(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "extractions": [
-                {
-                    "property": "nonexistent",
-                    "element_type": "door",
-                    "assertion_type": "flat",
-                    "value": "x",
-                    "confidence": 0.5,
-                    "source_text": "...",
-                },
-            ],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "extractions": [
+                    {
+                        "property": "nonexistent",
+                        "element_type": "door",
+                        "assertion_type": "flat",
+                        "value": "x",
+                        "confidence": 0.5,
+                        "source_text": "...",
+                    },
+                ],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
         exts, _, _ = parse_per_noun_extraction_response(
-            response, "door", self._valid_props(),
+            response,
+            "door",
+            self._valid_props(),
         )
         assert len(exts) == 0
 
     def test_parse_invalid_json(self):
         exts, unrec, xrefs = parse_per_noun_extraction_response(
-            "not json", "door", self._valid_props(),
+            "not json",
+            "door",
+            self._valid_props(),
         )
         assert exts == []
         assert unrec == []
         assert xrefs == []
 
     def test_parse_with_cross_references(self):
-        response = json.dumps({
-            "section_number": "08 11 00",
-            "extractions": [],
-            "unrecognized": [],
-            "cross_references": [
-                {
-                    "section_number": "08 71 00",
-                    "relationship": "hardware",
-                    "source_text": "Per Section 08 71 00",
-                },
-            ],
-        })
+        response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "extractions": [],
+                "unrecognized": [],
+                "cross_references": [
+                    {
+                        "section_number": "08 71 00",
+                        "relationship": "hardware",
+                        "source_text": "Per Section 08 71 00",
+                    },
+                ],
+            }
+        )
         _, _, xrefs = parse_per_noun_extraction_response(
-            response, "door", self._valid_props(),
+            response,
+            "door",
+            self._valid_props(),
         )
         assert len(xrefs) == 1
         assert xrefs[0].section_number == "08 71 00"
@@ -396,19 +465,33 @@ class TestIdentifyNouns:
 
     @pytest.mark.asyncio
     async def test_identify_nouns_success(self):
-        noun_response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {"noun_phrase": "steel doors", "matched_type": "door", "qualifiers": {}, "context": ""},
-                {"noun_phrase": "metal frames", "matched_type": "frame", "qualifiers": {}, "context": ""},
-            ],
-        })
+        noun_response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "steel doors",
+                        "matched_type": "door",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                    {
+                        "noun_phrase": "metal frames",
+                        "matched_type": "frame",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                ],
+            }
+        )
 
         async def mock_caller(prompt: str) -> str:
             return noun_response
 
         vocab = assemble_vocabulary("08")
-        result = await identify_nouns("08 11 00", "Metal Doors", SAMPLE_PART2, vocab, mock_caller)
+        result = await identify_nouns(
+            "08 11 00", "Metal Doors", SAMPLE_PART2, vocab, mock_caller
+        )
         assert len(result.nouns) == 2
         assert result.nouns[0].matched_type == "door"
         assert result.nouns[1].matched_type == "frame"
@@ -419,7 +502,9 @@ class TestIdentifyNouns:
             raise RuntimeError("API error")
 
         vocab = assemble_vocabulary("08")
-        result = await identify_nouns("08 11 00", None, SAMPLE_PART2, vocab, error_caller)
+        result = await identify_nouns(
+            "08 11 00", None, SAMPLE_PART2, vocab, error_caller
+        )
         assert len(result.nouns) == 0
 
 
@@ -433,32 +518,38 @@ class TestExtractPerNoun:
 
     @pytest.mark.asyncio
     async def test_extract_matched_nouns(self):
-        extraction_response = json.dumps({
-            "section_number": "08 11 00",
-            "noun_phrase": "steel doors",
-            "extractions": [
-                {
-                    "property": "material",
-                    "element_type": "door",
-                    "assertion_type": "flat",
-                    "value": "hollow metal",
-                    "confidence": 0.95,
-                    "source_text": "Material: Hollow metal",
-                },
-            ],
-            "unrecognized": [],
-            "cross_references": [],
-        })
+        extraction_response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "noun_phrase": "steel doors",
+                "extractions": [
+                    {
+                        "property": "material",
+                        "element_type": "door",
+                        "assertion_type": "flat",
+                        "value": "hollow metal",
+                        "confidence": 0.95,
+                        "source_text": "Material: Hollow metal",
+                    },
+                ],
+                "unrecognized": [],
+                "cross_references": [],
+            }
+        )
 
         async def mock_caller(prompt: str) -> str:
             return extraction_response
 
         nouns = [
-            NounIdentification(noun_phrase="steel doors", matched_type="door", qualifiers={}),
+            NounIdentification(
+                noun_phrase="steel doors", matched_type="door", qualifiers={}
+            ),
         ]
         vocab = assemble_vocabulary("08")
 
-        results = await extract_per_noun("08 11 00", None, SAMPLE_PART2, nouns, vocab, mock_caller)
+        results = await extract_per_noun(
+            "08 11 00", None, SAMPLE_PART2, nouns, vocab, mock_caller
+        )
         assert len(results) == 1
         assert len(results[0].extractions) == 1
         assert results[0].extractions[0].property == "material"
@@ -469,11 +560,15 @@ class TestExtractPerNoun:
             return "{}"  # Should never be called for unmatched
 
         nouns = [
-            NounIdentification(noun_phrase="weatherstripping", matched_type=None, qualifiers={}),
+            NounIdentification(
+                noun_phrase="weatherstripping", matched_type=None, qualifiers={}
+            ),
         ]
         vocab = assemble_vocabulary("08")
 
-        results = await extract_per_noun("08 11 00", None, SAMPLE_PART2, nouns, vocab, mock_caller)
+        results = await extract_per_noun(
+            "08 11 00", None, SAMPLE_PART2, nouns, vocab, mock_caller
+        )
         assert len(results) == 1
         assert results[0].attribution_status == "unmatched_type"
         assert len(results[0].extractions) == 0
@@ -488,7 +583,9 @@ class TestExtractPerNoun:
         ]
         vocab = assemble_vocabulary("08")
 
-        results = await extract_per_noun("08 11 00", None, SAMPLE_PART2, nouns, vocab, error_caller)
+        results = await extract_per_noun(
+            "08 11 00", None, SAMPLE_PART2, nouns, vocab, error_caller
+        )
         assert len(results) == 1
         assert len(results[0].extractions) == 0  # Graceful failure
 
@@ -508,7 +605,9 @@ class TestAttributeNounsToElements:
         door2 = await make_item("door", "D-102", {"material": "wood"})
 
         nouns = [
-            NounExtraction(noun_phrase="steel doors", matched_type="door", qualifiers={}),
+            NounExtraction(
+                noun_phrase="steel doors", matched_type="door", qualifiers={}
+            ),
         ]
 
         result = await attribute_nouns_to_elements(db_session, nouns)
@@ -548,7 +647,9 @@ class TestAttributeNounsToElements:
     async def test_unmatched_type(self, db_session):
         """Noun with no matched_type → 'unmatched_type'."""
         nouns = [
-            NounExtraction(noun_phrase="weatherstripping", matched_type=None, qualifiers={}),
+            NounExtraction(
+                noun_phrase="weatherstripping", matched_type=None, qualifiers={}
+            ),
         ]
 
         result = await attribute_nouns_to_elements(db_session, nouns)
@@ -587,32 +688,50 @@ class TestExtractSectionMultiPass:
         # Create door items for attribution
         await make_item("door", "D-101", {"material": "hollow metal"})
 
-        noun_response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {"noun_phrase": "steel doors", "matched_type": "door", "qualifiers": {}, "context": ""},
-            ],
-        })
-        extraction_response = json.dumps({
-            "section_number": "08 11 00",
-            "noun_phrase": "steel doors",
-            "extractions": [
-                {
-                    "property": "material",
-                    "element_type": "door",
-                    "assertion_type": "flat",
-                    "value": "hollow metal",
-                    "confidence": 0.95,
-                    "source_text": "Material: Hollow metal",
-                },
-            ],
-            "unrecognized": [
-                {"term": "STC", "value": "45", "context": "acoustic", "source_text": "STC 45"},
-            ],
-            "cross_references": [
-                {"section_number": "08 71 00", "relationship": "hardware", "source_text": "Per 08 71 00"},
-            ],
-        })
+        noun_response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "steel doors",
+                        "matched_type": "door",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                ],
+            }
+        )
+        extraction_response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "noun_phrase": "steel doors",
+                "extractions": [
+                    {
+                        "property": "material",
+                        "element_type": "door",
+                        "assertion_type": "flat",
+                        "value": "hollow metal",
+                        "confidence": 0.95,
+                        "source_text": "Material: Hollow metal",
+                    },
+                ],
+                "unrecognized": [
+                    {
+                        "term": "STC",
+                        "value": "45",
+                        "context": "acoustic",
+                        "source_text": "STC 45",
+                    },
+                ],
+                "cross_references": [
+                    {
+                        "section_number": "08 71 00",
+                        "relationship": "hardware",
+                        "source_text": "Per 08 71 00",
+                    },
+                ],
+            }
+        )
 
         call_count = 0
 
@@ -689,6 +808,7 @@ class TestExtractSectionMultiPass:
     @pytest.mark.asyncio
     async def test_no_nouns_identified(self, db_session):
         """If Pass 1 finds no nouns, return empty but not failed."""
+
         async def mock_caller(prompt: str) -> str:
             return json.dumps({"section_number": "08 11 00", "nouns": []})
 
@@ -708,21 +828,39 @@ class TestExtractSectionMultiPass:
     @pytest.mark.asyncio
     async def test_cross_reference_deduplication(self, db_session):
         """Same cross-reference from multiple nouns should be deduplicated."""
-        noun_response = json.dumps({
-            "section_number": "08 11 00",
-            "nouns": [
-                {"noun_phrase": "doors", "matched_type": "door", "qualifiers": {}, "context": ""},
-                {"noun_phrase": "frames", "matched_type": "frame", "qualifiers": {}, "context": ""},
-            ],
-        })
-        extraction_response = json.dumps({
-            "section_number": "08 11 00",
-            "extractions": [],
-            "unrecognized": [],
-            "cross_references": [
-                {"section_number": "08 71 00", "relationship": "hardware", "source_text": "Per 08 71 00"},
-            ],
-        })
+        noun_response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "nouns": [
+                    {
+                        "noun_phrase": "doors",
+                        "matched_type": "door",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                    {
+                        "noun_phrase": "frames",
+                        "matched_type": "frame",
+                        "qualifiers": {},
+                        "context": "",
+                    },
+                ],
+            }
+        )
+        extraction_response = json.dumps(
+            {
+                "section_number": "08 11 00",
+                "extractions": [],
+                "unrecognized": [],
+                "cross_references": [
+                    {
+                        "section_number": "08 71 00",
+                        "relationship": "hardware",
+                        "source_text": "Per 08 71 00",
+                    },
+                ],
+            }
+        )
 
         async def mock_caller(prompt: str) -> str:
             if "products, assemblies, components" in prompt.lower():
