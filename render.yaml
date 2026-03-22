@@ -1,14 +1,6 @@
 # Render Infrastructure-as-Code
-# Three resources: Postgres database, backend Web Service, frontend Static Site.
-# Deploy: connect the GitHub repo to Render → New Blueprint Instance.
-
-databases:
-  - name: cadence-db
-    plan: starter
-    databaseName: cadence
-    user: cadence
-    postgresMajorVersion: "16"
-    ipAllowList: []  # Only internal Render connections
+# Two services: backend Web Service, frontend Static Site.
+# Database: create manually in Render dashboard, paste connection string into env vars.
 
 services:
   # ─── Backend API ─────────────────────────────────────────────
@@ -21,13 +13,9 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: cadence-db
-          property: connectionString
+        sync: false  # Paste internal connection string from Render Postgres
       - key: DATABASE_URL_SYNC
-        fromDatabase:
-          name: cadence-db
-          property: connectionString
+        sync: false  # Same connection string
       - key: CORS_ORIGINS
         value: "https://cadence-aec.io,https://www.cadence-aec.io,http://localhost:3000"
       - key: JWT_SECRET
