@@ -334,7 +334,8 @@ async def test_health_by_affected_type(client, dashboard_scenario):
     by_affected = data["by_affected_type"]
     # Both the conflict and change affect door items
     assert "door" in by_affected
-    assert by_affected["door"] >= 2  # conflict + change both affect doors
+    door_total = sum(by_affected["door"].values())
+    assert door_total >= 2  # conflict + change both affect doors
 
 
 @pytest.mark.asyncio

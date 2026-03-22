@@ -18,10 +18,10 @@ async def test_seed_project_creates_hierarchy(db_session):
     # Verify returned IDs
     assert "project" in ids
     assert "building" in ids
+    assert "sd_phase" in ids
     assert "dd_phase" in ids
-    assert "cd_phase" in ids
+    assert "sd_milestone" in ids
     assert "dd_milestone" in ids
-    assert "cd_milestone" in ids
     assert "schedule" in ids
     assert "spec" in ids
 
@@ -187,7 +187,7 @@ async def test_building_connected_to_project(db_session):
 
 @pytest.mark.asyncio
 async def test_seed_creates_two_phases(db_session):
-    """Seed creates DD and CD phases."""
+    """Seed creates SD and DD phases."""
     await seed_project(db_session)
 
     result = await db_session.execute(select(Item).where(Item.item_type == "phase"))
@@ -195,13 +195,13 @@ async def test_seed_creates_two_phases(db_session):
 
     assert len(phases) == 2
     phase_abbreviations = {p.properties.get("abbreviation") for p in phases}
+    assert "SD" in phase_abbreviations
     assert "DD" in phase_abbreviations
-    assert "CD" in phase_abbreviations
 
 
 @pytest.mark.asyncio
 async def test_seed_creates_two_milestones_with_correct_ordinals(db_session):
-    """Seed creates DD (300) and CD (400) milestones with correct ordinals."""
+    """Seed creates SD (200) and DD (300) milestones with correct ordinals."""
     ids = await seed_project(db_session)
 
     # Get milestones
@@ -210,14 +210,14 @@ async def test_seed_creates_two_milestones_with_correct_ordinals(db_session):
 
     assert len(milestones) == 2
 
-    # Create ordinal map
+    # Create ordinal map — keyed by identifier ("100% SD", "100% DD")
     ordinal_map = {m.identifier: m.properties.get("ordinal") for m in milestones}
 
-    # DD should have ordinal 300
-    assert ordinal_map["DD"] == 300
+    # SD should have ordinal 200
+    assert ordinal_map["100% SD"] == 200
 
-    # CD should have ordinal 400
-    assert ordinal_map["CD"] == 400
+    # DD should have ordinal 300
+    assert ordinal_map["100% DD"] == 300
 
 
 # ─── Document Sources ─────────────────────────────────────────
