@@ -19,6 +19,7 @@ from app.api.routes import (
     extraction,
     propagation,
     auth,
+    notes,
 )
 
 app = FastAPI(
@@ -57,3 +58,4 @@ app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
 app.include_router(spec_preprocess.router, prefix="/api/v1", tags=["spec-preprocess"])
 app.include_router(extraction.router, prefix="/api/v1", tags=["extraction"])
 app.include_router(propagation.router, prefix="/api/v1", tags=["spec-propagation"])
+app.include_router(notes.router, prefix="/api/v1", tags=["notes"])

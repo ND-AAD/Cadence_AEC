@@ -11,6 +11,7 @@ from typing import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
@@ -45,6 +46,8 @@ test_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=
 async def setup_db():
     """Create all tables before each test, drop after."""
     async with engine.begin() as conn:
+        # Enable foreign key enforcement in SQLite (required for CASCADE).
+        await conn.execute(text("PRAGMA foreign_keys = ON"))
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:

@@ -207,13 +207,28 @@ async def delete_item(
     item_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete an item. Cascades to connections and snapshots."""
+    """Delete an item and its connections."""
+    from sqlalchemy import or_
+    from app.models.core import Connection, Snapshot
+
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    await db.delete(item)
+    # Delete connections referencing this item (both directions).
+    await db.execute(
+        Connection.__table__.delete().where(
+            or_(
+                Connection.source_item_id == item_id,
+                Connection.target_item_id == item_id,
+            )
+        )
+    )
+    # Delete snapshots referencing this item.
+    await db.execute(Snapshot.__table__.delete().where(Snapshot.item_id == item_id))
+    # Delete the item itself via raw SQL to avoid ORM stale-state issues.
+    await db.execute(Item.__table__.delete().where(Item.id == item_id))
 
 
 # ─── Connected Items ───────────────────────────────────────────
