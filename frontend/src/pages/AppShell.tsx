@@ -34,7 +34,7 @@ import { AddDataModal } from "@/components/import/AddDataModal";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 import { useParams } from "react-router-dom";
 import { getItem, itemDisplayName } from "@/api/items";
-import { filterDataGroups } from "@/utils/groupFilters";
+import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
 
 function AppShellContent() {
   const { state, navigate, setBreadcrumb } = useNavigationContext()!;
@@ -284,10 +284,10 @@ function AppShellContent() {
   /** Connected groups for story panel connection rows (all types). */
   const connectedGroups = connectedData?.connected ?? [];
 
-  /** Filtered groups for the scale panel — data types only, no workflow/hidden. */
+  /** Filtered groups for scale panel + story panel — data types only, no workflow/hidden, no breadcrumb items. */
   const dataGroups = useMemo(
-    () => filterDataGroups(connectedGroups, getType),
-    [connectedGroups, getType],
+    () => excludeBreadcrumbItems(filterDataGroups(connectedGroups, getType), breadcrumbIds),
+    [connectedGroups, getType, breadcrumbIds],
   );
 
   /** Whether the CURRENT VIEW has milestones (only meaningful when viewing the project). */
