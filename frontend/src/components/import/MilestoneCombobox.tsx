@@ -94,14 +94,14 @@ export function MilestoneCombobox({ projectId, value, onChange }: MilestoneCombo
       );
       const ordinal = computeOrdinal(query.trim(), existingOrdinals);
 
-      const milestone = await apiPost<MilestoneItem>("/v1/items", {
+      const milestone = await apiPost<MilestoneItem>("/v1/items/", {
         item_type: "milestone",
         identifier: query.trim(),
         properties: { ordinal },
       });
 
       // Connect to project
-      await apiPost("/v1/connections", {
+      await apiPost("/v1/connections/", {
         source_item_id: projectId,
         target_item_id: milestone.id,
       });

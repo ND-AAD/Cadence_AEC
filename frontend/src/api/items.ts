@@ -37,7 +37,7 @@ export async function getProjectRoot(): Promise<ItemResponse> {
     return await apiGet<ItemResponse>("/v1/config/root");
   } catch {
     // Fallback: query for project-type items and take the first one.
-    const results = await apiGet<{ items: ItemResponse[] }>("/v1/items?type=project&limit=1");
+    const results = await apiGet<{ items: ItemResponse[] }>("/v1/items/?type=project&limit=1");
     if (results.items && results.items.length > 0) {
       return results.items[0];
     }

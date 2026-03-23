@@ -77,13 +77,13 @@ export function SourceCombobox({ projectId, value, onChange }: SourceComboboxPro
     if (!query.trim() || creating) return;
     setCreating(true);
     try {
-      const source = await apiPost<SourceItem>("/v1/items", {
+      const source = await apiPost<SourceItem>("/v1/items/", {
         item_type: selectedType,
         identifier: query.trim(),
         properties: {},
       });
 
-      await apiPost("/v1/connections", {
+      await apiPost("/v1/connections/", {
         source_item_id: projectId,
         target_item_id: source.id,
       });

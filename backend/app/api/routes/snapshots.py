@@ -69,7 +69,7 @@ def _get_ordinal(item: Item) -> int:
 # ─── CRUD ──────────────────────────────────────────────────────
 
 
-@router.post("", response_model=SnapshotResponse, status_code=201)
+@router.post("/", response_model=SnapshotResponse, status_code=201)
 async def create_snapshot(
     payload: SnapshotCreate,
     db: AsyncSession = Depends(get_db),
@@ -123,7 +123,7 @@ async def create_snapshot(
     return snapshot
 
 
-@router.get("", response_model=list[SnapshotResponse])
+@router.get("/", response_model=list[SnapshotResponse])
 async def list_snapshots(
     item_id: uuid.UUID | None = Query(None, description="Filter by item (WHAT)"),
     context_id: uuid.UUID | None = Query(

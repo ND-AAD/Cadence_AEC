@@ -17,7 +17,7 @@ export interface ProjectListResponse {
 }
 
 export async function listProjects(): Promise<ProjectListResponse> {
-  return apiGet<ProjectListResponse>("/v1/items?item_type=project&limit=50");
+  return apiGet<ProjectListResponse>("/v1/items/?item_type=project&limit=50");
 }
 
 export interface CreateProjectRequest {
@@ -26,7 +26,7 @@ export interface CreateProjectRequest {
 }
 
 export async function createProject(req: CreateProjectRequest): Promise<ProjectItem> {
-  return apiPost<ProjectItem>("/v1/items", {
+  return apiPost<ProjectItem>("/v1/items/", {
     item_type: "project",
     identifier: req.name,
     properties: {

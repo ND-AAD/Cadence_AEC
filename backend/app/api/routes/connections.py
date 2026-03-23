@@ -18,7 +18,7 @@ from app.schemas.connections import (
 router = APIRouter()
 
 
-@router.post("", response_model=ConnectionResponse, status_code=201)
+@router.post("/", response_model=ConnectionResponse, status_code=201)
 async def create_connection(
     payload: ConnectionCreate,
     db: AsyncSession = Depends(get_db),
@@ -69,7 +69,7 @@ async def create_connection(
     return connection
 
 
-@router.get("", response_model=list[ConnectionResponse])
+@router.get("/", response_model=list[ConnectionResponse])
 async def list_connections(
     item_id: uuid.UUID | None = Query(
         None, description="Filter by item (source or target)"

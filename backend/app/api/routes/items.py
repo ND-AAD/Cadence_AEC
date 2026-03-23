@@ -27,7 +27,7 @@ router = APIRouter()
 # ─── CRUD ──────────────────────────────────────────────────────
 
 
-@router.post("", response_model=ItemResponse, status_code=201)
+@router.post("/", response_model=ItemResponse, status_code=201)
 async def create_item(
     payload: ItemCreate,
     db: AsyncSession = Depends(get_db),
@@ -82,7 +82,7 @@ async def list_types():
     }
 
 
-@router.get("", response_model=PaginatedItems)
+@router.get("/", response_model=PaginatedItems)
 async def list_items(
     item_type: str | None = Query(None, description="Filter by item type"),
     search: str | None = Query(None, description="Search by identifier (trigram)"),
