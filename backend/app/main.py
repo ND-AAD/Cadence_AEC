@@ -28,6 +28,7 @@ app = FastAPI(
         "Construction document reconciliation platform. "
         "Three tables, one triple: (what, when, who says)."
     ),
+    redirect_slashes=False,
 )
 
 # CORS
