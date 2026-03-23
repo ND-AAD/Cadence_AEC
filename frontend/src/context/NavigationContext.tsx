@@ -6,12 +6,20 @@
 //   - Fork creation (Z-axis lateral jumps)
 //   - Fork absorption (navigate to item on dead branch → fork resolves)
 //   - Pending/error states during async navigation
+//
+// Browser history integration:
+//   Every breadcrumb change pushes to window.history so the browser
+//   back/forward buttons mirror the Powers of Ten navigation. Pressing
+//   back pops one breadcrumb level. Pressing back at the project root
+//   returns to /projects (the React Router entry).
 
 import {
   createContext,
   useContext,
   useReducer,
   useCallback,
+  useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -45,7 +53,6 @@ function navigationReducer(
       return { ...state, pending: true, error: null };
 
     case "NAVIGATE_SUCCESS": {
-      // Determine if this navigation created a fork, absorbed a fork, or is linear.
       if (action.action === "no_path") {
         return {
           ...state,
@@ -55,34 +62,15 @@ function navigationReducer(
         };
       }
 
-      // If we had a fork, check if the navigation absorbed the dead branch
-      // or continued forward from the active branch.
-      if (state.fork && action.action === "push") {
-        // Check if the target (last item in new breadcrumb) was on the inactive branch.
-        const targetId = action.breadcrumb[action.breadcrumb.length - 1]?.id;
-        const isOnDeadBranch = state.fork.inactive.some(
-          (item) => item.id === targetId,
-        );
-        if (isOnDeadBranch) {
-          // Branch absorption: fork resolves to a straight line.
-          return {
-            ...state,
-            breadcrumb: action.breadcrumb,
-            fork: null,
-            pending: false,
-            error: null,
-            lastAction: "push",
-          };
-        }
-        // Forward navigation from the active branch: the user chose to
-        // continue forward, which implicitly resolves the fork.
+      // If we had a fork, any successful navigation resolves it.
+      if (state.fork) {
         return {
           ...state,
           breadcrumb: action.breadcrumb,
           fork: null,
           pending: false,
           error: null,
-          lastAction: "push",
+          lastAction: action.action,
         };
       }
 
@@ -108,7 +96,6 @@ function navigationReducer(
       };
 
     case "POP_TO": {
-      // Snap-back: trim breadcrumb to the given index (inclusive).
       const newBreadcrumb = state.breadcrumb.slice(0, action.index + 1);
       return {
         ...state,
@@ -147,6 +134,18 @@ function navigationReducer(
   }
 }
 
+// ─── Browser History Helpers ──────────────────────────────────────
+
+/** Key used in history.state to identify Cadence breadcrumb entries. */
+const HISTORY_KEY = "cadenceBreadcrumb";
+
+function getEffectiveBreadcrumb(state: NavigationState): BreadcrumbItem[] {
+  if (state.fork) {
+    return [...state.fork.stem, ...state.fork.active];
+  }
+  return state.breadcrumb;
+}
+
 // ─── Context ──────────────────────────────────────────────────────
 
 interface NavigationContextValue {
@@ -159,12 +158,70 @@ interface NavigationContextValue {
   setBreadcrumb: (items: BreadcrumbItem[]) => void;
 }
 
-export const NavigationContext = createContext<NavigationContextValue | null>(null);
+const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(navigationReducer, initialState);
+
+  // ── History sync refs ───────────────────────────────────────────
+  // isRestoringRef: true when a popstate event is driving the breadcrumb
+  // change. Prevents the sync effect from pushing a duplicate entry.
+  // shouldReplaceRef: true when setBreadcrumb is called (initial load).
+  // The next sync should replaceState instead of pushState.
+  const isRestoringRef = useRef(false);
+  const shouldReplaceRef = useRef(false);
+
+  // ── Sync breadcrumb → browser history ───────────────────────────
+  // Runs after every render where breadcrumb or fork changed.
+  useEffect(() => {
+    // Skip if this change came from a popstate restoration.
+    if (isRestoringRef.current) {
+      isRestoringRef.current = false;
+      return;
+    }
+
+    const effectiveBc = getEffectiveBreadcrumb(state);
+    if (effectiveBc.length === 0) return;
+
+    if (shouldReplaceRef.current) {
+      // Initial load / seed: replace current entry, don't add new one.
+      // Merge with existing state to preserve React Router's history data.
+      shouldReplaceRef.current = false;
+      const existing = window.history.state ?? {};
+      window.history.replaceState(
+        { ...existing, [HISTORY_KEY]: effectiveBc },
+        "",
+      );
+    } else {
+      // Navigation action: push new entry so back button works.
+      window.history.pushState({ [HISTORY_KEY]: effectiveBc }, "");
+    }
+  }, [state.breadcrumb, state.fork]);
+
+  // ── Listen for browser back/forward ─────────────────────────────
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const saved: BreadcrumbItem[] | undefined =
+        event.state?.[HISTORY_KEY];
+
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        // Restore breadcrumb from history state.
+        isRestoringRef.current = true;
+        dispatch({ type: "SET_BREADCRUMB", breadcrumb: saved });
+      }
+      // If no Cadence state in the history entry, this is the React Router
+      // entry for /projects (or another non-project route). The browser
+      // URL change will be picked up by React Router automatically.
+      // We do nothing here — the route transition handles it.
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // ── Navigate ────────────────────────────────────────────────────
 
   const navigate = useCallback(
     async (targetId: string) => {
@@ -172,7 +229,6 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 
       try {
         // Build the current breadcrumb IDs for the API call.
-        // If we have a fork, the effective path is stem + active branch.
         const currentIds = state.fork
           ? [
               ...state.fork.stem.map((i) => i.id),
@@ -180,7 +236,6 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
             ]
           : state.breadcrumb.map((i) => i.id);
 
-        // Call the navigation API.
         const response = await navigateToItem(currentIds, targetId);
 
         if (response.action === "no_path") {
@@ -194,7 +249,6 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         }
 
         // Resolve UUIDs to BreadcrumbItems.
-        // Reuse items we already have to avoid unnecessary API calls.
         const existingItems = new Map<string, BreadcrumbItem>();
         for (const item of state.breadcrumb) {
           existingItems.set(item.id, item);
@@ -209,7 +263,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Find IDs we need to fetch.
+        // Fetch any items we don't already have.
         const idsToFetch = response.breadcrumb.filter(
           (id) => !existingItems.has(id),
         );
@@ -234,14 +288,11 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
         );
 
         // Determine if this creates a fork (Z-axis lateral jump).
-        // A fork occurs when bounce_back removes an item from the path
-        // and that item isn't the target (i.e., we jumped laterally).
         if (
           response.action === "bounce_back" &&
           response.bounced_from &&
           !response.breadcrumb.includes(response.bounced_from)
         ) {
-          // Find the fork point: the last common ancestor.
           const oldPath = state.fork
             ? [
                 ...state.fork.stem.map((i) => i.id),
@@ -265,7 +316,6 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           const stemItems = newBreadcrumb.slice(0, forkIndex + 1);
           const activeItems = newBreadcrumb.slice(forkIndex + 1);
 
-          // Build the inactive branch: items from the old path after the fork point.
           const inactiveItems: BreadcrumbItem[] = [];
           for (let i = forkIndex + 1; i < oldPath.length; i++) {
             const item = existingItems.get(oldPath[i]);
@@ -283,7 +333,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Check for fork absorption: if we had a fork and the target is on the dead branch.
+        // Check for fork absorption.
         if (state.fork) {
           const targetOnDeadBranch = state.fork.inactive.some(
             (item) => item.id === targetId,
@@ -315,9 +365,11 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 
   const popTo = useCallback((index: number) => {
     dispatch({ type: "POP_TO", index });
+    // History push happens in the sync effect.
   }, []);
 
   const setBreadcrumb = useCallback((items: BreadcrumbItem[]) => {
+    shouldReplaceRef.current = true;
     dispatch({ type: "SET_BREADCRUMB", breadcrumb: items });
   }, []);
 
@@ -341,3 +393,6 @@ export function useNavigationContext(): NavigationContextValue {
   }
   return ctx;
 }
+
+// Re-export for direct access in Breadcrumb component.
+export { NavigationContext };
