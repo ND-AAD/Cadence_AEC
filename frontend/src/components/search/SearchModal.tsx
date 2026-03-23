@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { searchItems, type SearchResultItem } from "@/api/search";
+import { itemDisplayName } from "@/utils/displayName";
 
 interface SearchModalProps {
   onNavigate: (itemId: string) => void;
@@ -147,7 +148,7 @@ export function SearchModal({ onNavigate, onClose }: SearchModalProps) {
                 </span>
                 {/* Identifier */}
                 <span className="font-mono text-ink truncate">
-                  {item.identifier ?? item.item_type}
+                  {itemDisplayName(item.identifier, item.item_type)}
                 </span>
               </button>
             ))}

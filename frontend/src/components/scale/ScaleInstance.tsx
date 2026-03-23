@@ -6,6 +6,7 @@
 // DS-2 §3: Pips for action count indicators.
 
 import type { ItemSummary } from "@/types/navigation";
+import { itemDisplayName } from "@/utils/displayName";
 
 interface ScaleInstanceProps {
   item: ItemSummary;
@@ -20,7 +21,7 @@ interface ScaleInstanceProps {
 }
 
 export function ScaleInstance({ item, ordinal, onSelect, selected = false }: ScaleInstanceProps) {
-  const name = item.identifier ?? item.item_type;
+  const name = itemDisplayName(item.identifier, item.item_type);
 
   return (
     <button

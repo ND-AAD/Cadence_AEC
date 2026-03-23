@@ -7,6 +7,7 @@
 // DS-2 §3: Pips for action count indicators.
 
 import type { ItemSummary } from "@/types/navigation";
+import { itemDisplayName } from "@/utils/displayName";
 import { IndicatorLane } from "./IndicatorLane";
 import { buildPips, presentCategories } from "@/utils/buildPips";
 
@@ -41,7 +42,7 @@ export function SiblingStrip({
       {siblings.map((sib, i) => {
         const isActive = sib.id === activeId;
         const isInPath = !isActive && breadcrumbIds.has(sib.id);
-        const name = sib.identifier ?? sib.item_type;
+        const name = itemDisplayName(sib.identifier, sib.item_type);
         const pips = buildPips(sib.action_counts, presentCategories(comparisonActive));
 
         return (
