@@ -175,7 +175,7 @@ function AppShellContent() {
 
   // ─── Data hooks ──────────────────────────────────────────────────
 
-  const { item: currentItem, loading: itemLoading, error: itemError } =
+  const { item: currentItem, loading: itemLoading, error: itemError, retry: refreshItem } =
     useCurrentItem(currentItemId);
   const { data: connectedData, loading: connectedLoading, retry: refreshConnected } =
     useConnectedItems(currentItemId);
@@ -363,6 +363,14 @@ function AppShellContent() {
     setSearchOpen(false);
   }, [navigate]);
 
+  // ─── Workflow action refresh ────────────────────────────────────
+  // After any workflow action (resolve, hold, acknowledge, etc.),
+  // refresh the current item and connected data so the UI updates.
+  const handleWorkflowAction = useCallback(() => {
+    refreshItem();
+    refreshConnected();
+  }, [refreshItem, refreshConnected]);
+
   // ─── Loading state ───────────────────────────────────────────────
 
   const isLoading = itemLoading || connectedLoading;
@@ -489,21 +497,28 @@ function AppShellContent() {
       );
     } else if (itemType === "conflict") {
       // Conflict workflow item → ConflictItemView (Surface 2)
-      const conflictSources = connectedGroups
+      // Sources come from connected items that are source types (schedules, specs, etc.)
+      // Values come from the conflict item's snapshot or properties.
+      const conflictProps = currentItem.properties ?? {};
+      const sourceItems = connectedGroups
         .flatMap((g) => g.items)
-        .filter((i) => i.item_type === "schedule" || i.item_type === "specification" || i.item_type === "drawing")
-        .map((s) => ({
-          sourceId: s.id,
-          sourceName: s.identifier ?? s.item_type,
-          value: String(s.identifier ?? ""),
-        }));
+        .filter((i) => {
+          const tc = getType(i.item_type);
+          return tc?.is_source_type === true;
+        });
+      // Build source list — use connected source items with values from conflict snapshots
+      const conflictSources = sourceItems.map((s) => ({
+        sourceId: s.id,
+        sourceName: s.identifier ?? s.item_type,
+        value: String(conflictProps[`value_${s.id}`] ?? s.identifier ?? ""),
+      }));
       storyContent = (
         <ConflictItemView
           item={currentItem}
           sources={conflictSources}
           contextLabel={comparisonState.toContext?.identifier ?? undefined}
           onNavigate={handleNavigate}
-          onWorkflowAction={() => {/* refresh */}}
+          onWorkflowAction={handleWorkflowAction}
         />
       );
     } else if (itemType === "change") {
@@ -516,7 +531,7 @@ function AppShellContent() {
           oldValue={changeProps.previous_value as string | undefined}
           newValue={changeProps.new_value as string | undefined}
           onNavigate={handleNavigate}
-          onWorkflowAction={() => {/* refresh */}}
+          onWorkflowAction={handleWorkflowAction}
         />
       );
     } else if (itemType === "directive") {
@@ -528,7 +543,7 @@ function AppShellContent() {
           propertyName={dirProps.property_name as string | undefined}
           targetValue={dirProps.target_value as string | undefined}
           onNavigate={handleNavigate}
-          onWorkflowAction={() => {/* refresh */}}
+          onWorkflowAction={handleWorkflowAction}
         />
       );
     } else {
@@ -549,6 +564,7 @@ function AppShellContent() {
             fromContextName={comparisonState.fromContext?.identifier ?? "From"}
             toContextName={comparisonState.toContext?.identifier ?? "To"}
             onComparisonToggle={handleComparisonToggle}
+            onWorkflowAction={handleWorkflowAction}
           />
 
           {/* Milestone picker dropdown (anchored to header area) */}
