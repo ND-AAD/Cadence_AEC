@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { listProjects, createProject, type ProjectItem } from "@/api/projects";
+import { LayoutFrame } from "@/components/layout/LayoutFrame";
 
 export default function ProjectListPage() {
   const navigate = useNavigate();
@@ -54,19 +55,19 @@ export default function ProjectListPage() {
     return (p.properties?.description as string) || "";
   }
 
-  // Loading state
+  // All states render inside LayoutFrame — same chrome as every other page.
+  // No scale panel or dock at the project list level.
+  let content: React.ReactNode;
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-vellum flex items-center justify-center">
+    content = (
+      <div className="flex items-center justify-center h-full">
         <p className="text-sm text-trace">Loading projects…</p>
       </div>
     );
-  }
-
-  // Error state — API call failed, no cached projects to show
-  if (error && projects.length === 0 && !creating) {
-    return (
-      <div className="min-h-screen bg-vellum flex flex-col items-center justify-center p-4">
+  } else if (error && projects.length === 0 && !creating) {
+    content = (
+      <div className="flex flex-col items-center justify-center h-full p-4">
         <p className="text-sm text-redline-ink mb-4">{error}</p>
         <button
           onClick={() => { setError(null); loadProjects(); }}
@@ -76,12 +77,9 @@ export default function ProjectListPage() {
         </button>
       </div>
     );
-  }
-
-  // Empty state — no projects, centered on vellum (DS-3 Screen 2, D7)
-  if (projects.length === 0 && !creating) {
-    return (
-      <div className="min-h-screen bg-vellum flex flex-col items-center justify-center p-4">
+  } else if (projects.length === 0 && !creating) {
+    content = (
+      <div className="flex flex-col items-center justify-center h-full p-4">
         <h2 className="text-lg text-graphite mb-2">No projects yet</h2>
         <p className="text-sm text-trace mb-6 max-w-sm text-center">
           Create your first project to start tracking construction document changes.
@@ -94,12 +92,9 @@ export default function ProjectListPage() {
         </button>
       </div>
     );
-  }
-
-  // Empty state with inline form
-  if (projects.length === 0 && creating) {
-    return (
-      <div className="min-h-screen bg-vellum flex flex-col items-center justify-center p-4">
+  } else if (projects.length === 0 && creating) {
+    content = (
+      <div className="flex flex-col items-center justify-center h-full p-4">
         <div className="w-full max-w-sm bg-sheet border border-rule p-6">
           <h3 className="text-sm font-medium text-ink mb-4">New Project</h3>
           <form onSubmit={handleCreate} className="space-y-3">
@@ -153,19 +148,9 @@ export default function ProjectListPage() {
         </div>
       </div>
     );
-  }
-
-  // With projects — breadcrumb bar + project cards (DS-3 Screen 2, D7)
-  return (
-    <div className="min-h-screen bg-vellum flex flex-col">
-      {/* Breadcrumb bar */}
-      <div className="h-10 bg-sheet border-b border-rule flex items-center px-4 shrink-0">
-        <Link to="/projects" className="text-lg font-semibold tracking-tight text-ink select-none hover:text-ink/80 transition-colors">
-          Cadence
-        </Link>
-      </div>
-
-      {/* Project cards grid */}
+  } else {
+    // With projects — project cards grid
+    content = (
       <div className="flex-1 overflow-auto p-6">
         {error && (
           <p className="text-sm text-redline-ink mb-4">{error}</p>
@@ -247,6 +232,12 @@ export default function ProjectListPage() {
           )}
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <LayoutFrame>
+      {content}
+    </LayoutFrame>
   );
 }
