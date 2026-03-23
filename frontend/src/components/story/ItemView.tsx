@@ -250,6 +250,7 @@ export function ItemView({
     }
   } else if (propertyDefs.length > 0) {
     for (const prop of propertyDefs) {
+      if (hiddenKeys.has(prop.name)) continue;
       if (prop.name in item.properties) {
         propertyEntries.push({
           key: prop.name,
@@ -261,8 +262,6 @@ export function ItemView({
       }
     }
   } else {
-    // Internal properties that shouldn't be shown to users
-    const hiddenKeys = new Set(["ordinal"]);
     for (const [key, value] of Object.entries(item.properties)) {
       if (hiddenKeys.has(key)) continue;
       propertyEntries.push({ key, label: key, value, unit: null, status: "aligned" });

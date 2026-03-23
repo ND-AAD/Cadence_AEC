@@ -204,6 +204,18 @@ export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds 
   );
 }
 
+/** Humanize a property item identifier: "door/fire_rating" → "Fire Rating" */
+function displayName(item: ItemSummary): string {
+  const id = item.identifier ?? item.item_type;
+  // Property items use "parent_type/property_name" as identifier.
+  // Extract the property name and humanize it.
+  if (item.item_type === "property" && id.includes("/")) {
+    const propName = id.split("/").pop() ?? id;
+    return propName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return id;
+}
+
 /** Compact inline row — smaller than ProjectItemRow, no expand chevron. */
 function InlineRow({
   item,
@@ -214,7 +226,7 @@ function InlineRow({
   typeLabel: string;
   onNavigate?: (itemId: string) => void;
 }) {
-  const name = item.identifier ?? item.item_type;
+  const name = displayName(item);
   const pips = buildPips(item.action_counts, presentCategories(false));
 
   return (
