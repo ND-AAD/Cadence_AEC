@@ -8,6 +8,8 @@ import type { DockCategory, ImportSummaryResponse } from "@/types/dashboard";
 import { DockCategoryRow } from "./DockCategoryRow";
 import { DockTypeRow } from "./DockTypeRow";
 import { DockImportBar } from "./DockImportBar";
+import { NotesArea } from "./NotesArea";
+import { useNotes } from "@/hooks/useNotes";
 
 interface ExecSummaryDockProps {
   isOpen: boolean;
@@ -18,6 +20,10 @@ interface ExecSummaryDockProps {
   onSelectWorkflowGroup?: (category: string, groupKey: string, groupLabel: string) => void;
   /** Currently active workflow perspective. */
   activeWorkflowPerspective?: { category: string; groupKey: string; groupLabel: string } | null;
+  /** Current item ID in the story panel (for contextual notes). */
+  currentItemId?: string | null;
+  /** Current user name (for note authorship). */
+  userName?: string;
 }
 
 export function ExecSummaryDock({
@@ -27,7 +33,10 @@ export function ExecSummaryDock({
   loading,
   onSelectWorkflowGroup,
   activeWorkflowPerspective,
+  currentItemId,
+  userName = "",
 }: ExecSummaryDockProps) {
+  const { notes, addNote } = useNotes(currentItemId ?? null);
   return (
     <div
       className="shrink-0 bg-vellum border-l border-rule transition-[width] duration-200 ease-in-out overflow-hidden"
@@ -96,8 +105,20 @@ export function ExecSummaryDock({
           </div>
         )}
 
-        {/* Import summary bar (bottom) */}
+        {/* Import summary bar */}
         {!loading && <DockImportBar importSummary={importSummary ?? null} />}
+
+        {/* Notes area (bottom zone) — contextual to current item */}
+        <NotesArea
+          notes={notes.map((n) => ({
+            id: n.id,
+            content: n.content,
+            author: n.author,
+            date: n.created_at ? new Date(n.created_at).toLocaleDateString() : undefined,
+          }))}
+          hasCurrentItem={!!currentItemId}
+          onAddNote={(content) => addNote(content, userName)}
+        />
       </div>
     </div>
   );

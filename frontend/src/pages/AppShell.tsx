@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { NavigationProvider, useNavigationContext } from "@/context/NavigationContext";
+import { useAuth } from "@/context/AuthContext";
 import { ComparisonProvider, useComparisonContext } from "@/context/ComparisonContext";
 import { LayoutFrame } from "@/components/layout/LayoutFrame";
 import { StoryTransition } from "@/components/transitions/StoryTransition";
@@ -36,8 +37,9 @@ import { getItem, itemDisplayName } from "@/api/items";
 import { filterDataGroups } from "@/utils/groupFilters";
 
 function AppShellContent() {
-  const { state, navigate, setBreadcrumb } = useNavigationContext();
+  const { state, navigate, setBreadcrumb } = useNavigationContext()!;
   const { state: comparisonState, activate, deactivate } = useComparisonContext();
+  const { user } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
@@ -578,6 +580,8 @@ function AppShellContent() {
         hasData={projectHasData}
         onAddData={() => setAddDataOpen(true)}
         onSearchOpen={() => setSearchOpen(true)}
+        currentItemId={currentItemId}
+        userName={user?.name ?? ""}
         comparisonBadge={
           comparisonState.isActive ? (
             <span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border border-overlay-border bg-overlay-wash text-overlay shrink-0">

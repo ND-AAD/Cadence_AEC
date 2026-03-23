@@ -52,6 +52,10 @@ interface LayoutFrameProps {
   onSearchOpen?: () => void;
   /** Callback when dock navigation occurs. */
   onDockNavigate?: (itemId: string) => void;
+  /** Current item ID in story panel (for dock notes area). */
+  currentItemId?: string | null;
+  /** Current user name (for note authorship). */
+  userName?: string;
 }
 
 export function LayoutFrame({
@@ -68,6 +72,8 @@ export function LayoutFrame({
   hasData = false,
   onAddData,
   onSearchOpen,
+  currentItemId,
+  userName,
 }: LayoutFrameProps) {
   const { scalePanelOpen, notesPanelOpen, toggleScalePanel, toggleNotesPanel } =
     usePanelState();
@@ -157,6 +163,8 @@ export function LayoutFrame({
           loading={dockLoading}
           onSelectWorkflowGroup={onSelectWorkflowGroup}
           activeWorkflowPerspective={activeWorkflowPerspective}
+          currentItemId={currentItemId}
+          userName={userName}
         />
       </div>
     </div>
