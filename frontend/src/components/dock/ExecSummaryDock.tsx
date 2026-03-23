@@ -24,6 +24,8 @@ interface ExecSummaryDockProps {
   currentItemId?: string | null;
   /** Current user name (for note authorship). */
   userName?: string;
+  /** Navigation handler for instance-level clicks in the tree. */
+  onNavigate?: (itemId: string) => void;
 }
 
 export function ExecSummaryDock({
@@ -35,6 +37,7 @@ export function ExecSummaryDock({
   activeWorkflowPerspective,
   currentItemId,
   userName = "",
+  onNavigate,
 }: ExecSummaryDockProps) {
   const { notes, addNote } = useNotes(currentItemId ?? null);
   return (
@@ -91,6 +94,7 @@ export function ExecSummaryDock({
                             )
                         : undefined
                     }
+                    onNavigate={onNavigate}
                   />
                 ))}
               </DockCategoryRow>

@@ -103,6 +103,14 @@ export interface DirectiveStatusResponse {
 
 // ─── Dock Tree Types ─────────────────────────────────────────────
 
+/** Instance-level item in the dock tree (level 3). */
+export interface DockInstance {
+  id: string;
+  identifier: string;
+  /** Optional property name for display (e.g., "finish", "material"). */
+  propertyName?: string;
+}
+
 /** A level-2 group within a dock category (type, source, or property). */
 export interface DockTypeGroup {
   key: string;
@@ -110,6 +118,8 @@ export interface DockTypeGroup {
   count: number;
   /** Item IDs in this group (for navigation). Populated when backend provides them. */
   itemIds?: string[];
+  /** Instance-level items (level 3). Populated from affected items data. */
+  instances?: DockInstance[];
 }
 
 /** A top-level category in the exec summary dock tree. */

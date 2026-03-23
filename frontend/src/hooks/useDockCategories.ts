@@ -10,8 +10,10 @@ import { useMemo } from "react";
 import type {
   ProjectHealthResponse,
   DirectiveStatusResponse,
+  AffectedItemsResponse,
   DockCategory,
   DockTypeGroup,
+  DockInstance,
 } from "@/types/dashboard";
 import { useTypeRegistry } from "@/hooks/useTypeRegistry";
 
@@ -39,11 +41,36 @@ function getDisplayLabel(typeName: string, pluralLabel?: string): string {
 export function useDockCategories(
   health: ProjectHealthResponse | null,
   directiveStatus: DirectiveStatusResponse | null,
+  affectedItems?: AffectedItemsResponse | null,
 ): DockCategory[] {
   const { getType } = useTypeRegistry();
 
   return useMemo(() => {
     if (!health) return [];
+
+    // Build instance lookup from affected items (level 3 data).
+    // Maps: category → item_type → DockInstance[]
+    const instanceMap: Record<string, Record<string, DockInstance[]>> = {
+      conflicts: {},
+      changes: {},
+      directives: {},
+    };
+    if (affectedItems) {
+      for (const group of affectedItems.groups) {
+        for (const item of group.items) {
+          for (const category of ["conflicts", "changes", "directives"] as const) {
+            if (item.action_counts[category] > 0) {
+              const bucket = instanceMap[category];
+              if (!bucket[group.item_type]) bucket[group.item_type] = [];
+              bucket[group.item_type].push({
+                id: item.id,
+                identifier: item.identifier ?? item.item_type,
+              });
+            }
+          }
+        }
+      }
+    }
 
     const categories: DockCategory[] = [];
 
@@ -57,6 +84,7 @@ export function useDockCategories(
           key: typeName,
           label: getDisplayLabel(typeName, typeConfig?.plural_label),
           count: v.conflicts,
+          instances: instanceMap.conflicts[typeName],
         };
       })
       .sort((a, b) => b.count - a.count);
@@ -82,6 +110,7 @@ export function useDockCategories(
           key: typeName,
           label: getDisplayLabel(typeName, typeConfig?.plural_label),
           count: v.changes,
+          instances: instanceMap.changes[typeName],
         };
       })
       .sort((a, b) => b.count - a.count);
@@ -107,6 +136,7 @@ export function useDockCategories(
           key: typeName,
           label: getDisplayLabel(typeName, typeConfig?.plural_label),
           count: v.directives,
+          instances: instanceMap.directives[typeName],
         };
       })
       .sort((a, b) => b.count - a.count);
@@ -151,5 +181,5 @@ export function useDockCategories(
     });
 
     return categories;
-  }, [health, directiveStatus, getType]);
+  }, [health, directiveStatus, affectedItems, getType]);
 }

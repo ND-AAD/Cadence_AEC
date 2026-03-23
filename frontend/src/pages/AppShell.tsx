@@ -269,11 +269,12 @@ function AppShellContent() {
     directiveStatus,
     loading: dockLoading,
   } = useDashboardHealth();
-  const dockCategories = useDockCategories(dashboardHealth, directiveStatus);
 
   // ─── Affected items for workflow perspective ───────────────────
 
   const { affectedItems } = useAffectedItems(projectId);
+
+  const dockCategories = useDockCategories(dashboardHealth, directiveStatus, affectedItems);
 
   // ─── Derived data ────────────────────────────────────────────────
 
@@ -598,6 +599,7 @@ function AppShellContent() {
         onSearchOpen={() => setSearchOpen(true)}
         currentItemId={currentItemId}
         userName={user?.name ?? ""}
+        onDockNavigate={handleNavigate}
         comparisonBadge={
           comparisonState.isActive ? (
             <span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border border-overlay-border bg-overlay-wash text-overlay shrink-0">

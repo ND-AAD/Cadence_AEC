@@ -74,6 +74,7 @@ export function LayoutFrame({
   onSearchOpen,
   currentItemId,
   userName,
+  onDockNavigate,
 }: LayoutFrameProps) {
   const { scalePanelOpen, notesPanelOpen, toggleScalePanel, toggleNotesPanel } =
     usePanelState();
@@ -165,6 +166,7 @@ export function LayoutFrame({
           activeWorkflowPerspective={activeWorkflowPerspective}
           currentItemId={currentItemId}
           userName={userName}
+          onNavigate={onDockNavigate}
         />
       </div>
     </div>
