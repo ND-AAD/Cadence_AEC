@@ -9,6 +9,7 @@ import type { ItemSummary } from "@/types/navigation";
 import { IndicatorLane } from "./IndicatorLane";
 import { InlineItemPreview } from "./InlineItemPreview";
 import { buildPips, presentCategories } from "@/utils/buildPips";
+import { itemDisplayName } from "@/utils/displayName";
 
 interface ProjectItemRowProps {
   item: ItemSummary;
@@ -35,7 +36,7 @@ export function ProjectItemRow({
   onToggle,
   breadcrumbIds,
 }: ProjectItemRowProps) {
-  const name = item.identifier ?? item.item_type;
+  const name = itemDisplayName(item.identifier, item.item_type);
   const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
 
   const handleChevronClick = (e: React.MouseEvent) => {

@@ -9,6 +9,7 @@ import type { RendererProps } from "./ListRenderer";
 import { RowGroupLabel } from "../RowGroupLabel";
 import { IndicatorLane } from "../IndicatorLane";
 import { buildPips, presentCategories } from "@/utils/buildPips";
+import { itemDisplayName } from "@/utils/displayName";
 
 export function TableRenderer({
   group,
@@ -48,7 +49,7 @@ export function TableRenderer({
           {/* Data rows */}
           <tbody className="divide-y divide-rule/50">
             {group.items.map((item) => {
-              const name = item.identifier ?? item.item_type;
+              const name = itemDisplayName(item.identifier, item.item_type);
               const inPath = breadcrumbIds.has(item.id);
               const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
 

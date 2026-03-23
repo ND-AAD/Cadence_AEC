@@ -9,7 +9,7 @@ They represent the concept itself, enabling navigation, rollup, and
 MasterFormat governance connections.
 """
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.type_config import get_type_config
@@ -30,22 +30,9 @@ async def get_or_create_property_item(
 
     Returns (item, is_new).
     """
-    identifier = f"{parent_type}/{property_name}"
+    path = f"{parent_type}/{property_name}"
 
-    # Check for existing
-    result = await db.execute(
-        select(Item).where(
-            and_(
-                Item.item_type == "property",
-                Item.identifier == identifier,
-            )
-        )
-    )
-    existing = result.scalar_one_or_none()
-    if existing:
-        return existing, False
-
-    # Resolve metadata from type config
+    # Resolve metadata from type config (need label for both lookup and creation)
     label = property_name.replace("_", " ").title()
     data_type = "string"
     unit = None
@@ -59,13 +46,31 @@ async def get_or_create_property_item(
                 unit = prop_def.unit
                 break
 
-    # Create property item
+    # Check for existing (by path in properties, or by label as identifier)
+    result = await db.execute(
+        select(Item).where(
+            and_(
+                Item.item_type == "property",
+                or_(
+                    Item.identifier == path,
+                    Item.identifier == label,
+                ),
+            )
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return existing, False
+
+    # Create property item — identifier is the human-readable label,
+    # path is stored in properties for machine lookup.
     prop_item = Item(
         item_type="property",
-        identifier=identifier,
+        identifier=label,
         properties={
             "property_name": property_name,
             "parent_type": parent_type,
+            "path": path,
             "label": label,
             "data_type": data_type,
             "unit": unit,

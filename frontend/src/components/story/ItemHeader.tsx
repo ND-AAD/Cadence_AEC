@@ -4,6 +4,7 @@
 // DS-2: Includes comparison toggle button to activate milestone picker.
 
 import type { ItemResponse, TypeConfigEntry } from "@/types/navigation";
+import { itemDisplayName } from "@/utils/displayName";
 
 interface ItemHeaderProps {
   item: ItemResponse;
@@ -20,7 +21,7 @@ export function ItemHeader({
   comparisonActive = false,
   onComparisonToggle,
 }: ItemHeaderProps) {
-  const name = item.identifier ?? item.item_type;
+  const name = itemDisplayName(item.identifier, item.item_type);
   const typeLabel = typeConfig?.label ?? item.item_type;
 
   return (

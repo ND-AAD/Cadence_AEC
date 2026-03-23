@@ -8,6 +8,7 @@ import type { RendererProps } from "./ListRenderer";
 import { RowGroupLabel } from "../RowGroupLabel";
 import { IndicatorLane } from "../IndicatorLane";
 import { buildPips, presentCategories } from "@/utils/buildPips";
+import { itemDisplayName } from "@/utils/displayName";
 
 export function CardRenderer({
   group,
@@ -20,7 +21,7 @@ export function CardRenderer({
       <RowGroupLabel label={group.label} />
       <div className="px-4 py-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {group.items.map((item) => {
-          const name = item.identifier ?? item.item_type;
+          const name = itemDisplayName(item.identifier, item.item_type);
           const inPath = breadcrumbIds.has(item.id);
           const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
 

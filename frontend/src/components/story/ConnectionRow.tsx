@@ -8,6 +8,7 @@
 import type { ItemSummary } from "@/types/navigation";
 import { IndicatorLane } from "./IndicatorLane";
 import { buildPips, presentCategories } from "@/utils/buildPips";
+import { itemDisplayName } from "@/utils/displayName";
 
 interface ConnectionRowProps {
   /** Connection label (e.g., type name). */
@@ -29,7 +30,7 @@ export function ConnectionRow({
   onNavigate,
   comparisonActive = false,
 }: ConnectionRowProps) {
-  const name = item.identifier ?? item.item_type;
+  const name = itemDisplayName(item.identifier, item.item_type);
   const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
 
   return (
