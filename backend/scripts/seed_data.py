@@ -336,7 +336,7 @@ async def seed_project(db: AsyncSession) -> dict[str, uuid.UUID]:
 
 
 async def main():
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine = create_async_engine(settings.database_url_async, echo=False)
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )

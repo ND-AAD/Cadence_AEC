@@ -6,11 +6,19 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment."""
 
-    # Database
+    # Database — Render provides postgresql://, we need postgresql+asyncpg://
     DATABASE_URL: str = (
         "postgresql+asyncpg://cadence:cadence_dev@localhost:5432/cadence"
     )
     DATABASE_URL_SYNC: str = "postgresql://cadence:cadence_dev@localhost:5432/cadence"
+
+    @property
+    def database_url_async(self) -> str:
+        """DATABASE_URL guaranteed to use asyncpg driver."""
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
 
     # Application
     APP_NAME: str = "Cadence"

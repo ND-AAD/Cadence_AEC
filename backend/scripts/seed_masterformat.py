@@ -249,7 +249,7 @@ async def main():
     """Standalone seeding — creates a minimal specification item first."""
     from app.core.config import settings
 
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine = create_async_engine(settings.database_url_async, echo=False)
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
