@@ -159,7 +159,7 @@ interface NavigationContextValue {
   setBreadcrumb: (items: BreadcrumbItem[]) => void;
 }
 
-const NavigationContext = createContext<NavigationContextValue | null>(null);
+export const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────
 

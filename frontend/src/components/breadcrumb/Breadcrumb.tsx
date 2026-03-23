@@ -6,7 +6,8 @@
 // system.md: Segments separated by > chevrons. Current: font-medium text-ink.
 //            Ancestors: text-graphite hover:text-ink.
 
-import { useNavigation } from "@/hooks/useNavigation";
+import { useContext } from "react";
+import { NavigationContext } from "@/context/NavigationContext";
 import type { BreadcrumbItem } from "@/types/navigation";
 import { BreadcrumbChevron } from "./BreadcrumbChevron";
 import { BreadcrumbSegment } from "./BreadcrumbSegment";
@@ -57,7 +58,14 @@ function SegmentList({
 // ─── Main Breadcrumb Component ────────────────────────────────────
 
 export function Breadcrumb() {
-  const { state, popTo } = useNavigation();
+  const navCtx = useContext(NavigationContext);
+
+  // Outside NavigationProvider (e.g. project list) — render empty placeholder.
+  if (!navCtx) {
+    return <div className="min-h-[20px]" />;
+  }
+
+  const { state, popTo } = navCtx;
   const { breadcrumb, fork, pending } = state;
 
   // Show the full breadcrumb path. The project root is always the first segment.
