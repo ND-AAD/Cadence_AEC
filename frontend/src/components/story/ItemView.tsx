@@ -21,7 +21,7 @@ import type { ResolvedProperty } from "@/api/snapshots";
 import type { ItemComparison, PropertyChange } from "@/api/comparison";
 import type { ResolutionMethod } from "@/api/actionItems";
 import { resolveConflict } from "@/api/actionItems";
-import { holdItem } from "@/api/workflow";
+import { holdItem, acknowledgeChange } from "@/api/workflow";
 import type { PropertyStatus } from "./PropertyRow";
 import type { ComparisonColumn } from "./PropertyRow";
 import type { PipData, CairnData } from "./IndicatorLane";
@@ -157,14 +157,20 @@ export function ItemView({
     }
   }, [onWorkflowAction]);
 
-  // Hold/Resume/Acknowledge handlers — activated in Surface 2 views where
-  // per-property workflow item IDs are available. Kept here as the shared
-  // pattern; Surface 2 components (ConflictItemView, ChangeItemView) call
-  // the workflow API directly with the item's UUID.
-  //
-  // To activate for Surface 1 (inline expansion), the backend needs to
-  // include workflow item IDs in the resolved properties response.
-  // See: holdItem(), resumeReview(), acknowledgeChange() in api/workflow.ts
+  // ── Real acknowledge handler (uses API when change_item_id available) ──
+  const handleAcknowledge = useCallback(async (key: string, changeItemId?: string) => {
+    if (changeItemId) {
+      try {
+        await acknowledgeChange(changeItemId);
+        onWorkflowAction?.();
+      } catch (err) {
+        console.error("Failed to acknowledge change:", err);
+      }
+    } else {
+      // Fallback: in-memory tracking when change_item_id not available
+      handleAcknowledgeFallback(key);
+    }
+  }, [onWorkflowAction, handleAcknowledgeFallback]);
 
   // ── Build change map from comparison data ──
   const changeMap = useMemo(() => {
@@ -456,7 +462,10 @@ export function ItemView({
                     toContextName={toContextName}
                     onAcknowledge={
                       !isAcknowledgedFallback
-                        ? () => handleAcknowledgeFallback(entry.key)
+                        ? () => handleAcknowledge(
+                            entry.key,
+                            entry.resolved?.workflow?.change_ids?.[0] ?? undefined,
+                          )
                         : undefined
                     }
                     onNavigateToItem={onNavigate}
