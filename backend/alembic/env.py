@@ -16,9 +16,13 @@ from app.models.infrastructure import User, Permission, Notification  # noqa: F4
 
 config = context.config
 
-# Override sqlalchemy.url from environment if available
-database_url = os.environ.get("DATABASE_URL_SYNC")
+# Override sqlalchemy.url from environment if available.
+# Prefer DATABASE_URL_SYNC (sync driver), fall back to DATABASE_URL.
+# Render provides postgresql:// which works for sync (psycopg2).
+# Strip +asyncpg if someone passes the async URL.
+database_url = os.environ.get("DATABASE_URL_SYNC") or os.environ.get("DATABASE_URL")
 if database_url:
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
