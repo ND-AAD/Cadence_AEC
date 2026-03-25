@@ -3,6 +3,8 @@
 // value mode selector (submitted/cumulative), and Current toggle.
 //
 // Implements the tray model from DS-2 Addendum §3.2.
+// CSS matches the v16 reference mockup (ds2-temporal-controls.html).
+//
 // CSS Grid layout with four tray pieces as direct grid children:
 //
 //   ┌──────────┐ ┌──────────┐ ┌─────────┐
@@ -19,21 +21,69 @@
 import type { ViewMode, ValueMode } from "@/context/ComparisonContext";
 
 interface TemporalControlProps {
-  /** Current view mode. */
   viewMode: ViewMode;
-  /** Current value mode. */
   valueMode: ValueMode;
-  /** True if in Current mode. */
   isCurrent: boolean;
-  /** Callback when view mode changes. */
   onViewModeChange: (mode: ViewMode) => void;
-  /** Callback when value mode changes. */
   onValueModeChange: (mode: ValueMode) => void;
-  /** Callback when Current mode is toggled. */
   onCurrentToggle: () => void;
-  /** Whether the control is visible. */
   visible?: boolean;
 }
+
+// ── CSS custom properties matching the v16 mockup ──
+const TC = {
+  tray: "#D4D2CE",
+  trayRadius: "3px",
+  btnRadius: "2.5px",
+  pad: "2px",
+  gap: "3px",
+  btnW: "72px",
+  btnH: "22px",
+  innerGap: "7px",
+} as const;
+
+// Shared styles extracted as objects to match the mockup exactly.
+const trayStyle: React.CSSProperties = {
+  background: TC.tray,
+  borderRadius: TC.trayRadius,
+  padding: TC.pad,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const btnStyle: React.CSSProperties = {
+  fontFamily: "var(--font-mono, ui-monospace, monospace)",
+  fontSize: "9px",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+  lineHeight: TC.btnH,
+  height: TC.btnH,
+  width: TC.btnW,
+  textAlign: "center",
+  padding: 0,
+  border: "none",
+  borderRadius: TC.btnRadius,
+  cursor: "pointer",
+  userSelect: "none",
+  whiteSpace: "nowrap",
+  transition: "background 0.15s, color 0.15s, box-shadow 0.15s",
+};
+
+const btnActiveStyle: React.CSSProperties = {
+  background: "#FFFFFF",
+  color: "var(--ink, #1C1B18)",
+  fontWeight: 600,
+  boxShadow:
+    "0 0.5px 1px rgba(28, 27, 24, 0.06), inset 0 0 0 0.5px rgba(28, 27, 24, 0.08)",
+};
+
+const btnInactiveStyle: React.CSSProperties = {
+  background: "transparent",
+  color: "rgba(28, 27, 24, 0.40)",
+  fontWeight: 400,
+  boxShadow: "none",
+};
 
 export function TemporalControl({
   viewMode,
@@ -44,55 +94,33 @@ export function TemporalControl({
   onCurrentToggle,
   visible = true,
 }: TemporalControlProps) {
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
-  // Shared tray styling
-  const tray = "bg-[#D4D2CE] rounded-[3px] p-[2px]";
+  const on = (active: boolean) => ({
+    ...btnStyle,
+    ...(active && !isCurrent ? btnActiveStyle : btnInactiveStyle),
+  });
 
-  // Button styling
-  const btnBase = [
-    "w-[72px] h-[22px] rounded-[2.5px]",
-    "font-mono text-[9px] uppercase tracking-[0.04em]",
-    "transition-all duration-100",
-    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-  ].join(" ");
-
-  const btnActive = [
-    "bg-white text-ink font-semibold",
-    "shadow-[inset_0_0_0_0.5px_rgba(28,27,24,0.08),0_0.5px_1px_rgba(28,27,24,0.06)]",
-  ].join(" ");
-
-  const btnInactive = [
-    "bg-transparent text-[rgba(28,27,24,0.4)]",
-    "hover:bg-[rgba(255,255,255,0.2)] hover:text-[rgba(28,27,24,0.65)]",
-  ].join(" ");
-
-  // Dimming for left-column trays when Current is active (§3.2)
-  const leftDim = isCurrent ? "opacity-30 pointer-events-none" : "";
-
-  const btn = (active: boolean) =>
-    `${btnBase} ${active && !isCurrent ? btnActive : btnInactive}`;
+  const dimmed: React.CSSProperties = isCurrent
+    ? { opacity: 0.3, pointerEvents: "none" }
+    : {};
 
   return (
     <div
-      className="grid gap-[3px]"
       style={{
+        display: "grid",
         gridTemplateColumns: "auto auto auto",
         gridTemplateRows: "auto auto",
+        gap: TC.gap,
       }}
     >
       {/* Single tray (col 1, row 1) */}
-      <div
-        className={`${tray} ${leftDim}`}
-        style={{ gridColumn: 1, gridRow: 1 }}
-      >
+      <div style={{ ...trayStyle, gridColumn: 1, gridRow: 1, ...dimmed }}>
         <button
           type="button"
           onClick={() => onViewModeChange("single")}
           disabled={isCurrent}
-          className={btn(viewMode === "single")}
+          style={on(viewMode === "single")}
           title="Single milestone view"
         >
           Single
@@ -100,15 +128,12 @@ export function TemporalControl({
       </div>
 
       {/* Compare tray (col 2, row 1) */}
-      <div
-        className={`${tray} ${leftDim}`}
-        style={{ gridColumn: 2, gridRow: 1 }}
-      >
+      <div style={{ ...trayStyle, gridColumn: 2, gridRow: 1, ...dimmed }}>
         <button
           type="button"
           onClick={() => onViewModeChange("compare")}
           disabled={isCurrent}
-          className={btn(viewMode === "compare")}
+          style={on(viewMode === "compare")}
           title="Compare two milestones"
         >
           Compare
@@ -117,14 +142,19 @@ export function TemporalControl({
 
       {/* Value tray (col 1–2, row 2) — segmented pair */}
       <div
-        className={`${tray} flex gap-[7px] ${leftDim}`}
-        style={{ gridColumn: "1 / 3", gridRow: 2 }}
+        style={{
+          ...trayStyle,
+          gridColumn: "1 / 3",
+          gridRow: 2,
+          gap: TC.innerGap,
+          ...dimmed,
+        }}
       >
         <button
           type="button"
           onClick={() => onValueModeChange("submitted")}
           disabled={isCurrent}
-          className={btn(valueMode === "submitted")}
+          style={on(valueMode === "submitted")}
           title="Show submitted values only"
         >
           Submitted
@@ -133,7 +163,7 @@ export function TemporalControl({
           type="button"
           onClick={() => onValueModeChange("cumulative")}
           disabled={isCurrent}
-          className={btn(valueMode === "cumulative")}
+          style={on(valueMode === "cumulative")}
           title="Show cumulative (carried-forward) values"
         >
           Cumulative
@@ -141,15 +171,19 @@ export function TemporalControl({
       </div>
 
       {/* Current tray (col 3, row 1–2) */}
-      <div
-        className={`${tray} flex items-stretch`}
-        style={{ gridColumn: 3, gridRow: "1 / 3" }}
-      >
+      <div style={{ ...trayStyle, gridColumn: 3, gridRow: "1 / 3" }}>
         <button
           type="button"
           onClick={onCurrentToggle}
-          className={btn(isCurrent)}
-          style={{ height: "100%" }}
+          style={{
+            ...on(isCurrent),
+            width: TC.btnW,
+            height: "100%",
+            lineHeight: "1",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
           title="View latest values across all milestones"
         >
           Current
