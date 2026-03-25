@@ -1,10 +1,13 @@
 """Application configuration via environment variables."""
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment."""
+
+    model_config = ConfigDict(env_file=".env", extra="ignore")
 
     # Database — Render provides postgresql://, we need postgresql+asyncpg://
     DATABASE_URL: str = (
@@ -50,9 +53,6 @@ class Settings(BaseSettings):
 
     # Registration
     ALPHA_INVITE_CODE: str = "CADENCE-ALPHA"
-
-    class Config:
-        env_file = ".env"
 
     def model_post_init(self, __context) -> None:
         """Fix Render's database URL format for asyncpg."""

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-2 Addendum v2: Temporal Controls — v16</title>
+  <style>
+    :root {
+      --sheet: #FAF9F6;
+      --vellum: #F0EFEC;
+      --board: #E7E5E2;
+      --ink: #1C1B18;
+      --graphite: #57554F;
+      --trace: #9D9B95;
+      --rule: #DFDDD9;
+      --rule-emphasis: #CECCC7;
+      --pencil: #FA9442;
+      --pencil-wash: #FFF5EA;
+      --pencil-ink: #B06218;
+      --overlay: #002FA7;
+      --overlay-wash: #EFF2FB;
+      --overlay-border: #6A7EB5;
+      --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: 'GeistMono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+      --tray: #D4D2CE;
+      --tray-radius: 3px;
+      --tc-btn-radius: 2.5px;
+      --tc-pad: 2px;
+      --tc-gap: 3px;
+      --tc-btn-w: 72px;
+      --tc-btn-h: 22px;
+      --tc-inner-gap: 7px;
+    }
+
+    @font-face { font-family: 'Geist'; src: url('../../frontend/public/fonts/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; }
+    @font-face { font-family: 'GeistMono'; src: url('../../frontend/public/fonts/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans); background: var(--vellum); color: var(--ink);
+      font-size: 13px; line-height: 20px; padding: 40px; max-width: 960px;
+    }
+
+    .mockup-title { font-size: 11px; font-family: var(--font-mono); color: var(--trace); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .mockup-note { font-size: 11px; color: var(--trace); margin-bottom: 24px; line-height: 16px; }
+    .mockup-section { margin-bottom: 48px; }
+    .mockup-label { font-size: 11px; font-family: var(--font-mono); color: var(--graphite); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 1px solid var(--rule); }
+
+    .status-readout {
+      font-family: var(--font-mono); font-size: 11px; color: var(--graphite);
+      background: var(--board); padding: 6px 12px; border-radius: 3px;
+      margin-bottom: 16px; display: flex; gap: 16px;
+    }
+    .status-readout .active-val { color: var(--ink); font-weight: 500; }
+
+    .item-card {
+      background: var(--sheet); border: 1px solid var(--rule);
+      border-radius: 4px; overflow: hidden;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .item-card.compare-active {
+      border: 2px solid var(--overlay-border);
+      background: var(--overlay-wash);
+    }
+
+    .item-header {
+      padding: 10px 16px; border-bottom: 1px solid var(--rule);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .item-identity { display: flex; align-items: baseline; gap: 6px; }
+    .item-name { font-family: var(--font-mono); font-size: 14px; font-weight: 500; }
+    .item-type { font-size: 12px; color: var(--graphite); }
+    .header-controls { display: flex; align-items: center; gap: 10px; }
+
+    /* ── Temporal control ── */
+    .temporal-control {
+      display: grid;
+      grid-template-columns: auto auto auto;
+      grid-template-rows: auto auto;
+      gap: var(--tc-gap);
+    }
+
+    .tc-tray {
+      background: var(--tray);
+      border-radius: var(--tray-radius);
+      padding: var(--tc-pad);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tc-tray-single  { grid-column: 1; grid-row: 1; }
+    .tc-tray-compare { grid-column: 2; grid-row: 1; }
+    .tc-tray-value   { grid-column: 1 / 3; grid-row: 2; gap: var(--tc-inner-gap); }
+    .tc-tray-value .tc-btn { width: var(--tc-btn-w); }
+    .tc-tray-current { grid-column: 3; grid-row: 1 / 3; }
+
+    .tc-dimmable.dimmed { opacity: 0.3; pointer-events: none; }
+
+    .tc-btn {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: var(--tc-btn-h);
+      height: var(--tc-btn-h);
+      width: var(--tc-btn-w);
+      text-align: center;
+      padding: 0;
+      border: none;
+      border-radius: var(--tc-btn-radius);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      background: transparent;
+      color: rgba(28, 27, 24, 0.40);
+    }
+    .tc-btn:hover:not(.tc-on) {
+      color: rgba(28, 27, 24, 0.65);
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .tc-btn.tc-on {
+      background: #FFFFFF;
+      color: var(--ink);
+      font-weight: 600;
+      box-shadow:
+        0 0.5px 1px rgba(28, 27, 24, 0.06),
+        inset 0 0 0 0.5px rgba(28, 27, 24, 0.08);
+    }
+
+    .tc-tray-current .tc-btn {
+      width: var(--tc-btn-w);
+      height: 100%;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Milestone picker ── */
+    .picker-overlay { display: none; position: fixed; inset: 0; z-index: 99; }
+    .picker-overlay.open { display: block; }
+    .milestone-picker {
+      position: absolute; top: 100%; right: 0; margin-top: 6px;
+      width: 260px; background: var(--sheet);
+      border: 2px solid var(--overlay-border); border-radius: 4px;
+      padding: 16px; z-index: 100;
+      box-shadow: 0 2px 8px rgba(28, 27, 24, 0.08), 0 1px 2px rgba(28, 27, 24, 0.04);
+    }
+    .picker-title { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--overlay); margin-bottom: 14px; }
+    .picker-label { font-size: 12px; color: var(--graphite); margin-bottom: 4px; }
+    .picker-select {
+      width: 100%; padding: 8px 12px; font-family: var(--font-mono); font-size: 13px;
+      border: 1px solid var(--rule-emphasis); border-radius: 3px;
+      background: var(--sheet); color: var(--ink); margin-bottom: 14px;
+      cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%2357554F' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    .picker-actions { display: flex; align-items: center; justify-content: space-between; }
+    .picker-cancel { font-size: 12px; color: var(--graphite); background: none; border: none; cursor: pointer; padding: 4px 0; }
+    .picker-cancel:hover { color: var(--ink); }
+    .picker-confirm {
+      font-family: var(--font-mono); font-size: 12px; padding: 6px 16px;
+      border: 1px solid var(--overlay-border); border-radius: 3px;
+      background: var(--sheet); color: var(--overlay); cursor: pointer;
+      font-weight: 500; transition: background 0.12s;
+    }
+    .picker-confirm:hover { background: var(--overlay-wash); }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb {
+      font-size: 13px; padding: 8px 16px 14px; background: var(--vellum);
+      border-bottom: 1px solid var(--rule);
+    }
+    .bc-segment { color: var(--graphite); cursor: pointer; }
+    .bc-segment:hover { color: var(--ink); }
+    .bc-segment.bc-current { color: var(--ink); font-weight: 500; }
+    .bc-chevron { color: var(--trace); padding: 0 6px; }
+    .bc-current-label { font-size: 11px; color: var(--trace); font-style: italic; padding-left: 6px; }
+
+    /* Fork: chevron stays inline, adjacency is positioned absolutely below it */
+    .bc-fork-anchor {
+      position: relative;
+      display: inline;
+    }
+    .bc-fork-anchor .bc-chevron {
+      /* Chevron renders normally in inline flow */
+    }
+    .bc-fork-branch {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      white-space: nowrap;
+      font-size: 11px;
+      color: var(--trace);
+      line-height: 16px;
+      padding-top: 1px;
+    }
+    .bc-fork-branch::before {
+      content: '└';
+      margin-right: 3px;
+      color: var(--rule-emphasis);
+    }
+
+    .row-group-label {
+      font-size: 11px; font-family: var(--font-mono); color: var(--trace);
+      text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 16px;
+      background: rgba(240, 239, 236, 0.5);
+    }
+    .comparison-header {
+      display: grid; grid-template-columns: 120px 1fr 1fr 28px;
+      padding: 4px 16px; gap: 12px;
+    }
+    .col-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; color: var(--overlay-border); letter-spacing: 0.02em; }
+
+    .property-row {
+      display: grid; grid-template-columns: 120px 1fr 28px;
+      padding: 7px 16px; min-height: 34px; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--rule); cursor: pointer; transition: background 0.1s;
+    }
+    .property-row:hover { background: rgba(231, 229, 226, 0.3); }
+    .property-row.compare-row { grid-template-columns: 120px 1fr 1fr 28px; }
+    .property-row.row-changed { border-left: 2px solid var(--pencil); }
+
+    .prop-name { font-size: 12px; color: var(--graphite); }
+    .prop-value { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
+    .prop-value.text-trace { color: var(--trace); }
+    .prop-value.text-pencil-ink { color: var(--pencil-ink); font-weight: 500; }
+    .prop-value.dash { color: var(--trace); }
+
+    .indicator-lane { display: flex; flex-direction: row-reverse; align-items: center; width: 28px; justify-content: flex-start; }
+    .pip { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pip-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .pip-dot.filled-amber { background: var(--pencil); }
+
+    .row-expansion {
+      padding: 6px 16px 10px 132px; border-bottom: 1px solid var(--rule);
+      background: rgba(240, 239, 236, 0.25); display: none;
+    }
+    .row-expansion.open { display: block; }
+    .provenance-line { font-family: var(--font-mono); font-size: 12px; color: var(--graphite); }
+    .provenance-sub { font-size: 11px; color: var(--trace); margin-top: 2px; }
+
+    .walkthrough { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .wt-btn {
+      font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.03em; padding: 5px 12px; border: 1px solid var(--rule-emphasis);
+      border-radius: 3px; background: var(--sheet); color: var(--graphite);
+      cursor: pointer; transition: all 0.12s;
+    }
+    .wt-btn:hover { border-color: var(--graphite); color: var(--ink); }
+    .wt-btn.wt-active { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+  </style>
+</head>
+<body>
+
+  <div class="mockup-section">
+    <div class="mockup-title">DS-2 Addendum v2 — Temporal Controls (v16)</div>
+    <div class="mockup-note">
+      Compact: 72×22px buttons, 9px mono uppercase, 2px padding, 3px gaps.<br>
+      Radii: 3px trays, 2.5px buttons. Hairline 0.5px inset border on active.<br>
+      Breadcrumb fork: adjacency positioned absolutely below chevron, inline flow preserved.
+    </div>
+  </div>
+
+  <div class="mockup-section">
+    <div class="mockup-label">Walkthrough</div>
+    <div class="walkthrough">
+      <button class="wt-btn wt-active" onclick="setState('single-cumulative-100', this)">1. Single+Cumulative @100%CD</button>
+      <button class="wt-btn" onclick="setState('single-submitted-100', this)">2. Single+Submitted @100%CD</button>
+      <button class="wt-btn" onclick="setState('single-submitted-50', this)">3. Switch to 50%CD</button>
+      <button class="wt-btn" onclick="setState('compare-submitted', this)">4. Compare+Submitted</button>
+      <button class="wt-btn" onclick="setState('current', this)">5. Current</button>
+      <button class="wt-btn" onclick="setState('compare-cumulative', this)">6. Compare+Cumulative</button>
+    </div>
+  </div>
+
+  <div class="status-readout">
+    <span>View: <span class="active-val" id="readoutView">Single</span></span>
+    <span>Value: <span class="active-val" id="readoutValue">Cumulative</span></span>
+    <span>Context: <span class="active-val" id="readoutContext">100% CD</span></span>
+  </div>
+
+  <div class="breadcrumb" id="breadcrumb"></div>
+
+  <div class="item-card" id="itemCard">
+    <div class="item-header">
+      <div class="item-identity">
+        <span class="item-name">1</span>
+        <span style="color: var(--trace)">&middot;</span>
+        <span class="item-type">Door</span>
+      </div>
+
+      <div class="header-controls">
+        <div class="temporal-control">
+          <div class="tc-tray tc-tray-single tc-dimmable">
+            <button class="tc-btn tc-on" id="tcSingle" onclick="clickViewMode('single')">Single</button>
+          </div>
+          <div class="tc-tray tc-tray-compare tc-dimmable">
+            <button class="tc-btn" id="tcCompare" onclick="clickViewMode('compare')">Compare</button>
+          </div>
+          <div class="tc-tray tc-tray-value tc-dimmable">
+            <button class="tc-btn" id="tcSubmitted" onclick="clickValueMode('submitted')">Submitted</button>
+            <button class="tc-btn tc-on" id="tcCumulative" onclick="clickValueMode('cumulative')">Cumulative</button>
+          </div>
+          <div class="tc-tray tc-tray-current">
+            <button class="tc-btn" id="tcCurrent" onclick="toggleCurrent()">Current</button>
+          </div>
+        </div>
+
+        <div style="position: relative;" id="pickerAnchor">
+          <div class="milestone-picker" id="milestonePicker" style="display: none;">
+            <div class="picker-title" id="pickerTitle">Select Milestone</div>
+            <div id="pickerFieldFrom">
+              <div class="picker-label" id="pickerLabelFrom">Milestone</div>
+              <select class="picker-select" id="pickerFrom">
+                <option value="50">50% CD</option>
+                <option value="100">100% CD</option>
+              </select>
+            </div>
+            <div id="pickerFieldTo" style="display:none;">
+              <div class="picker-label">To (later)</div>
+              <select class="picker-select" id="pickerTo">
+                <option value="50">50% CD</option>
+                <option value="100" selected>100% CD</option>
+              </select>
+            </div>
+            <div class="picker-actions">
+              <button class="picker-cancel" onclick="closePicker()">Cancel</button>
+              <button class="picker-confirm" id="pickerConfirm" onclick="confirmPicker()">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comparison-header" id="comparisonHeader" style="display: none;">
+      <div></div>
+      <div class="col-label">50% CD</div>
+      <div class="col-label">100% CD</div>
+      <div></div>
+    </div>
+
+    <div class="row-group-label">Properties</div>
+    <div id="propertyRows"></div>
+  </div>
+
+  <div class="picker-overlay" id="pickerOverlay" onclick="closePicker()"></div>
+
+  <script>
+    const PROPS = [
+      { name: 'Level',         at50: 'BASEMENT',      at100: 'BASEMENT' },
+      { name: 'Width',         at50: '914.4 in',      at100: '914.4 in' },
+      { name: 'Height',        at50: '2133.6 in',     at100: '2133.6 in' },
+      { name: 'Thickness',     at50: null,             at100: '44.450 in' },
+      { name: 'Door Type',     at50: 'SINGLE',        at100: 'SINGLE' },
+      { name: 'Material',      at50: 'Hollow Metal',  at100: 'Hollow Metal' },
+      { name: 'Finish',        at50: 'Paint',         at100: 'Paint' },
+      { name: 'Hardware Set',  at50: 'E',             at100: 'E' },
+      { name: 'Fire Rating',   at50: '180min',        at100: '180min' },
+      { name: 'Handing',       at50: null,             at100: 'Right Hand Reverse' },
+      { name: 'Swing',         at50: null,             at100: 'RHR' },
+      { name: 'Closer',        at50: null,             at100: 'Yes' },
+      { name: 'Lock Function', at50: null,             at100: 'Storeroom' },
+    ];
+
+    let viewMode = 'single', valueMode = 'cumulative', isCurrent = false, milestone = '100', hasExplicitlyToggled = false;
+
+    function clickViewMode(mode) {
+      if (isCurrent) return;
+      if (mode === 'compare') { openPicker('compare'); }
+      else if (mode === 'single' && viewMode === 'compare') {
+        viewMode = 'single';
+        if (!hasExplicitlyToggled) valueMode = 'cumulative';
+        render();
+      } else if (mode === 'single' && viewMode === 'single') { openPicker('single'); }
+    }
+
+    function clickValueMode(mode) {
+      if (isCurrent) return;
+      valueMode = mode;
+      hasExplicitlyToggled = true;
+      render();
+    }
+
+    function toggleCurrent() { isCurrent = !isCurrent; render(); }
+
+    function openPicker(mode) {
+      const pk = document.getElementById('milestonePicker');
+      const ov = document.getElementById('pickerOverlay');
+      const fTo = document.getElementById('pickerFieldTo');
+      const title = document.getElementById('pickerTitle');
+      const confirm = document.getElementById('pickerConfirm');
+      const lbl = document.getElementById('pickerLabelFrom');
+      window._pickerMode = mode;
+      if (mode === 'compare') {
+        title.textContent = 'Compare Milestones';
+        lbl.textContent = 'From (earlier)';
+        fTo.style.display = 'block';
+        confirm.textContent = 'Compare';
+        document.getElementById('pickerFrom').value = '50';
+        document.getElementById('pickerTo').value = '100';
+      } else {
+        title.textContent = 'Select Milestone';
+        lbl.textContent = 'Milestone';
+        fTo.style.display = 'none';
+        confirm.textContent = 'Apply';
+        document.getElementById('pickerFrom').value = milestone;
+      }
+      pk.style.display = 'block';
+      ov.classList.add('open');
+    }
+
+    function closePicker() {
+      document.getElementById('milestonePicker').style.display = 'none';
+      document.getElementById('pickerOverlay').classList.remove('open');
+    }
+
+    function confirmPicker() {
+      if (window._pickerMode === 'compare') {
+        viewMode = 'compare';
+        if (!hasExplicitlyToggled) valueMode = 'submitted';
+      } else {
+        milestone = document.getElementById('pickerFrom').value;
+        viewMode = 'single';
+      }
+      closePicker(); render();
+    }
+
+    function setState(preset, btn) {
+      hasExplicitlyToggled = false; closePicker();
+      switch (preset) {
+        case 'single-cumulative-100': viewMode='single'; valueMode='cumulative'; isCurrent=false; milestone='100'; break;
+        case 'single-submitted-100': viewMode='single'; valueMode='submitted'; isCurrent=false; milestone='100'; hasExplicitlyToggled=true; break;
+        case 'single-submitted-50': viewMode='single'; valueMode='submitted'; isCurrent=false; milestone='50'; hasExplicitlyToggled=true; break;
+        case 'compare-submitted': viewMode='compare'; valueMode='submitted'; isCurrent=false; milestone='50'; break;
+        case 'current': isCurrent=true; break;
+        case 'compare-cumulative': viewMode='compare'; valueMode='cumulative'; isCurrent=false; milestone='50'; hasExplicitlyToggled=true; break;
+      }
+      render();
+      document.querySelectorAll('.wt-btn').forEach(b => b.classList.remove('wt-active'));
+      if (btn) btn.classList.add('wt-active');
+    }
+
+    function render() {
+      document.getElementById('tcSingle').classList.toggle('tc-on', !isCurrent && viewMode === 'single');
+      document.getElementById('tcCompare').classList.toggle('tc-on', !isCurrent && viewMode === 'compare');
+      document.getElementById('tcSubmitted').classList.toggle('tc-on', !isCurrent && valueMode === 'submitted');
+      document.getElementById('tcCumulative').classList.toggle('tc-on', !isCurrent && valueMode === 'cumulative');
+      document.getElementById('tcCurrent').classList.toggle('tc-on', isCurrent);
+      document.querySelectorAll('.tc-dimmable').forEach(el => el.classList.toggle('dimmed', isCurrent));
+
+      document.getElementById('itemCard').classList.toggle('compare-active', !isCurrent && viewMode === 'compare');
+      document.getElementById('comparisonHeader').style.display = (!isCurrent && viewMode === 'compare') ? 'grid' : 'none';
+
+      document.getElementById('readoutView').textContent = isCurrent ? '—' : (viewMode === 'single' ? 'Single' : 'Compare');
+      document.getElementById('readoutValue').textContent = isCurrent ? 'Current' : (valueMode === 'submitted' ? 'Submitted' : 'Cumulative');
+      document.getElementById('readoutContext').textContent = isCurrent ? 'Latest' : (viewMode === 'compare' ? '50% CD ↔ 100% CD' : (milestone === '50' ? '50% CD' : '100% CD'));
+
+      renderBreadcrumb();
+      renderProperties();
+    }
+
+    function renderBreadcrumb() {
+      const bc = document.getElementById('breadcrumb');
+      let h = '<span class="bc-segment">Cadence</span><span class="bc-chevron">&rsaquo;</span>' +
+              '<span class="bc-segment">Case Study #22</span>';
+
+      if (isCurrent) {
+        h += '<span class="bc-chevron">&rsaquo;</span>' +
+             '<span class="bc-segment">100% CD</span>' +
+             '<span class="bc-current-label">(Current)</span>' +
+             '<span class="bc-chevron">&rsaquo;</span>' +
+             '<span class="bc-segment bc-current">1</span>';
+      } else if (!isCurrent && viewMode !== 'compare' && milestone === '50') {
+        // Fork: chevron stays inline, adjacency hangs below it absolutely
+        h += '<span class="bc-fork-anchor">' +
+               '<span class="bc-chevron">&rsaquo;</span>' +
+               '<span class="bc-fork-branch">100% CD</span>' +
+             '</span>' +
+             '<span class="bc-segment">50% CD</span>' +
+             '<span class="bc-chevron">&rsaquo;</span>' +
+             '<span class="bc-segment bc-current">1</span>';
+      } else {
+        const ml = (!isCurrent && viewMode === 'compare') ? '50% CD' : (milestone === '50' ? '50% CD' : '100% CD');
+        h += '<span class="bc-chevron">&rsaquo;</span>' +
+             '<span class="bc-segment">' + ml + '</span>' +
+             '<span class="bc-chevron">&rsaquo;</span>' +
+             '<span class="bc-segment bc-current">1</span>';
+      }
+      bc.innerHTML = h;
+    }
+
+    function renderProperties() {
+      const c = document.getElementById('propertyRows');
+      const isComp = !isCurrent && viewMode === 'compare';
+      let h = '';
+      PROPS.forEach(p => {
+        if (isCurrent) h += rowCurrent(p);
+        else if (isComp) h += rowCompare(p);
+        else h += rowSingle(p);
+      });
+      c.innerHTML = h;
+    }
+
+    function rowSingle(p) {
+      const ctx = milestone === '50' ? 'at50' : 'at100';
+      if (valueMode === 'submitted') {
+        const v = p[ctx], dv = v !== null ? v : '—', vc = v !== null ? 'prop-value' : 'prop-value dash';
+        return `<div class="property-row"><span class="prop-name">${p.name}</span><span class="${vc}">${dv}</span><span class="indicator-lane"></span></div>`;
+      }
+      let v, cf = false, origin = null;
+      if (milestone === '100') {
+        v = p.at100 !== null ? p.at100 : p.at50;
+        if (p.at100 === null && p.at50 !== null) { cf = true; origin = '50% CD'; }
+      } else { v = p.at50; }
+      if (v === null) return `<div class="property-row"><span class="prop-name">${p.name}</span><span class="prop-value dash">—</span><span class="indicator-lane"></span></div>`;
+      const vc = cf ? 'prop-value text-trace' : 'prop-value';
+      const exp = cf
+        ? `<div class="row-expansion"><div class="provenance-line">Value from ${origin} · Door Schedule</div><div class="provenance-sub">No assertion at ${milestone==='100'?'100% CD':'50% CD'}</div></div>`
+        : `<div class="row-expansion"><div class="provenance-line">Source: Door Schedule</div></div>`;
+      return `<div class="property-row" onclick="toggleExp(this)"><span class="prop-name">${p.name}</span><span class="${vc}">${v}</span><span class="indicator-lane"></span></div>${exp}`;
+    }
+
+    function rowCompare(p) {
+      let v50, v100;
+      if (valueMode === 'submitted') { v50 = p.at50; v100 = p.at100; }
+      else { v50 = p.at50; v100 = p.at100 !== null ? p.at100 : p.at50; }
+      const d50 = v50 !== null ? v50 : '—', d100 = v100 !== null ? v100 : '—';
+      const diff = d50 !== d100;
+      const pip = diff ? '<div class="pip"><div class="pip-dot filled-amber"></div></div>' : '';
+      const rc = 'property-row compare-row' + (diff ? ' row-changed' : '');
+      let c50 = v50 !== null ? 'prop-value' : 'prop-value dash';
+      let c100 = v100 !== null ? 'prop-value' : 'prop-value dash';
+      if (valueMode === 'cumulative' && p.at100 === null && p.at50 !== null) c100 = 'prop-value text-trace';
+      if (diff && v100 !== null && c100 !== 'prop-value text-trace') c100 = 'prop-value text-pencil-ink';
+      return `<div class="${rc}"><span class="prop-name">${p.name}</span><span class="${c50}">${d50}</span><span class="${c100}">${d100}</span><span class="indicator-lane">${pip}</span></div>`;
+    }
+
+    function rowCurrent(p) {
+      const v = p.at100 !== null ? p.at100 : p.at50;
+      if (v === null) return '';
+      const origin = p.at100 !== null ? '100% CD' : '50% CD';
+      return `<div class="property-row" onclick="toggleExp(this)"><span class="prop-name">${p.name}</span><span class="prop-value">${v}</span><span class="indicator-lane"></span></div>` +
+             `<div class="row-expansion"><div class="provenance-line">Value from ${origin} · Door Schedule</div></div>`;
+    }
+
+    function toggleExp(el) {
+      const exp = el.nextElementSibling;
+      if (exp && exp.classList.contains('row-expansion')) exp.classList.toggle('open');
+    }
+
+    render();
+  </script>
+</body>
+</html>

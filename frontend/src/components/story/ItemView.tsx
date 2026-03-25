@@ -17,6 +17,7 @@ import type {
   ItemSummary,
   TypeConfigEntry,
 } from "@/types/navigation";
+import type { ViewMode, ValueMode } from "@/context/ComparisonContext";
 import type { ResolvedProperty } from "@/api/snapshots";
 import type { ItemComparison, PropertyChange } from "@/api/comparison";
 import type { ResolutionMethod } from "@/api/actionItems";
@@ -72,6 +73,20 @@ interface ItemViewProps {
   onComparisonToggle?: () => void;
   /** Callback after a workflow action (resolve, acknowledge, hold, resume) to refresh data. */
   onWorkflowAction?: () => void;
+  /** Value mode for trace treatment (T-7): "cumulative" | "submitted" | "current". Defaults to "cumulative". */
+  valueMode?: "cumulative" | "submitted" | "current";
+  /** Current view mode (T-6): single or compare. */
+  viewMode?: ViewMode;
+  /** Callback when view mode changes (T-6). */
+  onViewModeChange?: (mode: ViewMode) => void;
+  /** Callback when value mode changes (T-6). */
+  onValueModeChange?: (mode: ValueMode) => void;
+  /** True if in Current mode (T-6). */
+  isCurrent?: boolean;
+  /** Callback when Current mode is toggled (T-6). */
+  onCurrentToggle?: () => void;
+  /** Whether the temporal control is visible (T-6). */
+  temporalControlVisible?: boolean;
 }
 
 /** Map resolved property status to PropertyRow status. */
@@ -112,8 +127,15 @@ export function ItemView({
   comparisonActive = false,
   fromContextName = "",
   toContextName = "",
-  onComparisonToggle,
+  onComparisonToggle: _onComparisonToggle,
   onWorkflowAction,
+  valueMode = "cumulative",
+  viewMode = "single",
+  onViewModeChange,
+  onValueModeChange,
+  isCurrent = false,
+  onCurrentToggle,
+  temporalControlVisible = true,
 }: ItemViewProps) {
   // ── Expansion state (lifted from PropertyRow) ──
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -216,6 +238,16 @@ export function ItemView({
             resolved,
           });
           resolvedMap.delete(def.name);
+        } else if (valueMode === "submitted") {
+          // In submitted mode, absent properties render as "—" in trace color.
+          // Do not fall back to raw properties.
+          propertyEntries.push({
+            key: def.name,
+            label: def.label,
+            value: null, // Will be rendered as "—" by formatValue
+            unit: def.unit,
+            status: "aligned",
+          });
         } else if (def.name in item.properties) {
           propertyEntries.push({
             key: def.name,
@@ -281,12 +313,19 @@ export function ItemView({
         />
       )}
 
-      {/* Item header */}
+      {/* Item header with temporal control */}
       <ItemHeader
         item={item}
         typeConfig={typeConfig}
-        comparisonActive={comparisonActive}
-        onComparisonToggle={onComparisonToggle}
+        viewMode={viewMode}
+        valueMode={
+          valueMode === "current" ? "cumulative" : (valueMode as ValueMode)
+        }
+        isCurrent={isCurrent}
+        onViewModeChange={onViewModeChange}
+        onValueModeChange={onValueModeChange}
+        onCurrentToggle={onCurrentToggle}
+        temporalControlVisible={temporalControlVisible}
       />
 
       {/* Unified rows */}
@@ -308,6 +347,10 @@ export function ItemView({
               const isChanged = !!change;
               const isAcknowledgedFallback = acknowledgedFallback.has(entry.key);
               const isExpanded = expandedRows.has(entry.key);
+
+              // Determine if value is carried forward (T-7 trace treatment).
+              // In cumulative mode with effective_context set, the value comes from an earlier milestone.
+              const isCarriedForward = valueMode === "cumulative" && !!entry.resolved?.effective_context;
 
               // Determine the effective workflow status for this property.
               // Priority: hold > change > resolved status from snapshots.
@@ -517,7 +560,7 @@ export function ItemView({
                   onToggle={isExpandable ? () => toggleExpansion(entry.key) : undefined}
                   expansionContent={expansionContent}
                 >
-                  <span className="font-mono text-base-size">
+                  <span className={`font-mono text-base-size ${isCarriedForward || (valueMode === "submitted" && entry.value === null) ? "text-trace" : ""}`}>
                     {formatValue(entry.value, entry.unit)}
                   </span>
                 </PropertyRow>

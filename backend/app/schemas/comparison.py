@@ -19,6 +19,14 @@ class PropertyChange(BaseModel):
     source: uuid.UUID | None = Field(
         None, description="Source that reported this change (None if merged)"
     )
+    old_effective_context: str | None = Field(
+        None,
+        description="Milestone where the old value actually came from (cumulative mode only)",
+    )
+    new_effective_context: str | None = Field(
+        None,
+        description="Milestone where the new value actually came from (cumulative mode only)",
+    )
 
     model_config = {"from_attributes": True}
 
@@ -75,6 +83,10 @@ class ComparisonRequest(BaseModel):
     source_filter: uuid.UUID | None = Field(
         None,
         description="Optional: if provided, only compare snapshots from this source",
+    )
+    mode: str = Field(
+        "cumulative",
+        description="Value mode: 'cumulative' (carry-forward) or 'submitted' (strict context_id match)",
     )
     limit: int = Field(100, ge=1, le=1000, description="Maximum items per page")
     offset: int = Field(0, ge=0, description="Pagination offset")

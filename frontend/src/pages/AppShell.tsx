@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { NavigationProvider, useNavigationContext } from "@/context/NavigationContext";
 import { useAuth } from "@/context/AuthContext";
-import { ComparisonProvider, useComparisonContext } from "@/context/ComparisonContext";
+import { ComparisonProvider, useTemporalContext } from "@/context/ComparisonContext";
 import { LayoutFrame } from "@/components/layout/LayoutFrame";
 import { StoryTransition } from "@/components/transitions/StoryTransition";
 import { ScaleAccordion } from "@/components/scale/ScaleAccordion";
@@ -38,7 +38,7 @@ import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
 
 function AppShellContent() {
   const { state, navigate, setBreadcrumb } = useNavigationContext()!;
-  const { state: comparisonState, activate, deactivate } = useComparisonContext();
+  const { state: temporalState, activate, deactivate, setViewMode, setValueMode, enterCurrent, exitCurrent } = useTemporalContext();
   const { user } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
@@ -101,7 +101,7 @@ function AppShellContent() {
       // Ctrl+Shift+C: Toggle comparison mode.
       if (e.ctrlKey && e.shiftKey && e.key === "C") {
         e.preventDefault();
-        if (comparisonState.isActive) {
+        if (temporalState.isActive) {
           deactivate();
         } else {
           setMilestonePickerOpen((open) => !open);
@@ -110,7 +110,7 @@ function AppShellContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [comparisonState.isActive, deactivate]);
+  }, [temporalState.isActive, deactivate]);
 
   // Clear selection when navigation state changes (breadcrumb or fork update).
   useEffect(() => {
@@ -118,6 +118,7 @@ function AppShellContent() {
     setSelectedGroupType(null);
     setWorkflowPerspective(null);
   }, [state.breadcrumb, state.fork]);
+
 
   // ─── Derive IDs from breadcrumb ──────────────────────────────────
 
@@ -136,6 +137,26 @@ function AppShellContent() {
     const bc = state.breadcrumb;
     return bc.length > 0 ? bc[bc.length - 1].id : null;
   }, [state.breadcrumb, state.fork]);
+
+  /** Whether breadcrumb is at project root (depth 1). */
+  const isAtProjectRoot = useMemo(() => {
+    return state.breadcrumb.length === 1;
+  }, [state.breadcrumb]);
+
+  // ─── Temporal state defaulting based on breadcrumb ────────────────
+  // When the user navigates to project root (no milestone context):
+  //   - Enter Current mode (live timeline, no explicit context)
+  // When the user navigates to a specific item (depth > 1):
+  //   - Exit Current mode, default to Single + Cumulative
+  useEffect(() => {
+    if (isAtProjectRoot && !temporalState.isCurrent) {
+      // At project root, no milestone context → enter Current mode
+      enterCurrent();
+    } else if (!isAtProjectRoot && temporalState.isCurrent) {
+      // At specific item with milestone context → exit Current mode
+      exitCurrent();
+    }
+  }, [isAtProjectRoot, temporalState.isCurrent, enterCurrent, exitCurrent]);
 
   /** The parent of the current item (for sibling derivation). */
   const parentItemId = useMemo(() => {
@@ -199,17 +220,26 @@ function AppShellContent() {
 
   const { contextId } = useLatestContext(projectId);
 
+  // ─── Temporal state → API mode derivation ──────────────────────────
+  // Derive the effective API mode from temporal state.
+  // In Current mode, pass null for contextId to get live timeline.
+  // Otherwise, use the temporal state's valueMode.
+  const effectiveMode = temporalState.isCurrent ? "current" : temporalState.valueMode;
+  const resolvedContextId = temporalState.isCurrent ? null : contextId;
+
   // ─── Resolved properties (snapshot-based display) ────────────────
 
   const { properties: resolvedProperties } = useResolvedProperties(
     currentItemId,
-    contextId,
+    resolvedContextId,
+    effectiveMode,
   );
 
   // Resolved properties for the selected item (when left panel selection active).
   const { properties: selectedResolvedProperties } = useResolvedProperties(
     selectedItemId,
-    contextId,
+    resolvedContextId,
+    effectiveMode,
   );
 
   // ─── Comparison data (FE-2) ─────────────────────────────────────
@@ -240,12 +270,12 @@ function AppShellContent() {
 
   /** Comparison toggle handler for ItemHeader. */
   const handleComparisonToggle = useCallback(() => {
-    if (comparisonState.isActive) {
+    if (temporalState.isActive) {
       deactivate();
     } else {
       setMilestonePickerOpen((open) => !open);
     }
-  }, [comparisonState.isActive, deactivate]);
+  }, [temporalState.isActive, deactivate]);
 
   /** Milestone picker confirm handler. */
   const handleMilestoneCompare = useCallback(
@@ -390,7 +420,7 @@ function AppShellContent() {
       selectedItemId={selectedItemId}
       onSelectGroup={currentItem?.item_type === "project" ? handleSelectGroup : undefined}
       selectedGroupType={currentItem?.item_type === "project" ? selectedGroupType : undefined}
-      comparisonActive={comparisonState.isActive}
+      comparisonActive={temporalState.isActive}
     />
   );
 
@@ -442,10 +472,16 @@ function AppShellContent() {
           onNavigate={handleNavigate}
           resolvedProperties={selectedResolvedProperties}
           comparisonData={null}
-          comparisonActive={comparisonState.isActive}
-          fromContextName={comparisonState.fromContext?.identifier ?? "From"}
-          toContextName={comparisonState.toContext?.identifier ?? "To"}
+          comparisonActive={temporalState.isActive}
+          fromContextName={temporalState.fromContext?.identifier ?? "From"}
+          toContextName={temporalState.toContext?.identifier ?? "To"}
           onComparisonToggle={handleComparisonToggle}
+          valueMode={effectiveMode}
+          viewMode={temporalState.viewMode}
+          isCurrent={temporalState.isCurrent}
+          onViewModeChange={setViewMode}
+          onValueModeChange={setValueMode}
+          onCurrentToggle={() => temporalState.isCurrent ? exitCurrent() : enterCurrent()}
         />
 
         {/* Milestone picker dropdown (anchored to header area) */}
@@ -490,7 +526,7 @@ function AppShellContent() {
           getType={getType}
           breadcrumbIds={breadcrumbIds}
           onNavigate={handleNavigate}
-          comparisonActive={comparisonState.isActive}
+          comparisonActive={temporalState.isActive}
           selectedGroupType={selectedGroupType}
           workflowPerspective={workflowPerspective}
           selectedItemId={selectedItemId}
@@ -517,7 +553,7 @@ function AppShellContent() {
         <ConflictItemView
           item={currentItem}
           sources={conflictSources}
-          contextLabel={comparisonState.toContext?.identifier ?? undefined}
+          contextLabel={temporalState.toContext?.identifier ?? undefined}
           onNavigate={handleNavigate}
           onWorkflowAction={handleWorkflowAction}
         />
@@ -561,11 +597,17 @@ function AppShellContent() {
             onNavigate={handleNavigate}
             resolvedProperties={resolvedProperties}
             comparisonData={comparisonData}
-            comparisonActive={comparisonState.isActive}
-            fromContextName={comparisonState.fromContext?.identifier ?? "From"}
-            toContextName={comparisonState.toContext?.identifier ?? "To"}
+            comparisonActive={temporalState.isActive}
+            fromContextName={temporalState.fromContext?.identifier ?? "From"}
+            toContextName={temporalState.toContext?.identifier ?? "To"}
             onComparisonToggle={handleComparisonToggle}
             onWorkflowAction={handleWorkflowAction}
+            valueMode={effectiveMode}
+            viewMode={temporalState.viewMode}
+            isCurrent={temporalState.isCurrent}
+            onViewModeChange={setViewMode}
+            onValueModeChange={setValueMode}
+            onCurrentToggle={() => temporalState.isCurrent ? exitCurrent() : enterCurrent()}
           />
 
           {/* Milestone picker dropdown (anchored to header area) */}
@@ -592,7 +634,7 @@ function AppShellContent() {
         dockLoading={dockLoading}
         onSelectWorkflowGroup={handleSelectWorkflowGroup}
         activeWorkflowPerspective={workflowPerspective}
-        comparisonActive={comparisonState.isActive}
+        comparisonActive={temporalState.isActive}
         inProject={!!projectId}
         hasData={projectHasData}
         onAddData={() => setAddDataOpen(true)}
@@ -601,14 +643,14 @@ function AppShellContent() {
         userName={user?.name ?? ""}
         onDockNavigate={handleNavigate}
         comparisonBadge={
-          comparisonState.isActive ? (
+          temporalState.isActive ? (
             <span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border border-overlay-border bg-overlay-wash text-overlay shrink-0">
               <span className="font-mono">
-                {comparisonState.fromContext?.identifier ?? "—"}
+                {temporalState.fromContext?.identifier ?? "—"}
               </span>
               <span className="text-overlay-border">↔</span>
               <span className="font-mono">
-                {comparisonState.toContext?.identifier ?? "—"}
+                {temporalState.toContext?.identifier ?? "—"}
               </span>
               <button
                 type="button"

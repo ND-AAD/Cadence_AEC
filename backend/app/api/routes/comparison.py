@@ -79,6 +79,35 @@ async def _get_children_of_parent(
     return result.scalars().all()
 
 
+async def _get_snapshot_at_context_submitted(
+    db: AsyncSession,
+    item_id: uuid.UUID,
+    context_id: uuid.UUID,
+    source_id: uuid.UUID | None = None,
+) -> Snapshot | None:
+    """
+    Get the snapshot for an item at exactly the given context (submitted mode).
+
+    Uses strict context_id matching. No carry-forward.
+    If source_id is provided, filter to that source only.
+    """
+    # Query snapshots for this item at exactly the given context
+    query = select(Snapshot).where(
+        (Snapshot.item_id == item_id) & (Snapshot.context_id == context_id)
+    )
+    if source_id:
+        query = query.where(Snapshot.source_id == source_id)
+
+    result = await db.execute(query)
+    snapshots = result.scalars().all()
+
+    if not snapshots:
+        return None
+
+    # If multiple snapshots at this context from the same source, pick one (shouldn't happen)
+    return snapshots[0]
+
+
 async def _get_effective_snapshot_at_context(
     db: AsyncSession,
     item_id: uuid.UUID,
@@ -203,11 +232,16 @@ def _build_property_changes(
     from_context: uuid.UUID,
     to_context: uuid.UUID,
     source_id: uuid.UUID | None = None,
+    old_effective_context: uuid.UUID | None = None,
+    new_effective_context: uuid.UUID | None = None,
 ) -> list[PropertyChange]:
     """
     Detect property-level changes between two property dicts.
 
     Returns list of PropertyChange objects for properties that differ.
+
+    In cumulative mode, old_effective_context and new_effective_context
+    indicate which milestone the values actually came from (for carry-forward values).
     """
     changes = []
 
@@ -236,6 +270,12 @@ def _build_property_changes(
                 from_context=from_context,
                 to_context=to_context,
                 source=source_id,
+                old_effective_context=str(old_effective_context)
+                if old_effective_context
+                else None,
+                new_effective_context=str(new_effective_context)
+                if new_effective_context
+                else None,
             )
         )
 
@@ -248,6 +288,7 @@ async def _categorize_items_with_source_filter(
     from_context_id: uuid.UUID,
     to_context_id: uuid.UUID,
     source_id: uuid.UUID,
+    mode: str = "cumulative",
     contexts_cache: dict[uuid.UUID, Item] | None = None,
 ) -> tuple[list[ItemComparison], ComparisonSummary]:
     """
@@ -258,6 +299,9 @@ async def _categorize_items_with_source_filter(
     - removed: exists at from_context but not to_context (from this source)
     - modified: exists at both but values differ
     - unchanged: exists at both and values match
+
+    Mode 'cumulative': use carry-forward semantics with effective contexts.
+    Mode 'submitted': use strict context_id matching (no carry-forward).
     """
     if contexts_cache is None:
         contexts_cache = {}
@@ -279,12 +323,27 @@ async def _categorize_items_with_source_filter(
             continue
 
         # Get snapshots from the source at both contexts
-        from_snap = await _get_effective_snapshot_at_context(
-            db, item_id, from_context_id, source_id, contexts_cache
-        )
-        to_snap = await _get_effective_snapshot_at_context(
-            db, item_id, to_context_id, source_id, contexts_cache
-        )
+        if mode == "submitted":
+            # Strict context_id match
+            from_snap = await _get_snapshot_at_context_submitted(
+                db, item_id, from_context_id, source_id
+            )
+            to_snap = await _get_snapshot_at_context_submitted(
+                db, item_id, to_context_id, source_id
+            )
+            old_effective_context = None
+            new_effective_context = None
+        else:  # cumulative (default)
+            # Carry-forward with effective contexts
+            from_snap = await _get_effective_snapshot_at_context(
+                db, item_id, from_context_id, source_id, contexts_cache
+            )
+            to_snap = await _get_effective_snapshot_at_context(
+                db, item_id, to_context_id, source_id, contexts_cache
+            )
+            # In cumulative mode, the effective context is where the snapshot actually came from
+            old_effective_context = from_snap.context_id if from_snap else None
+            new_effective_context = to_snap.context_id if to_snap else None
 
         from_exists = from_snap is not None
         to_exists = to_snap is not None
@@ -311,7 +370,136 @@ async def _categorize_items_with_source_filter(
                 from_context_id,
                 to_context_id,
                 source_id,
+                old_effective_context=old_effective_context,
+                new_effective_context=new_effective_context,
             )
+            if changes:
+                category = "modified"
+                modified_count += 1
+            else:
+                category = "unchanged"
+                unchanged_count += 1
+
+        comparisons.append(
+            ItemComparison(
+                item_id=item_id,
+                identifier=item.identifier,
+                item_type=item.item_type,
+                category=category,
+                changes=changes,
+            )
+        )
+
+    total = added_count + removed_count + modified_count + unchanged_count
+    summary = ComparisonSummary(
+        added=added_count,
+        removed=removed_count,
+        modified=modified_count,
+        unchanged=unchanged_count,
+        total=total,
+    )
+
+    return comparisons, summary
+
+
+async def _categorize_items_with_submitted_mode_all_sources(
+    db: AsyncSession,
+    item_ids: list[uuid.UUID],
+    from_context_id: uuid.UUID,
+    to_context_id: uuid.UUID,
+) -> tuple[list[ItemComparison], ComparisonSummary]:
+    """
+    Compare items using submitted mode (strict context_id matching) without source filter.
+
+    For each source, gets the snapshot at exactly the context (no carry-forward).
+    Then merges properties from all sources at the exact context.
+
+    An item is:
+    - added: has snapshots at to_context but not from_context
+    - removed: has snapshots at from_context but not to_context
+    - modified: has snapshots at both but values differ
+    - unchanged: has snapshots at both and values match
+    """
+    items_data = {}
+    result = await db.execute(select(Item).where(Item.id.in_(item_ids)))
+    for item in result.scalars().all():
+        items_data[item.id] = item
+
+    comparisons = []
+    added_count = 0
+    removed_count = 0
+    modified_count = 0
+    unchanged_count = 0
+
+    # Get all snapshots at both contexts to find which items have snapshots
+    from_snapshots_query = select(Snapshot).where(
+        (Snapshot.item_id.in_(item_ids)) & (Snapshot.context_id == from_context_id)
+    )
+    to_snapshots_query = select(Snapshot).where(
+        (Snapshot.item_id.in_(item_ids)) & (Snapshot.context_id == to_context_id)
+    )
+
+    from_result = await db.execute(from_snapshots_query)
+    from_snapshots = from_result.scalars().all()
+
+    to_result = await db.execute(to_snapshots_query)
+    to_snapshots = to_result.scalars().all()
+
+    # Index snapshots by item_id
+    from_snaps_by_item: dict[uuid.UUID, list[Snapshot]] = defaultdict(list)
+    to_snaps_by_item: dict[uuid.UUID, list[Snapshot]] = defaultdict(list)
+
+    for snap in from_snapshots:
+        from_snaps_by_item[snap.item_id].append(snap)
+
+    for snap in to_snapshots:
+        to_snaps_by_item[snap.item_id].append(snap)
+
+    for item_id in item_ids:
+        item = items_data.get(item_id)
+        if not item:
+            continue
+
+        from_snaps = from_snaps_by_item.get(item_id, [])
+        to_snaps = to_snaps_by_item.get(item_id, [])
+
+        from_exists = bool(from_snaps)
+        to_exists = bool(to_snaps)
+
+        if not from_exists and not to_exists:
+            # Neither exists — skip
+            continue
+        elif not from_exists and to_exists:
+            # Added
+            category = "added"
+            added_count += 1
+            changes = []
+        elif from_exists and not to_exists:
+            # Removed
+            category = "removed"
+            removed_count += 1
+            changes = []
+        else:
+            # Both exist — merge properties from all sources and check if modified
+            from_properties = {}
+            for snap in from_snaps:
+                from_properties.update(snap.properties)
+
+            to_properties = {}
+            for snap in to_snaps:
+                to_properties.update(snap.properties)
+
+            changes = _build_property_changes(
+                from_properties,
+                to_properties,
+                item_id,
+                from_context_id,
+                to_context_id,
+                source_id=None,  # No single source
+                old_effective_context=None,
+                new_effective_context=None,
+            )
+
             if changes:
                 category = "modified"
                 modified_count += 1
@@ -346,6 +534,7 @@ async def _categorize_items_with_effective_values(
     item_ids: list[uuid.UUID],
     from_context_id: uuid.UUID,
     to_context_id: uuid.UUID,
+    mode: str = "cumulative",
     contexts_cache: dict[uuid.UUID, Item] | None = None,
 ) -> tuple[list[ItemComparison], ComparisonSummary]:
     """
@@ -359,6 +548,8 @@ async def _categorize_items_with_effective_values(
     - removed: has effective values at from_context but not to_context
     - modified: has effective values at both but they differ
     - unchanged: has effective values at both and they match
+
+    Mode 'cumulative': use carry-forward with per-property effective contexts.
     """
     if contexts_cache is None:
         contexts_cache = {}
@@ -389,12 +580,18 @@ async def _categorize_items_with_effective_values(
 
         # Merge properties from all sources
         from_properties = {}
+        from_property_contexts: dict[str, uuid.UUID] = {}
         for snap in from_effective.values():
-            from_properties.update(snap.properties)
+            for prop_name, value in snap.properties.items():
+                from_properties[prop_name] = value
+                from_property_contexts[prop_name] = snap.context_id
 
         to_properties = {}
+        to_property_contexts: dict[str, uuid.UUID] = {}
         for snap in to_effective.values():
-            to_properties.update(snap.properties)
+            for prop_name, value in snap.properties.items():
+                to_properties[prop_name] = value
+                to_property_contexts[prop_name] = snap.context_id
 
         from_exists = bool(from_effective)
         to_exists = bool(to_effective)
@@ -414,14 +611,44 @@ async def _categorize_items_with_effective_values(
             changes = []
         else:
             # Both exist — check if modified
-            changes = _build_property_changes(
-                from_properties,
-                to_properties,
-                item_id,
-                from_context_id,
-                to_context_id,
-                source_id=None,  # No single source
-            )
+            # Only report changes for properties that actually exist in both contexts
+            # In cumulative mode, a property that disappears in later context should not show as changed
+            # unless it actually got updated to a different value
+            changes = []
+            all_props = set(from_properties.keys()) | set(to_properties.keys())
+
+            for prop_name in sorted(all_props):
+                from_val = from_properties.get(prop_name)
+                to_val = to_properties.get(prop_name)
+
+                # Skip if both absent or values match
+                if from_val is None and to_val is None:
+                    continue
+
+                if values_match(
+                    str(from_val) if from_val is not None else None,
+                    str(to_val) if to_val is not None else None,
+                    property_name=prop_name,
+                ):
+                    continue
+
+                # Only report as changed if both have values (not if one is absent)
+                # because absence in cumulative mode means carry-forward
+                if from_val is not None and to_val is not None:
+                    change = PropertyChange(
+                        property_name=prop_name,
+                        old_value=from_val,
+                        new_value=to_val,
+                        from_context=from_context_id,
+                        to_context=to_context_id,
+                        source=None,
+                        old_effective_context=str(
+                            from_property_contexts.get(prop_name)
+                        ),
+                        new_effective_context=str(to_property_contexts.get(prop_name)),
+                    )
+                    changes.append(change)
+
             if changes:
                 category = "modified"
                 modified_count += 1
@@ -529,16 +756,32 @@ async def compare_snapshots(
             payload.from_context_id,
             payload.to_context_id,
             payload.source_filter,
-            contexts_cache,
+            mode=payload.mode,
+            contexts_cache=contexts_cache,
         )
     else:
-        comparisons, summary = await _categorize_items_with_effective_values(
-            db,
-            item_ids,
-            payload.from_context_id,
-            payload.to_context_id,
-            contexts_cache,
-        )
+        # No source filter: compare all sources
+        if payload.mode == "submitted":
+            # Submitted mode: strict context_id matching, no carry-forward
+            (
+                comparisons,
+                summary,
+            ) = await _categorize_items_with_submitted_mode_all_sources(
+                db,
+                item_ids,
+                payload.from_context_id,
+                payload.to_context_id,
+            )
+        else:
+            # Cumulative mode (default): carry-forward with effective contexts
+            comparisons, summary = await _categorize_items_with_effective_values(
+                db,
+                item_ids,
+                payload.from_context_id,
+                payload.to_context_id,
+                mode=payload.mode,
+                contexts_cache=contexts_cache,
+            )
 
     # Apply pagination
     paginated_items = comparisons[payload.offset : payload.offset + payload.limit]

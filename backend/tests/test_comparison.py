@@ -975,3 +975,281 @@ async def test_compare_summary_counts_correct(
     assert result["summary"]["modified"] == 1
     assert result["summary"]["unchanged"] == 2  # includes carry-forward item
     assert result["summary"]["total"] == 4
+
+
+# ─── T-4: Mode Parameter Tests ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_comparison_default_mode_is_cumulative(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_item,
+):
+    """
+    Default mode should be cumulative for backward compatibility.
+
+    When mode is not specified, the endpoint behaves as if mode=cumulative
+    (carry-forward values from previous milestones).
+    """
+    dd = await make_item(
+        item_type="milestone",
+        identifier="DD",
+        properties={"ordinal": 100},
+    )
+    cd = await make_item(
+        item_type="milestone",
+        identifier="CD",
+        properties={"ordinal": 200},
+    )
+
+    spec = await make_item(
+        item_type="specification",
+        identifier="Spec",
+    )
+
+    door = await make_item(item_type="door", identifier="Door-001")
+
+    # Create snapshot only at DD
+    snapshot_dd = Snapshot(
+        item_id=door.id,
+        context_id=dd.id,
+        source_id=spec.id,
+        properties={"finish": "wood"},
+    )
+    db_session.add(snapshot_dd)
+
+    await db_session.commit()
+
+    # No mode specified (should default to cumulative)
+    response = await client.post(
+        "/api/v1/compare",
+        json={
+            "item_ids": [str(door.id)],
+            "from_context_id": str(dd.id),
+            "to_context_id": str(cd.id),
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    # With cumulative (default), value carries forward → unchanged
+    assert result["summary"]["unchanged"] == 1
+    assert result["summary"]["removed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_comparison_submitted_mode_uses_strict_matching(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_item,
+):
+    """
+    Compare with mode=submitted should only use snapshots at exact context.
+
+    In submitted mode, a property is only considered if it has a snapshot
+    at the exact context (context_id match). No carry-forward.
+    """
+    dd = await make_item(
+        item_type="milestone",
+        identifier="DD",
+        properties={"ordinal": 100},
+    )
+    cd = await make_item(
+        item_type="milestone",
+        identifier="CD",
+        properties={"ordinal": 200},
+    )
+
+    spec = await make_item(
+        item_type="specification",
+        identifier="Spec",
+    )
+
+    door = await make_item(item_type="door", identifier="Door-001")
+
+    # Create snapshot only at DD
+    snapshot_dd = Snapshot(
+        item_id=door.id,
+        context_id=dd.id,
+        source_id=spec.id,
+        properties={"finish": "wood"},
+    )
+    db_session.add(snapshot_dd)
+
+    await db_session.commit()
+
+    # Compare with submitted mode
+    response = await client.post(
+        "/api/v1/compare",
+        json={
+            "item_ids": [str(door.id)],
+            "from_context_id": str(dd.id),
+            "to_context_id": str(cd.id),
+            "mode": "submitted",
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    # In submitted mode, no snapshot at CD means item is removed (strict matching)
+    assert result["summary"]["removed"] == 1
+    assert result["summary"]["unchanged"] == 0
+
+
+@pytest.mark.asyncio
+async def test_comparison_cumulative_mode_populates_effective_context(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_item,
+):
+    """
+    Compare with mode=cumulative should populate old/new_effective_context.
+
+    When a value is carried forward from a previous milestone, the effective_context
+    field should indicate which milestone the value actually came from.
+    """
+    dd = await make_item(
+        item_type="milestone",
+        identifier="DD",
+        properties={"ordinal": 100},
+    )
+    await make_item(
+        item_type="milestone",
+        identifier="CD",
+        properties={"ordinal": 200},
+    )
+    td = await make_item(
+        item_type="milestone",
+        identifier="TD",
+        properties={"ordinal": 300},
+    )
+
+    spec = await make_item(
+        item_type="specification",
+        identifier="Spec",
+    )
+
+    door = await make_item(item_type="door", identifier="Door-001")
+
+    # Snapshot at DD with finish=wood
+    snapshot_dd = Snapshot(
+        item_id=door.id,
+        context_id=dd.id,
+        source_id=spec.id,
+        properties={"finish": "wood", "width": '36"'},
+    )
+    # Snapshot at TD with finish=metal (changes finish, width carries forward)
+    snapshot_td = Snapshot(
+        item_id=door.id,
+        context_id=td.id,
+        source_id=spec.id,
+        properties={"finish": "metal"},
+    )
+    db_session.add(snapshot_dd)
+    db_session.add(snapshot_td)
+
+    await db_session.commit()
+
+    # Compare DD → TD in cumulative mode
+    response = await client.post(
+        "/api/v1/compare",
+        json={
+            "item_ids": [str(door.id)],
+            "from_context_id": str(dd.id),
+            "to_context_id": str(td.id),
+            "mode": "cumulative",
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    item = result["items"][0]
+    assert item["category"] == "modified"
+    assert len(item["changes"]) == 1
+
+    change = item["changes"][0]
+    assert change["property_name"] == "finish"
+    assert change["old_value"] == "wood"
+    assert change["new_value"] == "metal"
+
+    # The old_effective_context should be DD (where "wood" came from)
+    # The new_effective_context should be TD (where "metal" came from)
+    assert change["old_effective_context"] == str(dd.id)
+    assert change["new_effective_context"] == str(td.id)
+
+
+@pytest.mark.asyncio
+async def test_comparison_submitted_mode_shows_absent_as_removed(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    make_item,
+):
+    """
+    Properties absent at one context should appear as additions/removals in submitted mode.
+
+    In submitted mode, if a property exists at DD but not at CD (no snapshot at CD),
+    it shows as removed. Conversely, if it exists at CD but not DD, it shows as added.
+    """
+    dd = await make_item(
+        item_type="milestone",
+        identifier="DD",
+        properties={"ordinal": 100},
+    )
+    cd = await make_item(
+        item_type="milestone",
+        identifier="CD",
+        properties={"ordinal": 200},
+    )
+
+    spec = await make_item(
+        item_type="specification",
+        identifier="Spec",
+    )
+
+    door = await make_item(item_type="door", identifier="Door-001")
+
+    # Snapshot at DD with finish and width
+    snapshot_dd = Snapshot(
+        item_id=door.id,
+        context_id=dd.id,
+        source_id=spec.id,
+        properties={"finish": "wood", "width": '36"'},
+    )
+    # Snapshot at CD with only finish (width not submitted)
+    snapshot_cd = Snapshot(
+        item_id=door.id,
+        context_id=cd.id,
+        source_id=spec.id,
+        properties={"finish": "wood"},
+    )
+    db_session.add(snapshot_dd)
+    db_session.add(snapshot_cd)
+
+    await db_session.commit()
+
+    # Compare in submitted mode
+    response = await client.post(
+        "/api/v1/compare",
+        json={
+            "item_ids": [str(door.id)],
+            "from_context_id": str(dd.id),
+            "to_context_id": str(cd.id),
+            "mode": "submitted",
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+
+    item = result["items"][0]
+    assert item["category"] == "modified"
+    assert len(item["changes"]) == 1
+
+    change = item["changes"][0]
+    assert change["property_name"] == "width"
+    assert change["old_value"] == '36"'
+    assert change["new_value"] is None  # Width absent at CD in submitted mode

@@ -4,6 +4,9 @@
 
 import { apiGet } from "./client";
 
+/** Value mode for resolved properties. */
+export type ValueMode = "cumulative" | "submitted" | "current";
+
 /** Navigation handles for workflow items connected to a property. */
 export interface PropertyWorkflowRefs {
   conflict_id: string | null;
@@ -33,12 +36,15 @@ export interface ResolvedProperty {
   sources: Record<string, unknown>;
   /** Workflow navigation handles. Null when no workflow items exist for this property. */
   workflow: PropertyWorkflowRefs | null;
+  /** Milestone identifier where the value originated. Null when submitted at the viewed context. */
+  effective_context: string | null;
 }
 
 /** GET /api/v1/snapshots/item/{id}/resolved response. */
 export interface ResolvedPropertiesResponse {
   item_id: string;
   context_id: string;
+  mode: ValueMode;
   properties: ResolvedProperty[];
 }
 
@@ -48,9 +54,12 @@ export interface ResolvedPropertiesResponse {
  */
 export async function getResolvedProperties(
   itemId: string,
-  contextId: string,
+  contextId: string | null,
+  mode: ValueMode = "cumulative",
 ): Promise<ResolvedPropertiesResponse> {
+  const params = new URLSearchParams({ mode });
+  if (contextId) params.set("context", contextId);
   return apiGet<ResolvedPropertiesResponse>(
-    `/v1/snapshots/item/${itemId}/resolved?context=${contextId}`,
+    `/v1/snapshots/item/${itemId}/resolved?${params.toString()}`,
   );
 }

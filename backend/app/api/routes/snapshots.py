@@ -254,7 +254,13 @@ async def get_effective_value(
 @router.get("/item/{item_id}/resolved", response_model=ResolvedView)
 async def get_resolved_view(
     item_id: uuid.UUID,
-    context: uuid.UUID = Query(..., description="Milestone context to resolve at"),
+    context: uuid.UUID | None = Query(
+        None, description="Milestone context to resolve at"
+    ),
+    mode: str = Query(
+        "cumulative",
+        description="Value mode: cumulative, submitted, or current",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -270,9 +276,24 @@ async def get_resolved_view(
     - 'conflicted': sources disagree
     - 'resolved': was conflicted, now has a decision snapshot
     """
+    # Validate mode
+    if mode not in ("cumulative", "submitted", "current"):
+        raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
+
+    # context is required for cumulative and submitted modes, not needed for current
+    if mode != "current" and context is None:
+        raise HTTPException(
+            status_code=400,
+            detail="context parameter is required for cumulative and submitted modes.",
+        )
+
     item = await _get_item_or_404(db, item_id, "Item")
-    context_item = await _validate_context(db, context)
-    context_ordinal = _get_ordinal(context_item)
+    context_item = None
+    context_ordinal = 0
+    if mode != "current":
+        # For cumulative and submitted, validate and get ordinal from context
+        context_item = await _validate_context(db, context)
+        context_ordinal = _get_ordinal(context_item)
 
     # Get ALL snapshots for this item from document sources
     # (exclude workflow item self-snapshots)
@@ -282,15 +303,19 @@ async def get_resolved_view(
     all_snapshots = all_snapshots_result.scalars().all()
 
     if not all_snapshots:
+        context_summary = None
+        if context_item:
+            context_summary = ItemSummary(
+                id=context_item.id,
+                item_type=context_item.item_type,
+                identifier=context_item.identifier,
+            )
         return ResolvedView(
             item=ItemSummary(
                 id=item.id, item_type=item.item_type, identifier=item.identifier
             ),
-            context=ItemSummary(
-                id=context_item.id,
-                item_type=context_item.item_type,
-                identifier=context_item.identifier,
-            ),
+            context=context_summary,
+            mode=mode,
             properties=[],
             source_count=0,
             snapshot_count=0,
@@ -315,24 +340,67 @@ async def get_resolved_view(
         and sources[s.source_id].item_type not in excluded_types
     ]
 
-    # Find effective snapshot per source: most recent by ordinal <= context ordinal
+    # Determine effective snapshots per source based on mode
     effective_by_source: dict[uuid.UUID, Snapshot] = {}
-    for s in document_snapshots:
-        ctx = contexts.get(s.context_id)
-        if not ctx:
-            continue
-        snap_ordinal = _get_ordinal(ctx)
-        if snap_ordinal > context_ordinal:
-            continue  # Future snapshot, skip
+    source_origin_context: dict[uuid.UUID, Item] = {}
 
-        existing = effective_by_source.get(s.source_id)
-        if existing is None:
-            effective_by_source[s.source_id] = s
-        else:
-            existing_ctx = contexts.get(existing.context_id)
-            existing_ordinal = _get_ordinal(existing_ctx) if existing_ctx else 0
-            if snap_ordinal > existing_ordinal:
+    if mode == "submitted":
+        # Submitted mode: strict context match, no carry-forward
+        for s in document_snapshots:
+            if s.context_id == context:
                 effective_by_source[s.source_id] = s
+        # For submitted mode, source_origin_context stays empty (always None for effective_context)
+
+    elif mode == "current":
+        # Current mode: latest snapshot per source across ALL milestones, no ordinal ceiling
+        current_by_source_dict: dict[uuid.UUID, Snapshot] = {}
+        for s in document_snapshots:
+            ctx = contexts.get(s.context_id)
+            if not ctx:
+                continue
+            snap_ordinal = _get_ordinal(ctx)
+
+            existing = current_by_source_dict.get(s.source_id)
+            if existing is None:
+                current_by_source_dict[s.source_id] = s
+            else:
+                existing_ctx = contexts.get(existing.context_id)
+                existing_ordinal = _get_ordinal(existing_ctx) if existing_ctx else 0
+                if snap_ordinal > existing_ordinal:
+                    current_by_source_dict[s.source_id] = s
+
+        effective_by_source = current_by_source_dict
+        # For current mode, always populate source_origin_context
+        for src_id, snap in effective_by_source.items():
+            source_origin_context[src_id] = contexts.get(snap.context_id)
+        # Set context_item and context_ordinal for current mode
+        context_item = None
+        context_ordinal = float("inf")
+
+    else:  # mode == "cumulative"
+        # Cumulative mode: find effective snapshot per source with ordinal <= context ordinal
+        for s in document_snapshots:
+            ctx = contexts.get(s.context_id)
+            if not ctx:
+                continue
+            snap_ordinal = _get_ordinal(ctx)
+            if snap_ordinal > context_ordinal:
+                continue  # Future snapshot, skip
+            if context_ordinal > 0 and snap_ordinal == 0:
+                continue  # Unset ordinal excluded at non-zero context
+
+            existing = effective_by_source.get(s.source_id)
+            if existing is None:
+                effective_by_source[s.source_id] = s
+            else:
+                existing_ctx = contexts.get(existing.context_id)
+                existing_ordinal = _get_ordinal(existing_ctx) if existing_ctx else 0
+                if snap_ordinal > existing_ordinal:
+                    effective_by_source[s.source_id] = s
+
+        # Create a mapping of which context each source's effective snapshot came from
+        for src_id, snap in effective_by_source.items():
+            source_origin_context[src_id] = contexts.get(snap.context_id)
 
     # Check for decision snapshots (resolved conflicts)
     decision_snapshots = [
@@ -415,12 +483,14 @@ async def get_resolved_view(
     property_resolutions = []
     for prop_name in sorted(all_props):
         source_values: dict[str, object] = {}
+        contributing_sources: list[uuid.UUID] = []
         for src_id, snap in effective_by_source.items():
             val = snap.properties.get(prop_name)
             if val is not None:
                 src = sources.get(src_id)
                 src_label = src.identifier if src else str(src_id)
                 source_values[src_label] = val
+                contributing_sources.append(src_id)
 
         if len(source_values) == 0:
             continue
@@ -447,6 +517,38 @@ async def get_resolved_view(
             else:
                 status = "conflicted"
                 value = None
+
+        # Compute effective_context based on mode
+        eff_ctx = None
+        if mode == "submitted":
+            # Submitted mode: always None (values are by definition at the requested context)
+            eff_ctx = None
+        elif mode == "current":
+            # Current mode: always populate effective_context with the origin milestone
+            origin_context_ids = set()
+            for src_id in contributing_sources:
+                origin_ctx = source_origin_context.get(src_id)
+                if origin_ctx:
+                    origin_context_ids.add(origin_ctx.identifier)
+            if origin_context_ids:
+                # Use the highest (latest) origin context
+                eff_ctx = sorted(origin_context_ids)[-1]
+        elif mode == "cumulative":
+            # Cumulative mode: populate only if value was carried forward
+            if context_item:
+                all_submitted_at_context = True
+                origin_context_item = None
+                for src_id in contributing_sources:
+                    origin_ctx = source_origin_context.get(src_id)
+                    if origin_ctx and origin_ctx.id != context_item.id:
+                        all_submitted_at_context = False
+                        # Use the first (earliest) origin context found
+                        if origin_context_item is None:
+                            origin_context_item = origin_ctx
+
+                # If not all sources submitted at the requested context, set effective_context
+                if not all_submitted_at_context and origin_context_item:
+                    eff_ctx = origin_context_item.identifier
 
         # ── Build workflow refs for this property ──
         prop_workflow = workflow_by_property.get(prop_name, {})
@@ -485,19 +587,26 @@ async def get_resolved_view(
                 status=status,
                 value=value,
                 sources=source_values,
+                effective_context=eff_ctx,
                 workflow=workflow_refs,
             )
+        )
+
+    # Build context summary if we have one
+    context_summary = None
+    if context_item:
+        context_summary = ItemSummary(
+            id=context_item.id,
+            item_type=context_item.item_type,
+            identifier=context_item.identifier,
         )
 
     return ResolvedView(
         item=ItemSummary(
             id=item.id, item_type=item.item_type, identifier=item.identifier
         ),
-        context=ItemSummary(
-            id=context_item.id,
-            item_type=context_item.item_type,
-            identifier=context_item.identifier,
-        ),
+        context=context_summary,
+        mode=mode,
         properties=property_resolutions,
         source_count=len(effective_by_source),
         snapshot_count=len(document_snapshots),

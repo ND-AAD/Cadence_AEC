@@ -4,7 +4,7 @@
 // and effective values. Falls back gracefully if the endpoint is unavailable.
 
 import { useState, useEffect } from "react";
-import { getResolvedProperties, type ResolvedProperty } from "@/api/snapshots";
+import { getResolvedProperties, type ResolvedProperty, type ValueMode } from "@/api/snapshots";
 
 export interface ResolvedPropertiesResult {
   properties: ResolvedProperty[] | null;
@@ -16,6 +16,7 @@ export interface ResolvedPropertiesResult {
 export function useResolvedProperties(
   itemId: string | null,
   contextId: string | null,
+  mode: ValueMode = "cumulative",
 ): ResolvedPropertiesResult {
   const [properties, setProperties] = useState<ResolvedProperty[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,15 @@ export function useResolvedProperties(
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (!itemId || !contextId) {
+    if (!itemId) {
+      setProperties(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    // Allow null contextId when mode === "current"; otherwise require contextId
+    if (!contextId && mode !== "current") {
       setProperties(null);
       setLoading(false);
       setError(null);
@@ -36,7 +45,7 @@ export function useResolvedProperties(
 
     (async () => {
       try {
-        const data = await getResolvedProperties(itemId, contextId);
+        const data = await getResolvedProperties(itemId, contextId, mode);
         if (!cancelled) {
           setProperties(data.properties);
           setLoading(false);
@@ -53,7 +62,7 @@ export function useResolvedProperties(
     })();
 
     return () => { cancelled = true; };
-  }, [itemId, contextId, retryCount]);
+  }, [itemId, contextId, mode, retryCount]);
 
   const retry = () => setRetryCount((c) => c + 1);
 

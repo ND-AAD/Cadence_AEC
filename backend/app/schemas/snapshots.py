@@ -78,6 +78,10 @@ class PropertyResolution(BaseModel):
         default_factory=dict,
         description="source_identifier → value for each source",
     )
+    effective_context: str | None = Field(
+        default=None,
+        description="Milestone identifier where the effective value originated. Null when the value was submitted at the requested context.",
+    )
     workflow: PropertyWorkflowRefs | None = None
 
 
@@ -90,7 +94,8 @@ class ResolvedView(BaseModel):
     """
 
     item: ItemSummary
-    context: ItemSummary
+    context: ItemSummary | None = None  # None when mode=current
+    mode: str = "cumulative"  # "cumulative", "submitted", "current"
     properties: list[PropertyResolution]
     source_count: int
     snapshot_count: int

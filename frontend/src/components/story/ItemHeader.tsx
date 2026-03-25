@@ -1,25 +1,43 @@
 // ─── Item Header ──────────────────────────────────────────────────
 // Item name, context, and type label.
 // Per UniversalTemplate prototype: font-mono text-md font-medium.
-// DS-2: Includes comparison toggle button to activate milestone picker.
+// T-6: Temporal control (view mode, value mode, Current) replaces
+// the comparison toggle button. Includes TemporalControl component.
 
 import type { ItemResponse, TypeConfigEntry } from "@/types/navigation";
+import type { ViewMode, ValueMode } from "@/context/ComparisonContext";
 import { itemDisplayName } from "@/utils/displayName";
+import { TemporalControl } from "./TemporalControl";
 
 interface ItemHeaderProps {
   item: ItemResponse;
   typeConfig?: TypeConfigEntry;
-  /** Whether comparison mode is currently active. */
-  comparisonActive?: boolean;
-  /** Toggle comparison mode (opens milestone picker or deactivates). */
-  onComparisonToggle?: () => void;
+  /** Current view mode (single or compare). */
+  viewMode?: ViewMode;
+  /** Current value mode (submitted or cumulative). */
+  valueMode?: ValueMode;
+  /** True if in Current mode. */
+  isCurrent?: boolean;
+  /** Callback when view mode changes. */
+  onViewModeChange?: (mode: ViewMode) => void;
+  /** Callback when value mode changes. */
+  onValueModeChange?: (mode: ValueMode) => void;
+  /** Callback when Current mode is toggled. */
+  onCurrentToggle?: () => void;
+  /** Whether the temporal control is visible. */
+  temporalControlVisible?: boolean;
 }
 
 export function ItemHeader({
   item,
   typeConfig,
-  comparisonActive = false,
-  onComparisonToggle,
+  viewMode = "single",
+  valueMode = "cumulative",
+  isCurrent = false,
+  onViewModeChange,
+  onValueModeChange,
+  onCurrentToggle,
+  temporalControlVisible = true,
 }: ItemHeaderProps) {
   const name = itemDisplayName(item.identifier, item.item_type);
   const typeLabel = typeConfig?.label ?? item.item_type;
@@ -32,26 +50,20 @@ export function ItemHeader({
         <span className="text-sm text-graphite">{typeLabel}</span>
       </div>
 
-      {/* Comparison toggle */}
-      {onComparisonToggle && (
-        <button
-          type="button"
-          onClick={onComparisonToggle}
-          className={`shrink-0 flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1 ${
-            comparisonActive
-              ? "bg-overlay-wash text-overlay border-overlay"
-              : "bg-transparent text-graphite border-rule hover:text-ink hover:border-graphite"
-          }`}
-          title={comparisonActive ? "Deactivate comparison (Ctrl+Shift+C)" : "Compare milestones (Ctrl+Shift+C)"}
-        >
-          {/* Split-view icon */}
-          <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="1" y="2" width="12" height="10" rx="1.5" />
-            <line x1="7" y1="2" x2="7" y2="12" />
-          </svg>
-          <span>{comparisonActive ? "Comparing" : "Compare"}</span>
-        </button>
-      )}
+      {/* Temporal control (view mode, value mode, Current) */}
+      {onViewModeChange &&
+        onValueModeChange &&
+        onCurrentToggle && (
+          <TemporalControl
+            viewMode={viewMode}
+            valueMode={valueMode}
+            isCurrent={isCurrent}
+            onViewModeChange={onViewModeChange}
+            onValueModeChange={onValueModeChange}
+            onCurrentToggle={onCurrentToggle}
+            visible={temporalControlVisible}
+          />
+        )}
     </div>
   );
 }
