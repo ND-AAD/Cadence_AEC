@@ -286,9 +286,6 @@ function AppShellContent() {
       // Switching from compare to single
       setViewMode("single");
       deactivate();
-    } else if (mode === "single" && temporalState.viewMode === "single") {
-      // Already in single → open picker for milestone selection
-      setMilestonePickerOpen(true);
     }
   }, [setViewMode, temporalState.viewMode, deactivate]);
 

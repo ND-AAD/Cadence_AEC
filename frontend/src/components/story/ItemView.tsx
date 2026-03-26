@@ -209,7 +209,8 @@ export function ItemView({
   const propertyDefs = typeConfig?.properties ?? [];
 
   // Internal properties hidden from display regardless of data source.
-  const hiddenKeys = new Set(["ordinal"]);
+  // "mark" is the item identifier — already shown in the header.
+  const hiddenKeys = new Set(["ordinal", "mark"]);
 
   // Build property entries — prefer resolved snapshot data when available.
   const propertyEntries: Array<{

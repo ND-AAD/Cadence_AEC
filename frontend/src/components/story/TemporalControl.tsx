@@ -176,7 +176,8 @@ export function TemporalControl({
           type="button"
           onClick={onCurrentToggle}
           style={{
-            ...on(isCurrent),
+            ...btnStyle,
+            ...(isCurrent ? btnActiveStyle : btnInactiveStyle),
             width: TC.btnW,
             height: "100%",
             lineHeight: "1",
