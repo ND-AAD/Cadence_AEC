@@ -591,9 +591,24 @@ export function ItemView({
   );
 }
 
-/** Format a property value for display. */
+/** Conversion factors from canonical mm to display units. */
+const MM_TO: Record<string, number> = { in: 25.4, ft: 304.8 };
+
+/** Format a property value for display.
+ *  Dimension properties are stored as canonical mm (WP-6b).
+ *  When the type_config unit is "in" or "ft", convert before display. */
 function formatValue(value: unknown, unit: string | null): string {
   if (value === null || value === undefined) return "—";
+
+  const divisor = unit ? MM_TO[unit] : undefined;
+  if (divisor) {
+    const num = typeof value === "number" ? value : parseFloat(String(value));
+    if (!isNaN(num)) {
+      const converted = parseFloat((num / divisor).toFixed(3));
+      return `${converted} ${unit}`;
+    }
+  }
+
   const str = String(value);
   return unit ? `${str} ${unit}` : str;
 }
