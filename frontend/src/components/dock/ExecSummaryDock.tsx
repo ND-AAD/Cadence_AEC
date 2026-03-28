@@ -9,6 +9,7 @@ import { DockCategoryRow } from "./DockCategoryRow";
 import { DockTypeRow } from "./DockTypeRow";
 import { DockImportBar } from "./DockImportBar";
 import { NotesArea } from "./NotesArea";
+import { QuietButton } from "./QuietButton";
 import { useNotes } from "@/hooks/useNotes";
 
 interface ExecSummaryDockProps {
@@ -26,6 +27,10 @@ interface ExecSummaryDockProps {
   userName?: string;
   /** Navigation handler for instance-level clicks in the tree. */
   onNavigate?: (itemId: string) => void;
+  /** Whether Quiet mode is active. DTC-7. */
+  isQuiet?: boolean;
+  /** Callback when Quiet mode is toggled. DTC-7. */
+  onQuietToggle?: () => void;
 }
 
 export function ExecSummaryDock({
@@ -38,6 +43,8 @@ export function ExecSummaryDock({
   currentItemId,
   userName = "",
   onNavigate,
+  isQuiet = false,
+  onQuietToggle,
 }: ExecSummaryDockProps) {
   const { notes, addNote } = useNotes(currentItemId ?? null);
   return (
@@ -50,8 +57,11 @@ export function ExecSummaryDock({
           isOpen ? "opacity-100 delay-75" : "opacity-0"
         }`}
       >
-        {/* Dock header */}
-        <div className="px-3 py-2 border-b border-rule shrink-0">
+        {/* Dock header with Quiet toggle (DTC-7) */}
+        <div className="px-3 py-2 border-b border-rule shrink-0 flex flex-col gap-1.5">
+          {onQuietToggle && (
+            <QuietButton isActive={isQuiet} onToggle={onQuietToggle} />
+          )}
           <span className="text-xs font-mono uppercase tracking-wide text-trace">
             Exec Summary
           </span>

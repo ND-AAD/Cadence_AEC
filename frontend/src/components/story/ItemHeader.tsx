@@ -1,43 +1,30 @@
 // ─── Item Header ──────────────────────────────────────────────────
 // Item name, context, and type label.
 // Per UniversalTemplate prototype: font-mono text-md font-medium.
-// T-6: Temporal control (view mode, value mode, Current) replaces
-// the comparison toggle button. Includes TemporalControl component.
+// DTC-5: Replaced TemporalControl tray with standalone CompareButton.
+// Value mode and Quiet controls now live in LayoutFrame and ExecSummaryDock.
 
 import type { ItemResponse, TypeConfigEntry } from "@/types/navigation";
-import type { ViewMode, ValueMode } from "@/context/ComparisonContext";
 import { itemDisplayName } from "@/utils/displayName";
-import { TemporalControl } from "./TemporalControl";
+import { CompareButton } from "./CompareButton";
 
 interface ItemHeaderProps {
   item: ItemResponse;
   typeConfig?: TypeConfigEntry;
-  /** Current view mode (single or compare). */
-  viewMode?: ViewMode;
-  /** Current value mode (submitted or cumulative). */
-  valueMode?: ValueMode;
-  /** True if in Current mode. */
-  isCurrent?: boolean;
-  /** Callback when view mode changes. */
-  onViewModeChange?: (mode: ViewMode) => void;
-  /** Callback when value mode changes. */
-  onValueModeChange?: (mode: ValueMode) => void;
-  /** Callback when Current mode is toggled. */
-  onCurrentToggle?: () => void;
-  /** Whether the temporal control is visible. */
-  temporalControlVisible?: boolean;
+  /** True when comparison mode is active. */
+  isComparing?: boolean;
+  /** Callback to toggle comparison mode. */
+  onCompareToggle?: () => void;
+  /** Whether the compare button is visible (hidden in Quiet mode). */
+  compareVisible?: boolean;
 }
 
 export function ItemHeader({
   item,
   typeConfig,
-  viewMode = "single",
-  valueMode = "cumulative",
-  isCurrent = false,
-  onViewModeChange,
-  onValueModeChange,
-  onCurrentToggle,
-  temporalControlVisible = true,
+  isComparing = false,
+  onCompareToggle,
+  compareVisible = true,
 }: ItemHeaderProps) {
   const name = itemDisplayName(item.identifier, item.item_type);
   const typeLabel = typeConfig?.label ?? item.item_type;
@@ -50,20 +37,14 @@ export function ItemHeader({
         <span className="text-sm text-graphite">{typeLabel}</span>
       </div>
 
-      {/* Temporal control (view mode, value mode, Current) */}
-      {onViewModeChange &&
-        onValueModeChange &&
-        onCurrentToggle && (
-          <TemporalControl
-            viewMode={viewMode}
-            valueMode={valueMode}
-            isCurrent={isCurrent}
-            onViewModeChange={onViewModeChange}
-            onValueModeChange={onValueModeChange}
-            onCurrentToggle={onCurrentToggle}
-            visible={temporalControlVisible}
-          />
-        )}
+      {/* Compare toggle (hidden in Quiet mode) */}
+      {onCompareToggle && (
+        <CompareButton
+          isActive={isComparing}
+          onToggle={onCompareToggle}
+          visible={compareVisible}
+        />
+      )}
     </div>
   );
 }

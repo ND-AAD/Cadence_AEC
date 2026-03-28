@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { NavigationProvider, useNavigationContext } from "@/context/NavigationContext";
 import { useAuth } from "@/context/AuthContext";
-import { ComparisonProvider, useTemporalContext, type ViewMode } from "@/context/ComparisonContext";
+import { ComparisonProvider, useTemporalContext } from "@/context/ComparisonContext";
 import { LayoutFrame } from "@/components/layout/LayoutFrame";
 import { StoryTransition } from "@/components/transitions/StoryTransition";
 import { ScaleAccordion } from "@/components/scale/ScaleAccordion";
@@ -38,7 +38,7 @@ import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
 
 function AppShellContent() {
   const { state, navigate, setBreadcrumb } = useNavigationContext()!;
-  const { state: temporalState, activate, deactivate, setViewMode, setValueMode, enterCurrent, exitCurrent } = useTemporalContext();
+  const { state: temporalState, activate, deactivate, setComparing, setValueMode, enterQuiet, exitQuiet } = useTemporalContext();
   const { user } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
@@ -101,7 +101,8 @@ function AppShellContent() {
       // Ctrl+Shift+C: Toggle comparison mode.
       if (e.ctrlKey && e.shiftKey && e.key === "C") {
         e.preventDefault();
-        if (temporalState.isActive) {
+        if (temporalState.isComparing) {
+          setComparing(false);
           deactivate();
         } else {
           setMilestonePickerOpen((open) => !open);
@@ -110,7 +111,7 @@ function AppShellContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [temporalState.isActive, deactivate]);
+  }, [temporalState.isComparing, setComparing, deactivate]);
 
   // Clear selection when navigation state changes (breadcrumb or fork update).
   useEffect(() => {
@@ -144,8 +145,8 @@ function AppShellContent() {
   }, [state.breadcrumb]);
 
   // ─── Temporal state defaulting based on breadcrumb ────────────────
-  // DS-2 Addendum §4.1: Default to Current at project root,
-  // Single+Cumulative when navigating through a milestone.
+  // DS-2 Addendum v3 §4.1: Default to Quiet at project root,
+  // Single+Submitted when navigating into the graph.
   // Only fires on navigation transitions, not manual temporal toggles.
   const prevIsAtRoot = useRef(isAtProjectRoot);
   useEffect(() => {
@@ -153,9 +154,12 @@ function AppShellContent() {
     prevIsAtRoot.current = isAtProjectRoot;
     // Only default on actual navigation transitions.
     if (isAtProjectRoot && !wasAtRoot) {
-      enterCurrent();
+      // Entering project root: engage Quiet, deactivate comparison
+      if (temporalState.isComparing) setComparing(false);
+      enterQuiet();
     } else if (!isAtProjectRoot && wasAtRoot) {
-      exitCurrent();
+      // Leaving project root: exit Quiet
+      exitQuiet();
     }
   }, [isAtProjectRoot]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -223,10 +227,10 @@ function AppShellContent() {
 
   // ─── Temporal state → API mode derivation ──────────────────────────
   // Derive the effective API mode from temporal state.
-  // In Current mode, pass null for contextId to get live timeline.
+  // In Quiet mode (backend: mode=current), pass null for contextId.
   // Otherwise, use the temporal state's valueMode.
-  const effectiveMode = temporalState.isCurrent ? "current" : temporalState.valueMode;
-  const resolvedContextId = temporalState.isCurrent ? null : contextId;
+  const effectiveMode = temporalState.isQuiet ? "current" : temporalState.valueMode;
+  const resolvedContextId = temporalState.isQuiet ? null : contextId;
 
   // ─── Resolved properties (snapshot-based display) ────────────────
 
@@ -269,58 +273,51 @@ function AppShellContent() {
     return [];
   }, [projectConnectedData, connectedData]);
 
-  // ─── Temporal control handlers ────────────────────────────────────
-  // These bridge TemporalControl callbacks to actual behavior:
-  // opening the milestone picker, activating comparison, etc.
-  // Matches the v16 mockup's clickViewMode / toggleCurrent logic.
+  // ─── Distributed temporal control handlers (DTC-9) ───────────────
+  // CompareButton toggle, QuietButton toggle, ValueModeToggle change.
 
-  /** View mode change handler.
-   *  Compare click → open picker (viewMode changes on confirm, not click).
-   *  Single click while in compare → switch to single, deactivate comparison.
-   *  Single click while in single → open picker for milestone selection. */
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    if (mode === "compare") {
-      // Open picker; don't change viewMode until confirmed
+  /** Compare toggle: enter comparison (open picker) or exit comparison. */
+  const handleCompareToggle = useCallback(() => {
+    if (temporalState.isComparing) {
+      setComparing(false);
+      deactivate();
+    } else {
       setMilestonePickerOpen(true);
-    } else if (mode === "single" && temporalState.viewMode === "compare") {
-      // Switching from compare to single
-      setViewMode("single");
-      deactivate();
     }
-  }, [setViewMode, temporalState.viewMode, deactivate]);
+  }, [temporalState.isComparing, setComparing, deactivate]);
 
-  /** Current toggle handler. */
-  const handleCurrentToggle = useCallback(() => {
-    if (temporalState.isCurrent) {
-      exitCurrent();
+  /** Quiet toggle: enter/exit Quiet mode. Entering Quiet deactivates comparison. */
+  const handleQuietToggle = useCallback(() => {
+    if (temporalState.isQuiet) {
+      exitQuiet();
     } else {
-      enterCurrent();
+      if (temporalState.isComparing) {
+        setComparing(false);
+        deactivate();
+      }
+      enterQuiet();
     }
-  }, [temporalState.isCurrent, enterCurrent, exitCurrent]);
+  }, [temporalState.isQuiet, temporalState.isComparing, enterQuiet, exitQuiet, setComparing, deactivate]);
 
-  /** Legacy comparison toggle (for keyboard shortcut). */
-  const handleComparisonToggle = useCallback(() => {
-    if (temporalState.isActive) {
-      deactivate();
-    } else {
-      setMilestonePickerOpen((open) => !open);
-    }
-  }, [temporalState.isActive, deactivate]);
+  /** Value mode change handler. */
+  const handleValueModeChange = useCallback((mode: "submitted" | "cumulative") => {
+    setValueMode(mode);
+  }, [setValueMode]);
 
   /** Milestone picker confirm handler.
-   *  Sets viewMode to compare + activates comparison. */
+   *  Sets isComparing + activates comparison data. */
   const handleMilestoneCompare = useCallback(
     (fromId: string, toId: string) => {
       const fromMilestone = milestones.find((m) => m.id === fromId);
       const toMilestone = milestones.find((m) => m.id === toId);
-      setViewMode("compare");
+      setComparing(true);
       activate(
         { id: fromId, identifier: fromMilestone?.label ?? null },
         { id: toId, identifier: toMilestone?.label ?? null },
       );
       setMilestonePickerOpen(false);
     },
-    [milestones, activate, setViewMode],
+    [milestones, activate, setComparing],
   );
 
   // ─── Dashboard data (exec summary dock) ─────────────────────────
@@ -507,13 +504,12 @@ function AppShellContent() {
           comparisonActive={temporalState.isActive}
           fromContextName={temporalState.fromContext?.identifier ?? "From"}
           toContextName={temporalState.toContext?.identifier ?? "To"}
-          onComparisonToggle={handleComparisonToggle}
+          onComparisonToggle={handleCompareToggle}
           valueMode={effectiveMode}
-          viewMode={temporalState.viewMode}
-          isCurrent={temporalState.isCurrent}
-          onViewModeChange={handleViewModeChange}
-          onValueModeChange={setValueMode}
-          onCurrentToggle={handleCurrentToggle}
+          isComparing={temporalState.isComparing}
+          onCompareToggle={handleCompareToggle}
+          compareVisible={!temporalState.isQuiet}
+          isQuiet={temporalState.isQuiet}
         />
 
         {/* Milestone picker dropdown (anchored to header area) */}
@@ -632,14 +628,13 @@ function AppShellContent() {
             comparisonActive={temporalState.isActive}
             fromContextName={temporalState.fromContext?.identifier ?? "From"}
             toContextName={temporalState.toContext?.identifier ?? "To"}
-            onComparisonToggle={handleComparisonToggle}
+            onComparisonToggle={handleCompareToggle}
             onWorkflowAction={handleWorkflowAction}
             valueMode={effectiveMode}
-            viewMode={temporalState.viewMode}
-            isCurrent={temporalState.isCurrent}
-            onViewModeChange={handleViewModeChange}
-            onValueModeChange={setValueMode}
-            onCurrentToggle={handleCurrentToggle}
+            isComparing={temporalState.isComparing}
+            onCompareToggle={handleCompareToggle}
+            compareVisible={!temporalState.isQuiet}
+            isQuiet={temporalState.isQuiet}
           />
 
           {/* Milestone picker dropdown (anchored to header area) */}
@@ -667,6 +662,9 @@ function AppShellContent() {
         onSelectWorkflowGroup={handleSelectWorkflowGroup}
         activeWorkflowPerspective={workflowPerspective}
         comparisonActive={temporalState.isActive}
+        valueMode={temporalState.valueMode}
+        onValueModeChange={handleValueModeChange}
+        isQuiet={temporalState.isQuiet}
         inProject={!!projectId}
         hasData={projectHasData}
         onAddData={() => setAddDataOpen(true)}
@@ -674,6 +672,7 @@ function AppShellContent() {
         currentItemId={currentItemId}
         userName={user?.name ?? ""}
         onDockNavigate={handleNavigate}
+        onQuietToggle={handleQuietToggle}
         comparisonBadge={
           temporalState.isActive ? (
             <span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border border-overlay-border bg-overlay-wash text-overlay shrink-0">

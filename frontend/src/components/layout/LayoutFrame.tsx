@@ -19,6 +19,7 @@ import { Breadcrumb } from "@/components/breadcrumb/Breadcrumb";
 import { ScalePanel } from "./ScalePanel";
 import { StoryPanel } from "./StoryPanel";
 import { KernelButton } from "./KernelButton";
+import { ValueModeToggle } from "./ValueModeToggle";
 import { ExecSummaryDock } from "@/components/dock/ExecSummaryDock";
 import { SearchTrigger } from "@/components/search/SearchTrigger";
 import type { DockCategory, ImportSummaryResponse } from "@/types/dashboard";
@@ -42,6 +43,14 @@ interface LayoutFrameProps {
   comparisonActive?: boolean;
   /** Comparison badge content for breadcrumb bar. */
   comparisonBadge?: ReactNode;
+  /** Current value mode (submitted or cumulative). DTC-6. */
+  valueMode?: "submitted" | "cumulative";
+  /** Callback when value mode changes. DTC-6. */
+  onValueModeChange?: (mode: "submitted" | "cumulative") => void;
+  /** Whether Quiet mode is active (disables value mode toggle, suppresses kernel count). DTC-6. */
+  isQuiet?: boolean;
+  /** Callback when Quiet mode is toggled (passed to ExecSummaryDock). DTC-7. */
+  onQuietToggle?: () => void;
   /** Whether we're inside a project (show Add Data button). */
   inProject?: boolean;
   /** Whether the project has data (controls Add Data button styling per A6). */
@@ -68,6 +77,10 @@ export function LayoutFrame({
   activeWorkflowPerspective,
   comparisonActive = false,
   comparisonBadge,
+  valueMode = "submitted",
+  onValueModeChange,
+  isQuiet = false,
+  onQuietToggle,
   inProject = false,
   hasData = false,
   onAddData,
@@ -121,6 +134,15 @@ export function LayoutFrame({
           </button>
         )}
 
+        {/* Value mode toggle — persistent, disabled in Quiet (DTC-6) */}
+        {onValueModeChange && (
+          <ValueModeToggle
+            value={valueMode}
+            onChange={onValueModeChange}
+            disabled={isQuiet}
+          />
+        )}
+
         {/* Comparison badge (shown when comparison active) */}
         {comparisonBadge}
       </div>
@@ -152,7 +174,7 @@ export function LayoutFrame({
             isOpen={notesPanelOpen}
             onToggle={toggleNotesPanel}
             label={notesPanelOpen ? "Collapse exec summary" : "Expand exec summary"}
-            count={dockActionCount > 0 ? dockActionCount : undefined}
+            count={isQuiet ? undefined : dockActionCount > 0 ? dockActionCount : undefined}
           />
         </div>
 
@@ -167,6 +189,8 @@ export function LayoutFrame({
           currentItemId={currentItemId}
           userName={userName}
           onNavigate={onDockNavigate}
+          isQuiet={isQuiet}
+          onQuietToggle={onQuietToggle}
         />
       </div>
     </div>

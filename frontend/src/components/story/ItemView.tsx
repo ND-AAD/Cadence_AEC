@@ -17,7 +17,6 @@ import type {
   ItemSummary,
   TypeConfigEntry,
 } from "@/types/navigation";
-import type { ViewMode, ValueMode } from "@/context/ComparisonContext";
 import type { ResolvedProperty } from "@/api/snapshots";
 import type { ItemComparison, PropertyChange } from "@/api/comparison";
 import type { ResolutionMethod } from "@/api/actionItems";
@@ -73,20 +72,16 @@ interface ItemViewProps {
   onComparisonToggle?: () => void;
   /** Callback after a workflow action (resolve, acknowledge, hold, resume) to refresh data. */
   onWorkflowAction?: () => void;
-  /** Value mode for trace treatment (T-7): "cumulative" | "submitted" | "current". Defaults to "cumulative". */
+  /** Value mode for trace treatment (T-7): "cumulative" | "submitted" | "current". Defaults to "submitted". */
   valueMode?: "cumulative" | "submitted" | "current";
-  /** Current view mode (T-6): single or compare. */
-  viewMode?: ViewMode;
-  /** Callback when view mode changes (T-6). */
-  onViewModeChange?: (mode: ViewMode) => void;
-  /** Callback when value mode changes (T-6). */
-  onValueModeChange?: (mode: ValueMode) => void;
-  /** True if in Current mode (T-6). */
-  isCurrent?: boolean;
-  /** Callback when Current mode is toggled (T-6). */
-  onCurrentToggle?: () => void;
-  /** Whether the temporal control is visible (T-6). */
-  temporalControlVisible?: boolean;
+  /** Whether comparison mode is engaged (DTC-5, replaces viewMode). */
+  isComparing?: boolean;
+  /** Callback to toggle comparison mode (DTC-5). */
+  onCompareToggle?: () => void;
+  /** Whether the compare button is visible (hidden in Quiet mode). */
+  compareVisible?: boolean;
+  /** Whether Quiet mode is active (DTC-8: diamond problem rendering). */
+  isQuiet?: boolean;
 }
 
 /** Map resolved property status to PropertyRow status. */
@@ -129,13 +124,11 @@ export function ItemView({
   toContextName = "",
   onComparisonToggle: _onComparisonToggle,
   onWorkflowAction,
-  valueMode = "cumulative",
-  viewMode = "single",
-  onViewModeChange,
-  onValueModeChange,
-  isCurrent = false,
-  onCurrentToggle,
-  temporalControlVisible = true,
+  valueMode = "submitted",
+  isComparing = false,
+  onCompareToggle,
+  compareVisible = true,
+  isQuiet = false,
 }: ItemViewProps) {
   // ── Expansion state (lifted from PropertyRow) ──
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -314,19 +307,13 @@ export function ItemView({
         />
       )}
 
-      {/* Item header with temporal control */}
+      {/* Item header with compare button (DTC-5) */}
       <ItemHeader
         item={item}
         typeConfig={typeConfig}
-        viewMode={viewMode}
-        valueMode={
-          valueMode === "current" ? "cumulative" : (valueMode as ValueMode)
-        }
-        isCurrent={isCurrent}
-        onViewModeChange={onViewModeChange}
-        onValueModeChange={onValueModeChange}
-        onCurrentToggle={onCurrentToggle}
-        temporalControlVisible={temporalControlVisible}
+        isComparing={isComparing}
+        onCompareToggle={onCompareToggle}
+        compareVisible={compareVisible}
       />
 
       {/* Unified rows */}
@@ -530,6 +517,36 @@ export function ItemView({
               // Every row with expansion content is expandable.
               const isExpandable = !!expansionContent;
 
+              // ── Quiet diamond problem: dual values when sources disagree ──
+              // DTC-8: In Quiet mode with multiple disagreeing sources and no
+              // source in the breadcrumb path, show all values with inline
+              // source attribution.
+              const quietDiamond = isQuiet
+                && entry.resolved
+                && Object.keys(entry.resolved.sources).length > 1
+                && new Set(Object.values(entry.resolved.sources).map(String)).size > 1;
+
+              const valueContent = quietDiamond && entry.resolved ? (
+                <div className="flex flex-col gap-0.5">
+                  {Object.entries(entry.resolved.sources)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([sourceName, sourceValue]) => (
+                      <div key={sourceName} className="flex items-baseline justify-between gap-3">
+                        <span className="font-mono text-base-size">
+                          {formatValue(sourceValue, entry.unit)}
+                        </span>
+                        <span className="text-trace text-xs shrink-0">
+                          {sourceName}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <span className={`font-mono text-base-size ${isCarriedForward || (valueMode === "submitted" && entry.value === null) ? "text-trace" : ""}`}>
+                  {formatValue(entry.value, entry.unit)}
+                </span>
+              );
+
               return (
                 <PropertyRow
                   key={entry.key}
@@ -561,9 +578,7 @@ export function ItemView({
                   onToggle={isExpandable ? () => toggleExpansion(entry.key) : undefined}
                   expansionContent={expansionContent}
                 >
-                  <span className={`font-mono text-base-size ${isCarriedForward || (valueMode === "submitted" && entry.value === null) ? "text-trace" : ""}`}>
-                    {formatValue(entry.value, entry.unit)}
-                  </span>
+                  {valueContent}
                 </PropertyRow>
               );
             })}

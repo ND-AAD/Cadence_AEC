@@ -1,10 +1,10 @@
 // ─── Temporal Context ────────────────────────────────────────────
-// Global temporal state: manages view modes (single/compare), value modes
-// (submitted/cumulative), and Current mode.
+// Global temporal state: manages comparison mode, value modes
+// (submitted/cumulative), and Quiet mode.
 //
-// T-6: Evolved from ComparisonContext. Adds temporal control fields
-// (viewMode, valueMode, isCurrent, hasExplicitlyToggled) and semantics
-// for automatic value mode switching per DS-2 Addendum §4.2.
+// DTC-1: Refactored from T-6 tray model. Replaces isCurrent with isQuiet,
+// viewMode with isComparing, removes hasExplicitlyToggled. Default value
+// mode changed to submitted per DS-2 Addendum v3 §4.2.
 //
 // Comparison activation/deactivation preserved; comparison-related actions
 // still live here for backward compatibility.
@@ -22,7 +22,6 @@ import type { ItemComparison } from "@/api/comparison";
 
 // ─── Types ───────────────────────────────────────────────────────
 
-export type ViewMode = "single" | "compare";
 export type ValueMode = "submitted" | "cumulative";
 
 interface ContextInfo {
@@ -32,7 +31,7 @@ interface ContextInfo {
 
 export interface TemporalState {
   // ── Comparison fields (preserved from ComparisonContext) ──
-  /** True when comparison mode is active. */
+  /** True when comparison mode is active (data loaded, two-column layout). */
   isActive: boolean;
   /** The "from" (earlier) milestone context. */
   fromContext: ContextInfo | null;
@@ -45,26 +44,22 @@ export interface TemporalState {
   /** Error from the last failed comparison request. */
   error: string | null;
 
-  // ── Temporal control fields (new for T-6) ──
-  /** View mode: single or compare. */
-  viewMode: ViewMode;
-  /** Value mode: submitted or cumulative. */
+  // ── Temporal control fields (DTC-1, replaces T-6 tray model) ──
+  /** True when comparison mode is engaged. Single is implicit (isComparing=false). */
+  isComparing: boolean;
+  /** Value mode: submitted or cumulative. Persists across navigation. */
   valueMode: ValueMode;
-  /** True when user has selected Current mode. */
-  isCurrent: boolean;
-  /** True if user has explicitly toggled valueMode (not auto-switched). */
-  hasExplicitlyToggled: boolean;
+  /** True when Quiet mode is active (replaces isCurrent). */
+  isQuiet: boolean;
 
-  // ── State preservation for returning from Current ──
-  /** Preserved viewMode before entering Current. */
-  preservedViewMode: ViewMode;
-  /** Preserved valueMode before entering Current. */
+  // ── State preservation for returning from Quiet ──
+  /** Preserved milestone before entering Quiet. */
+  preservedMilestone: ContextInfo | null;
+  /** Preserved valueMode before entering Quiet. */
   preservedValueMode: ValueMode;
-  /** Preserved context (for single view) before entering Current. */
-  preservedContext: ContextInfo | null;
 }
 
-/** Default temporal state. Single + Cumulative, not Current, not explicitly toggled. */
+/** Default temporal state. Submitted, not Quiet, not comparing. */
 const initialState: TemporalState = {
   isActive: false,
   fromContext: null,
@@ -72,13 +67,11 @@ const initialState: TemporalState = {
   dataCache: {},
   pending: false,
   error: null,
-  viewMode: "single",
-  valueMode: "cumulative",
-  isCurrent: false,
-  hasExplicitlyToggled: false,
-  preservedViewMode: "single",
-  preservedValueMode: "cumulative",
-  preservedContext: null,
+  isComparing: false,
+  valueMode: "submitted",
+  isQuiet: false,
+  preservedMilestone: null,
+  preservedValueMode: "submitted",
 };
 
 // ─── Actions ─────────────────────────────────────────────────────
@@ -93,11 +86,12 @@ type TemporalAction =
   | { type: "SET_PENDING"; pending: boolean }
   | { type: "SET_ERROR"; error: string | null }
   | { type: "CLEAR_CACHE" }
-  // Temporal control actions (new for T-6)
-  | { type: "SET_VIEW_MODE"; viewMode: ViewMode }
+  // Temporal control actions (DTC-1)
+  | { type: "SET_COMPARING"; isComparing: boolean }
   | { type: "SET_VALUE_MODE"; valueMode: ValueMode }
-  | { type: "ENTER_CURRENT" }
-  | { type: "EXIT_CURRENT" };
+  | { type: "ENTER_QUIET" }
+  | { type: "EXIT_QUIET" }
+  | { type: "SET_MILESTONE"; milestone: ContextInfo | null };
 
 function temporalReducer(
   state: TemporalState,
@@ -154,44 +148,30 @@ function temporalReducer(
     case "CLEAR_CACHE":
       return { ...state, dataCache: {} };
 
-    case "SET_VIEW_MODE": {
-      // When switching view modes, auto-switch value mode unless explicitly toggled.
-      let nextValueMode = state.valueMode;
-      if (!state.hasExplicitlyToggled) {
-        // Auto-switch: compare → submitted, single → cumulative
-        nextValueMode = action.viewMode === "compare" ? "submitted" : "cumulative";
-      }
-      return {
-        ...state,
-        viewMode: action.viewMode,
-        valueMode: nextValueMode,
-      };
-    }
+    case "SET_COMPARING":
+      return { ...state, isComparing: action.isComparing };
 
     case "SET_VALUE_MODE":
-      return {
-        ...state,
-        valueMode: action.valueMode,
-        hasExplicitlyToggled: true,
-      };
+      return { ...state, valueMode: action.valueMode };
 
-    case "ENTER_CURRENT":
+    case "ENTER_QUIET":
       return {
         ...state,
-        isCurrent: true,
-        preservedViewMode: state.viewMode,
+        isQuiet: true,
+        preservedMilestone: state.fromContext,
         preservedValueMode: state.valueMode,
-        preservedContext: state.fromContext,
       };
 
-    case "EXIT_CURRENT":
+    case "EXIT_QUIET":
       return {
         ...state,
-        isCurrent: false,
-        viewMode: state.preservedViewMode,
+        isQuiet: false,
         valueMode: state.preservedValueMode,
-        fromContext: state.preservedContext,
+        fromContext: state.preservedMilestone,
       };
+
+    case "SET_MILESTONE":
+      return { ...state, fromContext: action.milestone };
 
     default:
       return state;
@@ -221,15 +201,17 @@ interface TemporalContextValue {
   /** Get cached comparison data for an item. */
   getItemComparison: (itemId: string) => ItemComparison | undefined;
 
-  // ── Temporal control actions (new for T-6) ──
-  /** Set view mode (single or compare). Auto-switches value mode if not explicitly toggled. */
-  setViewMode: (viewMode: ViewMode) => void;
-  /** Set value mode (submitted or cumulative). Marks user choice as explicit. */
+  // ── Temporal control actions (DTC-1) ──
+  /** Set comparing state. True opens comparison; false returns to single. */
+  setComparing: (isComparing: boolean) => void;
+  /** Set value mode (submitted or cumulative). Persistent across navigation. */
   setValueMode: (valueMode: ValueMode) => void;
-  /** Preserve current state and enter Current mode. */
-  enterCurrent: () => void;
-  /** Exit Current mode and restore preserved state. */
-  exitCurrent: () => void;
+  /** Preserve current state and enter Quiet mode. */
+  enterQuiet: () => void;
+  /** Exit Quiet mode and restore preserved state. */
+  exitQuiet: () => void;
+  /** Set the active milestone context (for milestone chip selection). */
+  setMilestone: (milestone: ContextInfo | null) => void;
 }
 
 const TemporalCtx = createContext<TemporalContextValue | null>(null);
@@ -280,21 +262,28 @@ export function TemporalProvider({ children }: { children: ReactNode }) {
   );
 
   // Temporal control actions
-  const setViewMode = useCallback((viewMode: ViewMode) => {
-    dispatch({ type: "SET_VIEW_MODE", viewMode });
+  const setComparing = useCallback((isComparing: boolean) => {
+    dispatch({ type: "SET_COMPARING", isComparing });
   }, []);
 
   const setValueMode = useCallback((valueMode: ValueMode) => {
     dispatch({ type: "SET_VALUE_MODE", valueMode });
   }, []);
 
-  const enterCurrent = useCallback(() => {
-    dispatch({ type: "ENTER_CURRENT" });
+  const enterQuiet = useCallback(() => {
+    dispatch({ type: "ENTER_QUIET" });
   }, []);
 
-  const exitCurrent = useCallback(() => {
-    dispatch({ type: "EXIT_CURRENT" });
+  const exitQuiet = useCallback(() => {
+    dispatch({ type: "EXIT_QUIET" });
   }, []);
+
+  const setMilestone = useCallback(
+    (milestone: ContextInfo | null) => {
+      dispatch({ type: "SET_MILESTONE", milestone });
+    },
+    [],
+  );
 
   const value: TemporalContextValue = {
     state,
@@ -306,10 +295,11 @@ export function TemporalProvider({ children }: { children: ReactNode }) {
     setPending,
     setError,
     getItemComparison,
-    setViewMode,
+    setComparing,
     setValueMode,
-    enterCurrent,
-    exitCurrent,
+    enterQuiet,
+    exitQuiet,
+    setMilestone,
   };
 
   return (
