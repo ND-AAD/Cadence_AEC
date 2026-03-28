@@ -328,6 +328,7 @@ export function ProjectDataView({
                                       expanded={expandedItems.has(item.id)}
                                       onToggle={() => toggleItem(item.id)}
                                       breadcrumbIds={breadcrumbIds}
+                                      isQuiet={isQuiet}
                                     />
                                   ))}
                                 </div>
@@ -396,6 +397,7 @@ export function ProjectDataView({
                         expanded={expandedItems.has(item.id)}
                         onToggle={() => toggleItem(item.id)}
                         breadcrumbIds={breadcrumbIds}
+                        isQuiet={isQuiet}
                       />
                     </div>
                   ))}

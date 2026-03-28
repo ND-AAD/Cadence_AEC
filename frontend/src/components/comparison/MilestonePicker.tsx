@@ -19,20 +19,33 @@ interface MilestonePickerProps {
   onCompare: (fromId: string, toId: string) => void;
   /** Called when user closes the picker without comparing. */
   onClose: () => void;
+  /** The milestone currently in the breadcrumb (pre-selected as "to"). */
+  currentContextId?: string | null;
 }
 
 export function MilestonePicker({
   milestones,
   onCompare,
   onClose,
+  currentContextId,
 }: MilestonePickerProps) {
-  // Default: auto-select second-to-last and last milestones.
-  const [fromId, setFromId] = useState<string>(
-    milestones.length >= 2 ? milestones[milestones.length - 2].id : "",
-  );
-  const [toId, setToId] = useState<string>(
-    milestones.length >= 1 ? milestones[milestones.length - 1].id : "",
-  );
+  // Default selection: if the user is viewing through a specific milestone,
+  // use that as "to" and the prior milestone as "from". Otherwise fall back
+  // to the last two milestones in ordinal order.
+  const [fromId, setFromId] = useState<string>(() => {
+    if (currentContextId) {
+      const currentIndex = milestones.findIndex((m) => m.id === currentContextId);
+      if (currentIndex > 0) return milestones[currentIndex - 1].id;
+    }
+    return milestones.length >= 2 ? milestones[milestones.length - 2].id : "";
+  });
+  const [toId, setToId] = useState<string>(() => {
+    if (currentContextId) {
+      const match = milestones.find((m) => m.id === currentContextId);
+      if (match) return match.id;
+    }
+    return milestones.length >= 1 ? milestones[milestones.length - 1].id : "";
+  });
 
   const panelRef = useRef<HTMLDivElement>(null);
 

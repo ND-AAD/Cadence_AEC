@@ -7,7 +7,7 @@
 // breadcrumb, fetches item data + connected items + type config +
 // resolved properties, and passes everything to content components.
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { NavigationProvider, useNavigationContext } from "@/context/NavigationContext";
 import { useAuth } from "@/context/AuthContext";
 import { ComparisonProvider, useTemporalContext } from "@/context/ComparisonContext";
@@ -139,29 +139,21 @@ function AppShellContent() {
     return bc.length > 0 ? bc[bc.length - 1].id : null;
   }, [state.breadcrumb, state.fork]);
 
-  /** Whether breadcrumb is at project root (depth 1). */
-  const isAtProjectRoot = useMemo(() => {
-    return state.breadcrumb.length === 1;
-  }, [state.breadcrumb]);
+  // ─── Temporal state persistence ────────────────────────────────────
+  // Quiet mode and value mode are user-initiated and persist across
+  // navigation. No auto-defaulting. The user controls their own lens.
 
-  // ─── Temporal state defaulting based on breadcrumb ────────────────
-  // DS-2 Addendum v3 §4.1: Default to Quiet at project root,
-  // Single+Submitted when navigating into the graph.
-  // Only fires on navigation transitions, not manual temporal toggles.
-  const prevIsAtRoot = useRef(isAtProjectRoot);
-  useEffect(() => {
-    const wasAtRoot = prevIsAtRoot.current;
-    prevIsAtRoot.current = isAtProjectRoot;
-    // Only default on actual navigation transitions.
-    if (isAtProjectRoot && !wasAtRoot) {
-      // Entering project root: engage Quiet, deactivate comparison
-      if (temporalState.isComparing) setComparing(false);
-      enterQuiet();
-    } else if (!isAtProjectRoot && wasAtRoot) {
-      // Leaving project root: exit Quiet
-      exitQuiet();
-    }
-  }, [isAtProjectRoot]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** The milestone in the current breadcrumb path (if any).
+   *  Used to default the "to" context in the MilestonePicker. */
+  const breadcrumbMilestoneId = useMemo(() => {
+    const allItems = state.fork
+      ? [...state.fork.stem, ...state.fork.active]
+      : state.breadcrumb;
+    const milestone = allItems.find(
+      (item) => item.itemType === "milestone" || item.itemType === "issuance"
+    );
+    return milestone?.id ?? null;
+  }, [state.breadcrumb, state.fork]);
 
   /** The parent of the current item (for sibling derivation). */
   const parentItemId = useMemo(() => {
@@ -519,6 +511,7 @@ function AppShellContent() {
               milestones={milestones}
               onCompare={handleMilestoneCompare}
               onClose={() => setMilestonePickerOpen(false)}
+              currentContextId={breadcrumbMilestoneId}
             />
           </div>
         )}
@@ -645,6 +638,7 @@ function AppShellContent() {
                 milestones={milestones}
                 onCompare={handleMilestoneCompare}
                 onClose={() => setMilestonePickerOpen(false)}
+                currentContextId={breadcrumbMilestoneId}
               />
             </div>
           )}
