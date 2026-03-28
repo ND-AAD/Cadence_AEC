@@ -600,6 +600,7 @@ export function ItemView({
               breadcrumbIds={breadcrumbIds}
               onNavigate={onNavigate}
               comparisonActive={comparisonActive}
+              isQuiet={isQuiet}
             />
           ))}
       </div>

@@ -29,20 +29,39 @@ export function MilestonePicker({
   onClose,
   currentContextId,
 }: MilestonePickerProps) {
-  // Default selection: if the user is viewing through a specific milestone,
-  // use that as "to" and the prior milestone as "from". Otherwise fall back
-  // to the last two milestones in ordinal order.
+  // Default selection: the current context is the "from" (earlier) slot,
+  // with the next milestone as "to" (later). Exception: if the user is at
+  // the latest milestone, current goes in the "to" slot and the prior
+  // milestone becomes "from".
   const [fromId, setFromId] = useState<string>(() => {
     if (currentContextId) {
       const currentIndex = milestones.findIndex((m) => m.id === currentContextId);
-      if (currentIndex > 0) return milestones[currentIndex - 1].id;
+      if (currentIndex >= 0) {
+        const isLatest = currentIndex === milestones.length - 1;
+        if (isLatest) {
+          // At latest: prior milestone is "from"
+          return currentIndex > 0 ? milestones[currentIndex - 1].id : "";
+        }
+        // Not at latest: current is "from"
+        return currentContextId;
+      }
     }
     return milestones.length >= 2 ? milestones[milestones.length - 2].id : "";
   });
   const [toId, setToId] = useState<string>(() => {
     if (currentContextId) {
-      const match = milestones.find((m) => m.id === currentContextId);
-      if (match) return match.id;
+      const currentIndex = milestones.findIndex((m) => m.id === currentContextId);
+      if (currentIndex >= 0) {
+        const isLatest = currentIndex === milestones.length - 1;
+        if (isLatest) {
+          // At latest: current is "to"
+          return currentContextId;
+        }
+        // Not at latest: next milestone is "to"
+        return currentIndex < milestones.length - 1
+          ? milestones[currentIndex + 1].id
+          : currentContextId;
+      }
     }
     return milestones.length >= 1 ? milestones[milestones.length - 1].id : "";
   });

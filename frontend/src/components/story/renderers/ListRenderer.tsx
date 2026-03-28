@@ -17,6 +17,8 @@ export interface RendererProps {
   onNavigate: (itemId: string) => void;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Whether Quiet mode is active (suppresses pips). */
+  isQuiet?: boolean;
 }
 
 export function ListRenderer({
@@ -25,6 +27,7 @@ export function ListRenderer({
   breadcrumbIds,
   onNavigate,
   comparisonActive = false,
+  isQuiet = false,
 }: RendererProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -70,6 +73,7 @@ export function ListRenderer({
                 expanded={expandedItems.has(item.id)}
                 onToggle={() => toggleItem(item.id)}
                 breadcrumbIds={breadcrumbIds}
+                isQuiet={isQuiet}
               />
             ))}
           </div>

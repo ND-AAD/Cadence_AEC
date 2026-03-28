@@ -13,6 +13,8 @@ interface GroupRendererProps {
   onNavigate: (itemId: string) => void;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Whether Quiet mode is active (suppresses pips). */
+  isQuiet?: boolean;
 }
 
 export function GroupRenderer({
@@ -21,9 +23,10 @@ export function GroupRenderer({
   breadcrumbIds,
   onNavigate,
   comparisonActive = false,
+  isQuiet = false,
 }: GroupRendererProps) {
   // Alpha: all connection groups render as list. Table/card/timeline
   // renderers exist but aren't wired to snapshot data yet.
-  const props = { group, typeConfig, breadcrumbIds, onNavigate, comparisonActive };
+  const props = { group, typeConfig, breadcrumbIds, onNavigate, comparisonActive, isQuiet };
   return <ListRenderer {...props} />;
 }

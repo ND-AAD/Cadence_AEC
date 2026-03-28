@@ -37,7 +37,7 @@ import { getItem, itemDisplayName } from "@/api/items";
 import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
 
 function AppShellContent() {
-  const { state, navigate, setBreadcrumb } = useNavigationContext()!;
+  const { state, navigate, popTo, setBreadcrumb } = useNavigationContext()!;
   const { state: temporalState, activate, deactivate, setComparing, setValueMode, enterQuiet, exitQuiet } = useTemporalContext();
   const { user } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -278,7 +278,9 @@ function AppShellContent() {
     }
   }, [temporalState.isComparing, setComparing, deactivate]);
 
-  /** Quiet toggle: enter/exit Quiet mode. Entering Quiet deactivates comparison. */
+  /** Quiet toggle: enter/exit Quiet mode. Entering Quiet deactivates comparison.
+   *  If standing on a milestone/issuance, step back one breadcrumb level first
+   *  so the user sees the building (items), not the process (milestone). */
   const handleQuietToggle = useCallback(() => {
     if (temporalState.isQuiet) {
       exitQuiet();
@@ -287,9 +289,17 @@ function AppShellContent() {
         setComparing(false);
         deactivate();
       }
+      // If currently viewing a milestone, navigate to its parent first.
+      if (
+        currentItem &&
+        (currentItem.item_type === "milestone" || currentItem.item_type === "issuance") &&
+        state.breadcrumb.length > 1
+      ) {
+        popTo(state.breadcrumb.length - 2);
+      }
       enterQuiet();
     }
-  }, [temporalState.isQuiet, temporalState.isComparing, enterQuiet, exitQuiet, setComparing, deactivate]);
+  }, [temporalState.isQuiet, temporalState.isComparing, enterQuiet, exitQuiet, setComparing, deactivate, currentItem, state.breadcrumb.length, popTo]);
 
   /** Value mode change handler. */
   const handleValueModeChange = useCallback((mode: "submitted" | "cumulative") => {
