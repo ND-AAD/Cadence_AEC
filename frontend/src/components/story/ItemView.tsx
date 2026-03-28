@@ -554,7 +554,7 @@ export function ItemView({
                   status={rowStatus}
                   comparisonColumns={comparisonColumns}
                   indicators={
-                    (pips.length > 0 || cairnData) ? (
+                    (!isQuiet && (pips.length > 0 || cairnData)) ? (
                       <IndicatorLane
                         pips={pips}
                         cairn={cairnData}

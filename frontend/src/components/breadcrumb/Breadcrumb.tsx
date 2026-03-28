@@ -8,6 +8,7 @@
 
 import { useContext } from "react";
 import { NavigationContext } from "@/context/NavigationContext";
+import { useTemporalContext } from "@/context/ComparisonContext";
 import type { BreadcrumbItem } from "@/types/navigation";
 import { BreadcrumbChevron } from "./BreadcrumbChevron";
 import { BreadcrumbSegment } from "./BreadcrumbSegment";
@@ -59,6 +60,10 @@ function SegmentList({
 
 export function Breadcrumb() {
   const navCtx = useContext(NavigationContext);
+  // Quiet mode: milestones disappear from the breadcrumb path.
+  // "Show me the building, not the process" — temporal context collapses away.
+  const { state: temporalState } = useTemporalContext();
+  const isQuiet = temporalState.isQuiet;
 
   // Outside NavigationProvider (e.g. project list) — render empty placeholder.
   if (!navCtx) {
@@ -68,8 +73,10 @@ export function Breadcrumb() {
   const { state, popTo } = navCtx;
   const { breadcrumb, fork, pending } = state;
 
-  // Show the full breadcrumb path. The project root is always the first segment.
-  const displayBreadcrumb = breadcrumb;
+  // In Quiet mode, filter out milestone segments from the breadcrumb.
+  const displayBreadcrumb = isQuiet
+    ? breadcrumb.filter((item) => item.itemType !== "milestone" && item.itemType !== "issuance")
+    : breadcrumb;
 
   // Empty state — breadcrumb not yet initialized.
   if (displayBreadcrumb.length === 0 && !fork) {

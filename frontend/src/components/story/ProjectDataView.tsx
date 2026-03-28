@@ -37,6 +37,8 @@ interface ProjectDataViewProps {
   } | null;
   /** Item selected from the dashboard (left panel). Drives expand-in-place. */
   selectedItemId?: string | null;
+  /** Whether Quiet mode is active. Filters out milestone groups. */
+  isQuiet?: boolean;
 }
 
 export function ProjectDataView({
@@ -50,6 +52,7 @@ export function ProjectDataView({
   selectedGroupType,
   workflowPerspective,
   selectedItemId,
+  isQuiet = false,
 }: ProjectDataViewProps) {
   // All sections default to expanded.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -106,9 +109,16 @@ export function ProjectDataView({
   );
 
   const visibleGroups = useMemo(() => {
-    if (!selectedGroupType) return filteredGroups;
-    return filteredGroups.filter((g) => g.item_type === selectedGroupType);
-  }, [filteredGroups, selectedGroupType]);
+    let groups = filteredGroups;
+    // In Quiet mode, milestones disappear from the project view.
+    if (isQuiet) {
+      groups = groups.filter((g) => g.item_type !== "milestone" && g.item_type !== "issuance");
+    }
+    if (selectedGroupType) {
+      groups = groups.filter((g) => g.item_type === selectedGroupType);
+    }
+    return groups;
+  }, [filteredGroups, selectedGroupType, isQuiet]);
 
   // When dashboard selection changes, expand that item and scroll to it.
   // Also ensure its parent group is not collapsed.

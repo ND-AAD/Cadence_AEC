@@ -558,6 +558,7 @@ function AppShellContent() {
           selectedGroupType={selectedGroupType}
           workflowPerspective={workflowPerspective}
           selectedItemId={selectedItemId}
+          isQuiet={temporalState.isQuiet}
         />
       );
     } else if (itemType === "conflict") {

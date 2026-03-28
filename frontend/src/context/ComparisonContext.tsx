@@ -110,8 +110,17 @@ function temporalReducer(
       };
 
     case "DEACTIVATE":
+      // Only reset comparison-specific fields. Preserve temporal controls
+      // (isQuiet, valueMode, isComparing, preserved state) so deactivation
+      // doesn't clobber the user's current mode.
       return {
-        ...initialState,
+        ...state,
+        isActive: false,
+        fromContext: null,
+        toContext: null,
+        dataCache: {},
+        pending: false,
+        error: null,
       };
 
     case "SWAP_CONTEXTS":
