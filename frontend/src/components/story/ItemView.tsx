@@ -233,15 +233,19 @@ export function ItemView({
           });
           resolvedMap.delete(def.name);
         } else if (valueMode === "submitted") {
-          // In submitted mode, absent properties render as "—" in trace color.
-          // Do not fall back to raw properties.
-          propertyEntries.push({
-            key: def.name,
-            label: def.label,
-            value: null, // Will be rendered as "—" by formatValue
-            unit: def.unit,
-            status: "aligned",
-          });
+          // In submitted mode, absent properties are hidden unless comparison
+          // mode has a change for them (the absence is itself meaningful).
+          const change = changeMap.get(def.name);
+          if (comparisonActive && change) {
+            propertyEntries.push({
+              key: def.name,
+              label: def.label,
+              value: null,
+              unit: def.unit,
+              status: "aligned",
+            });
+          }
+          // Otherwise: skip — property wasn't submitted at this context.
         } else if (def.name in item.properties) {
           propertyEntries.push({
             key: def.name,
@@ -554,7 +558,7 @@ export function ItemView({
                   status={rowStatus}
                   comparisonColumns={comparisonColumns}
                   indicators={
-                    (!isQuiet && (pips.length > 0 || cairnData)) ? (
+                    (pips.length > 0 || cairnData) ? (
                       <IndicatorLane
                         pips={pips}
                         cairn={cairnData}
@@ -600,7 +604,6 @@ export function ItemView({
               breadcrumbIds={breadcrumbIds}
               onNavigate={onNavigate}
               comparisonActive={comparisonActive}
-              isQuiet={isQuiet}
             />
           ))}
       </div>

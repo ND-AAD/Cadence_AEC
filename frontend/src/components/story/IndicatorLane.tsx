@@ -2,6 +2,10 @@
 // Container for pips and cairns in the 28px indicator lane column.
 // DS-2 §3: flex-row-reverse, first child rightmost (highest priority).
 //
+// Quiet-aware: reads isQuiet from TemporalContext. When Quiet mode
+// is active, renders nothing. This is the single architectural gate
+// for all pip/cairn rendering across the app.
+//
 // Ordering (right to left):
 //   1. Cairn (if present — always position 1)
 //   2. Present pips (exact context match):
@@ -11,6 +15,7 @@
 
 import { Pip, type PipColor } from "./Pip";
 import { Cairn } from "./Cairn";
+import { useTemporalContext } from "@/context/ComparisonContext";
 
 export type { PipColor };
 
@@ -46,6 +51,8 @@ interface IndicatorLaneProps {
 }
 
 export function IndicatorLane({ pips, cairn, onPipClick, onCairnClick }: IndicatorLaneProps) {
+  const { state } = useTemporalContext();
+  if (state.isQuiet) return null;
   if (pips.length === 0 && !cairn) return null;
 
   return (

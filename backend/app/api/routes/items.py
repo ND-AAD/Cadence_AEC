@@ -1,5 +1,6 @@
 """Items API routes — WP-2: Full CRUD with search, validation, connected items."""
 
+import re
 import uuid
 from collections import defaultdict
 
@@ -22,6 +23,20 @@ from app.schemas.items import (
 from app.services.normalization import normalize_identifier
 
 router = APIRouter()
+
+
+def _natural_sort_key(s: str) -> list[tuple[int, int | str]]:
+    """Split a string into text and numeric segments for natural ordering.
+    "Door 2" → [(1, "door "), (0, 2)], "Door 101" → [(1, "door "), (0, 101)].
+    Each segment is a (type_tag, value) tuple so mixed types never compare directly.
+    Numbers sort before text at the same position (type_tag 0 < 1)."""
+    parts: list[tuple[int, int | str]] = []
+    for segment in re.split(r"(\d+)", s):
+        if segment.isdigit():
+            parts.append((0, int(segment)))
+        else:
+            parts.append((1, segment.lower()))
+    return parts
 
 
 # ─── CRUD ──────────────────────────────────────────────────────
@@ -416,7 +431,7 @@ async def get_connected_items(
                 )
             )
         else:
-            items_list.sort(key=lambda x: (x.identifier or "").lower())
+            items_list.sort(key=lambda x: _natural_sort_key(x.identifier or ""))
         groups.append(
             ConnectedGroup(
                 item_type=type_name,

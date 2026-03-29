@@ -25,8 +25,6 @@ interface ProjectItemRowProps {
   onToggle?: () => void;
   /** Breadcrumb IDs to pass through for inline preview filtering. */
   breadcrumbIds?: Set<string>;
-  /** Whether Quiet mode is active (suppresses pips). */
-  isQuiet?: boolean;
 }
 
 export function ProjectItemRow({
@@ -37,7 +35,6 @@ export function ProjectItemRow({
   expanded = false,
   onToggle,
   breadcrumbIds,
-  isQuiet = false,
 }: ProjectItemRowProps) {
   const name = itemDisplayName(item.identifier, item.item_type);
   const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
@@ -88,8 +85,8 @@ export function ProjectItemRow({
           </button>
         )}
 
-        {/* Indicator lane — pips (hidden in Quiet mode) */}
-        {!isQuiet && pips.length > 0 ? (
+        {/* Indicator lane — pips (IndicatorLane is quiet-aware via context) */}
+        {pips.length > 0 ? (
           <IndicatorLane pips={pips} />
         ) : (
           <div />
