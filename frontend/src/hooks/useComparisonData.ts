@@ -26,7 +26,7 @@ export function useComparisonData(
   const [error, setLocalError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const { isActive, fromContext, toContext } = state;
+  const { isActive, fromContext, toContext, valueMode } = state;
 
   useEffect(() => {
     // Don't fetch if comparison isn't active or IDs are missing.
@@ -51,6 +51,7 @@ export function useComparisonData(
           item_ids: [itemId],
           from_context_id: fromContext.id,
           to_context_id: toContext.id,
+          mode: valueMode,
         });
 
         if (cancelled) return;
@@ -86,7 +87,7 @@ export function useComparisonData(
     return () => {
       cancelled = true;
     };
-  }, [itemId, isActive, fromContext?.id, toContext?.id, retryCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemId, isActive, fromContext?.id, toContext?.id, valueMode, retryCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const retry = useCallback(() => setRetryCount((c) => c + 1), []);
 

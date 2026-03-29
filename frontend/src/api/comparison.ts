@@ -17,6 +17,8 @@ export interface ComparisonRequest {
   to_context_id: string;
   /** Optional: filter to a specific source. */
   source_filter?: string;
+  /** Value mode: "cumulative" (carry-forward) or "submitted" (strict context match). */
+  mode?: string;
   /** Pagination. */
   limit?: number;
   offset?: number;

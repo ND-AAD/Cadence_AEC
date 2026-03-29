@@ -220,9 +220,12 @@ function AppShellContent() {
   // ─── Temporal state → API mode derivation ──────────────────────────
   // Derive the effective API mode from temporal state.
   // In Quiet mode (backend: mode=current), pass null for contextId.
-  // Otherwise, use the temporal state's valueMode.
+  // Otherwise, use the breadcrumb milestone (the milestone you navigated
+  // through) so resolved properties reflect that milestone's data.
+  // Falls back to the latest milestone when no milestone is in the path.
   const effectiveMode = temporalState.isQuiet ? "current" : temporalState.valueMode;
-  const resolvedContextId = temporalState.isQuiet ? null : contextId;
+  const activeContextId = breadcrumbMilestoneId ?? contextId;
+  const resolvedContextId = temporalState.isQuiet ? null : activeContextId;
 
   // ─── Resolved properties (snapshot-based display) ────────────────
 
