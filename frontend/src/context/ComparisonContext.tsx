@@ -223,7 +223,7 @@ interface TemporalContextValue {
   setMilestone: (milestone: ContextInfo | null) => void;
 }
 
-const TemporalCtx = createContext<TemporalContextValue | null>(null);
+export const TemporalCtx = createContext<TemporalContextValue | null>(null);
 
 // ─── Provider ────────────────────────────────────────────────────
 

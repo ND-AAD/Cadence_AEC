@@ -8,7 +8,7 @@
 
 import { useContext } from "react";
 import { NavigationContext } from "@/context/NavigationContext";
-import { useTemporalContext } from "@/context/ComparisonContext";
+import { TemporalCtx } from "@/context/ComparisonContext";
 import type { BreadcrumbItem } from "@/types/navigation";
 import { BreadcrumbChevron } from "./BreadcrumbChevron";
 import { BreadcrumbSegment } from "./BreadcrumbSegment";
@@ -62,8 +62,10 @@ export function Breadcrumb() {
   const navCtx = useContext(NavigationContext);
   // Quiet mode: milestones disappear from the breadcrumb path.
   // "Show me the building, not the process" — temporal context collapses away.
-  const { state: temporalState } = useTemporalContext();
-  const isQuiet = temporalState.isQuiet;
+  // Use raw useContext (not the throwing wrapper) so Breadcrumb works outside
+  // TemporalProvider (e.g. ProjectListPage uses LayoutFrame without it).
+  const temporalCtx = useContext(TemporalCtx);
+  const isQuiet = temporalCtx?.state.isQuiet ?? false;
 
   // Outside NavigationProvider (e.g. project list) — render empty placeholder.
   if (!navCtx) {
