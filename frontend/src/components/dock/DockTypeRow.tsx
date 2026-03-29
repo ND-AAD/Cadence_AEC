@@ -45,48 +45,55 @@ export function DockTypeRow({
     trace: "bg-board/20",
   };
 
-  const handleClick = () => {
-    if (hasInstances) {
-      setExpanded((e) => !e);
-    }
-    onClick?.();
-  };
-
   return (
     <div>
-      <button
-        onClick={handleClick}
+      {/* Type row — split click zones: chevron (expand) vs label (navigate) */}
+      <div
         className={`w-full text-left px-3 py-1.5 flex items-center gap-2 text-sm transition-colors duration-100 ${
           isSelected ? `${selectedBgColor[colorClass]} border-l-2 border-l-current` : ""
-        } ${onClick || hasInstances ? "cursor-pointer hover:bg-board/40" : "cursor-default"}`}
-        type="button"
+        }`}
       >
-        {/* Expand chevron (only when instances exist) */}
-        {hasInstances && (
-          <svg
-            className={`w-2.5 h-2.5 shrink-0 text-trace transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
-            viewBox="0 0 14 14"
-            fill="none"
+        {/* Expand chevron — expand/collapse only */}
+        {hasInstances ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="shrink-0 p-0.5 -m-0.5 rounded hover:bg-board/60 transition-colors duration-100 cursor-pointer"
+            aria-label={expanded ? "Collapse" : "Expand"}
           >
-            <path
-              d="M5 3l4 4-4 4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+            <svg
+              className={`w-2.5 h-2.5 text-trace transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
+              viewBox="0 0 14 14"
+              fill="none"
+            >
+              <path
+                d="M5 3l4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : (
+          <span className="w-2.5" />
         )}
 
-        {/* Label */}
-        <span className="font-mono text-ink truncate flex-1 min-w-0">{group.label}</span>
+        {/* Label — navigation click only */}
+        <button
+          type="button"
+          onClick={onClick}
+          className={`font-mono text-ink truncate flex-1 min-w-0 text-left ${onClick ? "cursor-pointer hover:text-graphite" : "cursor-default"} transition-colors duration-100`}
+        >
+          {group.label}
+        </button>
 
         {/* Pip + count */}
         <span className="inline-flex items-center gap-1.5 shrink-0">
           <span className="text-xs text-trace">({group.count})</span>
           <Pip filled color={PIP_COLOR[colorClass]} />
         </span>
-      </button>
+      </div>
 
       {/* Level 3: instances */}
       {expanded && hasInstances && (

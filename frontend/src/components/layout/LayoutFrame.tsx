@@ -35,8 +35,10 @@ interface LayoutFrameProps {
   importSummary?: ImportSummaryResponse | null;
   /** Whether dock data is still loading. */
   dockLoading?: boolean;
-  /** Workflow perspective selection callback. */
+  /** Workflow perspective selection callback (type-level). */
   onSelectWorkflowGroup?: (category: string, groupKey: string, groupLabel: string) => void;
+  /** Category-level workflow perspective selection callback. */
+  onSelectWorkflowCategory?: (category: string) => void;
   /** Currently active workflow perspective. */
   activeWorkflowPerspective?: { category: string; groupKey: string; groupLabel: string } | null;
   /** Whether comparison mode is active (DS-2). */
@@ -61,10 +63,6 @@ interface LayoutFrameProps {
   onSearchOpen?: () => void;
   /** Callback when dock navigation occurs. */
   onDockNavigate?: (itemId: string) => void;
-  /** Current item ID in story panel (for dock notes area). */
-  currentItemId?: string | null;
-  /** Current user name (for note authorship). */
-  userName?: string;
 }
 
 export function LayoutFrame({
@@ -74,6 +72,7 @@ export function LayoutFrame({
   importSummary,
   dockLoading,
   onSelectWorkflowGroup,
+  onSelectWorkflowCategory,
   activeWorkflowPerspective,
   comparisonActive = false,
   comparisonBadge,
@@ -85,11 +84,9 @@ export function LayoutFrame({
   hasData = false,
   onAddData,
   onSearchOpen,
-  currentItemId,
-  userName,
   onDockNavigate,
 }: LayoutFrameProps) {
-  const { scalePanelOpen, notesPanelOpen, toggleScalePanel, toggleNotesPanel } =
+  const { scalePanelOpen, dockOpen, toggleScalePanel, toggleDock } =
     usePanelState();
 
   // Total action items for the dock kernel badge.
@@ -171,23 +168,22 @@ export function LayoutFrame({
         <div className="shrink-0 flex flex-col border-l border-rule bg-vellum">
           <KernelButton
             direction="right"
-            isOpen={notesPanelOpen}
-            onToggle={toggleNotesPanel}
-            label={notesPanelOpen ? "Collapse exec summary" : "Expand exec summary"}
+            isOpen={dockOpen}
+            onToggle={toggleDock}
+            label={dockOpen ? "Collapse exec summary" : "Expand exec summary"}
             count={isQuiet ? undefined : dockActionCount > 0 ? dockActionCount : undefined}
           />
         </div>
 
         {/* Exec summary dock (right) */}
         <ExecSummaryDock
-          isOpen={notesPanelOpen}
+          isOpen={dockOpen}
           categories={dockCategories ?? []}
           importSummary={importSummary}
           loading={dockLoading}
           onSelectWorkflowGroup={onSelectWorkflowGroup}
+          onSelectWorkflowCategory={onSelectWorkflowCategory}
           activeWorkflowPerspective={activeWorkflowPerspective}
-          currentItemId={currentItemId}
-          userName={userName}
           onNavigate={onDockNavigate}
           isQuiet={isQuiet}
           onQuietToggle={onQuietToggle}

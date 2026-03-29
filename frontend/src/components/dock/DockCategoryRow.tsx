@@ -87,12 +87,15 @@ interface DockCategoryRowProps {
   children?: ReactNode;
   /** Whether this category is expanded (controlled from parent). */
   isExpanded?: boolean;
+  /** Navigation callback when the category label is clicked. */
+  onClick?: () => void;
 }
 
 export function DockCategoryRow({
   category,
   children,
   isExpanded,
+  onClick,
 }: DockCategoryRowProps) {
   const [localExpanded, setLocalExpanded] = useState(category.defaultExpanded);
   // isExpanded acts as a "force open" signal (e.g., when a child is selected
@@ -107,21 +110,32 @@ export function DockCategoryRow({
 
   return (
     <div className={`border-l-2 ${colors.border} border-b border-rule/50 last:border-b-0`}>
-      {/* Category header — clickable */}
-      <button
-        onClick={hasChildren ? toggle : undefined}
-        className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium ${colors.text} ${hasChildren ? "cursor-pointer hover:bg-board/40" : "cursor-default"} transition-colors duration-100`}
-        type="button"
+      {/* Category header — split click zones: chevron (expand) vs label (navigate) */}
+      <div
+        className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium ${colors.text} transition-colors duration-100`}
       >
-        {/* Chevron (only if expandable) */}
+        {/* Chevron — expand/collapse only */}
         {hasChildren ? (
-          <Chevron expanded={expanded} className={colors.text} />
+          <button
+            type="button"
+            onClick={toggle}
+            className="shrink-0 p-0.5 -m-0.5 rounded hover:bg-board/60 transition-colors duration-100 cursor-pointer"
+            aria-label={expanded ? "Collapse" : "Expand"}
+          >
+            <Chevron expanded={expanded} className={colors.text} />
+          </button>
         ) : (
           <span className="w-3" />
         )}
 
-        {/* Label */}
-        <span className="flex-1 text-left">{category.label}</span>
+        {/* Label — navigation click */}
+        <button
+          type="button"
+          onClick={onClick}
+          className={`flex-1 text-left truncate ${onClick ? "cursor-pointer hover:text-ink" : "cursor-default"} transition-colors duration-100`}
+        >
+          {category.label}
+        </button>
 
         {/* Count — matches dashboard "(N)" format, pip adds workflow signal */}
         {category.count > 0 && (
@@ -132,7 +146,7 @@ export function DockCategoryRow({
             <Pip filled color={PIP_COLOR_MAP[category.colorClass]} tooltip={`${category.count} ${category.label.toLowerCase()}`} />
           </span>
         )}
-      </button>
+      </div>
 
       {/* Expandable children (CSS grid-rows for smooth animation) */}
       {hasChildren && (

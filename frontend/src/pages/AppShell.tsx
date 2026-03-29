@@ -420,6 +420,23 @@ function AppShellContent() {
     []
   );
 
+  // ─── Workflow category handler (category level from dock) ────
+
+  const handleSelectWorkflowCategory = useCallback(
+    (category: string) => {
+      // Toggle: clicking the already-selected category deselects it.
+      // Uses empty groupKey to indicate "all types in this category".
+      setWorkflowPerspective((prev) =>
+        prev?.category === category && prev?.groupKey === ""
+          ? null
+          : { category, groupKey: "", groupLabel: "" }
+      );
+      // Clear structural selection when workflow is active.
+      setSelectedGroupType(null);
+    },
+    []
+  );
+
   // ─── Navigation handler (main area / right panel ZOOM gesture) ─
 
   const handleNavigate = useCallback((targetId: string) => {
@@ -520,6 +537,7 @@ function AppShellContent() {
           onCompareToggle={handleCompareToggle}
           compareVisible={!temporalState.isQuiet}
           isQuiet={temporalState.isQuiet}
+          userName={user?.name ?? ""}
         />
 
         {/* Milestone picker dropdown (anchored to header area) */}
@@ -597,6 +615,7 @@ function AppShellContent() {
           contextLabel={temporalState.toContext?.identifier ?? undefined}
           onNavigate={handleNavigate}
           onWorkflowAction={handleWorkflowAction}
+          userName={user?.name ?? ""}
         />
       );
     } else if (itemType === "change") {
@@ -610,6 +629,7 @@ function AppShellContent() {
           newValue={changeProps.new_value as string | undefined}
           onNavigate={handleNavigate}
           onWorkflowAction={handleWorkflowAction}
+          userName={user?.name ?? ""}
         />
       );
     } else if (itemType === "directive") {
@@ -622,6 +642,7 @@ function AppShellContent() {
           targetValue={dirProps.target_value as string | undefined}
           onNavigate={handleNavigate}
           onWorkflowAction={handleWorkflowAction}
+          userName={user?.name ?? ""}
         />
       );
     } else {
@@ -649,6 +670,7 @@ function AppShellContent() {
             compareVisible={!temporalState.isQuiet}
             isQuiet={temporalState.isQuiet}
             comparisonCategoryMap={childComparisonMap}
+            userName={user?.name ?? ""}
           />
 
           {/* Milestone picker dropdown (anchored to header area) */}
@@ -675,6 +697,7 @@ function AppShellContent() {
         importSummary={importSummary}
         dockLoading={dockLoading}
         onSelectWorkflowGroup={handleSelectWorkflowGroup}
+        onSelectWorkflowCategory={handleSelectWorkflowCategory}
         activeWorkflowPerspective={workflowPerspective}
         comparisonActive={temporalState.isActive}
         valueMode={temporalState.valueMode}
@@ -684,8 +707,6 @@ function AppShellContent() {
         hasData={projectHasData}
         onAddData={() => setAddDataOpen(true)}
         onSearchOpen={() => setSearchOpen(true)}
-        currentItemId={currentItemId}
-        userName={user?.name ?? ""}
         onDockNavigate={handleNavigate}
         onQuietToggle={handleQuietToggle}
         comparisonBadge={
@@ -718,6 +739,7 @@ function AppShellContent() {
       {/* Global search modal */}
       {searchOpen && (
         <SearchModal
+          projectId={routeProjectId}
           onNavigate={handleSearchNavigate}
           onClose={() => setSearchOpen(false)}
         />

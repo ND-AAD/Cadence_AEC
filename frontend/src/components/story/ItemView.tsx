@@ -22,6 +22,7 @@ import type { ItemComparison, PropertyChange } from "@/api/comparison";
 import type { ResolutionMethod } from "@/api/actionItems";
 import { resolveConflict } from "@/api/actionItems";
 import { holdItem, acknowledgeChange } from "@/api/workflow";
+import { useNotes } from "@/hooks/useNotes";
 import type { PropertyStatus } from "./PropertyRow";
 import type { ComparisonColumn } from "./PropertyRow";
 import type { PipData, CairnData } from "./IndicatorLane";
@@ -38,6 +39,7 @@ import { ConflictExpansion, type ConflictSource } from "./ConflictExpansion";
 import { ResolvedExpansion } from "./ResolvedExpansion";
 import { SilentExpansion } from "./SilentExpansion";
 import { GroupRenderer } from "./renderers/GroupRenderer";
+import { ItemNotes } from "./ItemNotes";
 import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
 
 interface ItemViewProps {
@@ -84,6 +86,8 @@ interface ItemViewProps {
   isQuiet?: boolean;
   /** Comparison categories for child items (from bulk parent comparison). */
   comparisonCategoryMap?: Map<string, "added" | "removed" | "modified" | "unchanged">;
+  /** Current user name (for note authorship). */
+  userName?: string;
 }
 
 /** Map resolved property status to PropertyRow status. */
@@ -132,6 +136,7 @@ export function ItemView({
   compareVisible = true,
   isQuiet = false,
   comparisonCategoryMap,
+  userName,
 }: ItemViewProps) {
   // ── Expansion state (lifted from PropertyRow) ──
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -147,6 +152,10 @@ export function ItemView({
       return next;
     });
   }, []);
+
+  // ── Fetch notes for cairn detection ──
+  const { notes } = useNotes(item.id);
+  const hasNotes = notes.length > 0;
 
   // ── In-memory acknowledge tracking (fallback when change_item_id unavailable) ──
   // NOTE (Decision 13): This fallback is ONLY used when viewing through the
@@ -345,6 +354,10 @@ export function ItemView({
               const change = changeMap.get(entry.key);
               const isChanged = !!change;
               const isAcknowledgedFallback = acknowledgedFallback.has(entry.key);
+
+              // Workflow-based change detection (from resolved properties).
+              // DS-2 §1.3: Changes from another time context are adjacent in single-context view.
+              const hasWorkflowChanges = (entry.resolved?.workflow?.change_ids?.length ?? 0) > 0;
               const isExpanded = expandedRows.has(entry.key);
 
               // Determine if value is carried forward (T-7 trace treatment).
@@ -363,12 +376,14 @@ export function ItemView({
               // Changes in single-context view are adjacent (hollow); fill in during comparison.
               // Conflicts at the resolved context are always present (filled).
               const pips: PipData[] = [];
-              if (isChanged && !isAcknowledgedFallback) {
+              if ((isChanged && !isAcknowledgedFallback) || hasWorkflowChanges) {
                 pips.push({
                   key: "change",
-                  filled: comparisonActive,
+                  filled: comparisonActive && isChanged, // Filled only when comparison shows it
                   color: "pencil",
-                  tooltip: `${toContextName} \u00B7 ${entry.label} \u00B7 changed`,
+                  tooltip: isChanged
+                    ? `${toContextName} \u00B7 ${entry.label} \u00B7 changed`
+                    : `${entry.label} \u00B7 changed`,
                 });
               }
               if (entry.status === "conflicted") {
@@ -381,13 +396,20 @@ export function ItemView({
               }
 
               // ── Build cairn data ──
-              // Resolved conflict with pending directive → cairn
+              // Two conditions for cairn:
+              // 1. Notes are connected to this item (item-level)
+              // 2. Resolved property with pending directives (property-level)
               let cairnData: CairnData | undefined;
-              if (entry.status === "resolved") {
+              const hasDirectives = entry.resolved?.workflow?.directive_ids && entry.resolved.workflow.directive_ids.length > 0;
+              const isResolvedWithDirective = entry.status === "resolved" && hasDirectives;
+
+              if (hasNotes || isResolvedWithDirective) {
                 cairnData = {
                   present: true,
                   active: isExpanded,
-                  tooltip: `Resolved: ${entry.label}`,
+                  tooltip: hasNotes
+                    ? `Note attached to ${item.properties.mark ?? "item"}`
+                    : `Resolved: ${entry.label}`,
                 };
               }
 
@@ -550,6 +572,28 @@ export function ItemView({
                     onNavigateToItem={onNavigate}
                   />
                 );
+              } else if (hasWorkflowChanges && !isChanged) {
+                // Workflow-sourced change — no comparison data available.
+                // DS-2 §1.3: Adjacent change, minimal expansion with navigation link.
+                const changeIds = entry.resolved?.workflow?.change_ids ?? [];
+                expansionContent = (
+                  <div className="px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-graphite">
+                        {changeIds.length === 1 ? "1 change detected" : `${changeIds.length} changes detected`}
+                      </span>
+                      {changeIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(changeIds[0])}
+                          className="text-xs text-pencil-ink hover:underline"
+                        >
+                          View change ›
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
               } else if (entry.resolved && Object.keys(entry.resolved.sources).length > 0) {
                 // Silent (aligned) with sources → SilentExpansion
                 expansionContent = (
@@ -653,6 +697,9 @@ export function ItemView({
             />
           ))}
       </div>
+
+      {/* Notes section (bottom of item view) */}
+      <ItemNotes itemId={item.id} userName={userName} />
     </div>
   );
 }

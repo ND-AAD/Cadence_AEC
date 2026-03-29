@@ -8,23 +8,19 @@ import type { DockCategory, ImportSummaryResponse } from "@/types/dashboard";
 import { DockCategoryRow } from "./DockCategoryRow";
 import { DockTypeRow } from "./DockTypeRow";
 import { DockImportBar } from "./DockImportBar";
-import { NotesArea } from "./NotesArea";
 import { QuietButton } from "./QuietButton";
-import { useNotes } from "@/hooks/useNotes";
 
 interface ExecSummaryDockProps {
   isOpen: boolean;
   categories: DockCategory[];
   importSummary?: ImportSummaryResponse | null;
   loading?: boolean;
-  /** Workflow perspective selection callback. */
+  /** Workflow perspective selection callback (type-level). */
   onSelectWorkflowGroup?: (category: string, groupKey: string, groupLabel: string) => void;
+  /** Category-level workflow perspective selection callback. */
+  onSelectWorkflowCategory?: (category: string) => void;
   /** Currently active workflow perspective. */
   activeWorkflowPerspective?: { category: string; groupKey: string; groupLabel: string } | null;
-  /** Current item ID in the story panel (for contextual notes). */
-  currentItemId?: string | null;
-  /** Current user name (for note authorship). */
-  userName?: string;
   /** Navigation handler for instance-level clicks in the tree. */
   onNavigate?: (itemId: string) => void;
   /** Whether Quiet mode is active. DTC-7. */
@@ -39,14 +35,12 @@ export function ExecSummaryDock({
   importSummary,
   loading,
   onSelectWorkflowGroup,
+  onSelectWorkflowCategory,
   activeWorkflowPerspective,
-  currentItemId,
-  userName = "",
   onNavigate,
   isQuiet = false,
   onQuietToggle,
 }: ExecSummaryDockProps) {
-  const { notes, addNote } = useNotes(currentItemId ?? null);
   return (
     <div
       className="shrink-0 bg-vellum border-l border-rule transition-[width] duration-200 ease-in-out overflow-hidden"
@@ -83,6 +77,11 @@ export function ExecSummaryDock({
                 category={category}
                 isExpanded={
                   activeWorkflowPerspective?.category === category.key
+                }
+                onClick={
+                  onSelectWorkflowCategory
+                    ? () => onSelectWorkflowCategory(category.key)
+                    : undefined
                 }
               >
                 {category.groups.map((group) => (
@@ -121,18 +120,6 @@ export function ExecSummaryDock({
 
         {/* Import summary bar */}
         {!loading && <DockImportBar importSummary={importSummary ?? null} />}
-
-        {/* Notes area (bottom zone) — contextual to current item */}
-        <NotesArea
-          notes={notes.map((n) => ({
-            id: n.id,
-            content: n.content,
-            author: n.author,
-            date: n.created_at ? new Date(n.created_at).toLocaleDateString() : undefined,
-          }))}
-          hasCurrentItem={!!currentItemId}
-          onAddNote={(content) => addNote(content, userName)}
-        />
       </div>
     </div>
   );
