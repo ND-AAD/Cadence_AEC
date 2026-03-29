@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.models.core import Connection, Item
+from app.models.infrastructure import User
 from app.schemas.connections import (
     ConnectionCreate,
     ConnectionResponse,
@@ -21,6 +23,7 @@ router = APIRouter()
 @router.post("/", response_model=ConnectionResponse, status_code=201)
 async def create_connection(
     payload: ConnectionCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -43,6 +46,11 @@ async def create_connection(
                 detail=f"{label.capitalize()} item not found: {item_id}",
             )
 
+    # Check project access via source item
+    project_id = await get_project_for_item(db, payload.source_item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
+
     # Check for duplicate connection (same direction)
     existing = await db.execute(
         select(Connection.id).where(
@@ -62,6 +70,7 @@ async def create_connection(
         source_item_id=payload.source_item_id,
         target_item_id=payload.target_item_id,
         properties=payload.properties,
+        created_by=current_user.id,
     )
     db.add(connection)
     await db.flush()
@@ -78,6 +87,7 @@ async def list_connections(
     target_item_id: uuid.UUID | None = Query(None, description="Filter by target item"),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List connections with optional filters."""
@@ -103,6 +113,7 @@ async def list_connections(
 @router.post("/disconnect", response_model=ConnectionResponse)
 async def disconnect(
     payload: DisconnectRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -146,6 +157,7 @@ async def disconnect(
 @router.delete("/{connection_id}", status_code=204)
 async def delete_connection(
     connection_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Hard delete a connection. Use /disconnect for soft removal."""

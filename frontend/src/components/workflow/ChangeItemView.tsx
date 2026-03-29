@@ -5,9 +5,10 @@
 // Breadcrumb: ... › Door 101 › Material: DD → CD
 // Both values shown, source attribution, full action buttons.
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { ItemResponse } from "@/types/navigation";
 import { acknowledgeChange, startReview, holdItem, resumeReview } from "@/api/workflow";
+import { ItemNotes } from "../story/ItemNotes";
 
 interface ChangeItemViewProps {
   /** The change item from the API. */
@@ -28,6 +29,8 @@ interface ChangeItemViewProps {
   onNavigate: (itemId: string) => void;
   /** Callback after workflow action. */
   onWorkflowAction?: () => void;
+  /** Current user name (for note authorship). */
+  userName?: string;
 }
 
 function statusLabel(status: string): string {
@@ -64,6 +67,7 @@ export function ChangeItemView({
   sourceName,
   onNavigate: _onNavigate,
   onWorkflowAction,
+  userName,
 }: ChangeItemViewProps) {
   const status = (item.properties?.status as string) ?? "detected";
   const displayProperty = propertyName ?? (item.properties?.property_name as string) ?? "Property";
@@ -71,39 +75,58 @@ export function ChangeItemView({
   const isActive = status === "detected" || status === "in_review";
   const isHeld = status === "hold";
 
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleStartReview = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await startReview(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to start review:", err);
+      setError(err instanceof Error ? err.message : "Failed to start review");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleAcknowledge = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await acknowledgeChange(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to acknowledge:", err);
+      setError(err instanceof Error ? err.message : "Failed to acknowledge change");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleHold = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await holdItem(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to hold:", err);
+      setError(err instanceof Error ? err.message : "Failed to hold item");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleResume = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await resumeReview(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to resume:", err);
+      setError(err instanceof Error ? err.message : "Failed to resume review");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
@@ -180,7 +203,8 @@ export function ChangeItemView({
               <button
                 type="button"
                 onClick={handleStartReview}
-                className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Start Review
               </button>
@@ -191,7 +215,8 @@ export function ChangeItemView({
               <button
                 type="button"
                 onClick={handleAcknowledge}
-                className="bg-pencil-wash text-pencil-ink border border-pencil rounded text-xs px-3 py-1.5 hover:bg-pencil/10 transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-pencil-wash text-pencil-ink border border-pencil rounded text-xs px-3 py-1.5 hover:bg-pencil/10 transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Acknowledge
               </button>
@@ -202,7 +227,8 @@ export function ChangeItemView({
               <button
                 type="button"
                 onClick={handleHold}
-                className="bg-transparent text-filed border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-filed-wash hover:border-filed transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-transparent text-filed border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-filed-wash hover:border-filed transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Hold
               </button>
@@ -213,12 +239,18 @@ export function ChangeItemView({
               <button
                 type="button"
                 onClick={handleResume}
-                className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Resume Review
               </button>
             )}
           </div>
+          {error && (
+            <div className="mt-3 text-xs text-redline">
+              {error}
+            </div>
+          )}
         </div>
       )}
 
@@ -233,6 +265,9 @@ export function ChangeItemView({
           </div>
         </div>
       )}
+
+      {/* Notes section (bottom of item view) */}
+      <ItemNotes itemId={item.id} userName={userName} />
     </div>
   );
 }

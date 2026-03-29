@@ -16,9 +16,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.core.type_config import get_type_config
 from app.models.core import Connection, Item, Snapshot
+from app.models.infrastructure import User
 from app.schemas.comparison import (
     ComparisonRequest,
     ComparisonResult,
@@ -684,6 +686,7 @@ async def _categorize_items_with_effective_values(
 @router.post("/compare", response_model=ComparisonResult, status_code=200)
 async def compare_snapshots(
     payload: ComparisonRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -714,9 +717,18 @@ async def compare_snapshots(
     # Determine the list of items to compare
     if payload.item_ids is not None:
         item_ids = payload.item_ids
+        # Check project access via first item if available
+        if item_ids:
+            project_id = await get_project_for_item(db, item_ids[0])
+            if project_id:
+                await require_project_access(db, project_id, current_user)
     else:
         # Get children of parent
         item_ids = await _get_children_of_parent(db, payload.parent_item_id)
+        # Check project access via parent item
+        project_id = await get_project_for_item(db, payload.parent_item_id)
+        if project_id:
+            await require_project_access(db, project_id, current_user)
 
     if not item_ids:
         # No items to compare

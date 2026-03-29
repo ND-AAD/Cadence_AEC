@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { login as apiLogin, getCurrentUser, type UserInfo, type LoginRequest } from "@/api/auth";
+import { login as apiLogin, register as apiRegister, getCurrentUser, type UserInfo, type LoginRequest, type RegisterRequest } from "@/api/auth";
 import { setAuthToken } from "@/api/client";
 
 interface AuthState {
@@ -10,6 +10,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (req: LoginRequest) => Promise<void>;
+  register: (req: RegisterRequest) => Promise<void>;
   logout: () => void;
 }
 
@@ -55,6 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const register = useCallback(async (req: RegisterRequest) => {
+    setState((s) => ({ ...s, error: null, loading: true }));
+    try {
+      const res = await apiRegister(req);
+      sessionStorage.setItem(TOKEN_KEY, res.token);
+      setAuthToken(res.token);
+      setState({ user: res.user, loading: false, error: null });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Registration failed";
+      setState({ user: null, loading: false, error: msg });
+      throw err;
+    }
+  }, []);
+
   const logout = useCallback(() => {
     sessionStorage.removeItem(TOKEN_KEY);
     setAuthToken(null);
@@ -62,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

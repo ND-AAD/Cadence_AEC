@@ -12,7 +12,7 @@
 //   [Add a note...              ]
 //                         [Add]
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export interface NoteData {
   id: string;
@@ -37,6 +37,12 @@ export function NotesArea({
 }: NotesAreaProps) {
   const [collapsed, setCollapsed] = useState(notes.length === 0);
   const [draft, setDraft] = useState("");
+
+  // Auto-expand when navigating to an item with notes.
+  // Reset collapsed state: expand if there are notes, collapse if none.
+  useEffect(() => {
+    setCollapsed(notes.length === 0);
+  }, [notes.length]);
 
   const handleAdd = useCallback(() => {
     if (!draft.trim() || !onAddNote) return;

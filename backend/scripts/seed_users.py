@@ -10,8 +10,10 @@ from app.models.infrastructure import User
 
 DEMO_USERS = [
     {"email": "admin@cadence-aec.io", "name": "Nick", "password": "Cad3nc3_Admin2026!"},
-    # Add architect friends here before demo:
-    # {"email": "friend@firm.com", "name": "Friend Name", "password": "cadence2026"},
+    # Alpha testers — update with real emails before deployment
+    {"email": "tester1@example.com", "name": "Tester 1", "password": "cadence-alpha-2026"},
+    {"email": "tester2@example.com", "name": "Tester 2", "password": "cadence-alpha-2026"},
+    {"email": "tester3@example.com", "name": "Tester 3", "password": "cadence-alpha-2026"},
 ]
 
 

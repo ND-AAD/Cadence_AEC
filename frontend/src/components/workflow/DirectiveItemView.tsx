@@ -5,10 +5,11 @@
 // Shows: obligation text, target value, target source, originating
 // decision, affected item. Status: pending or fulfilled.
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { ItemResponse } from "@/types/navigation";
 import { holdItem, resumeReview } from "@/api/workflow";
 import { fulfillDirective } from "@/api/actionItems";
+import { ItemNotes } from "../story/ItemNotes";
 
 interface DirectiveItemViewProps {
   /** The directive item from the API. */
@@ -31,6 +32,8 @@ interface DirectiveItemViewProps {
   onNavigate: (itemId: string) => void;
   /** Callback after workflow action. */
   onWorkflowAction?: () => void;
+  /** Current user name (for note authorship). */
+  userName?: string;
 }
 
 function statusLabel(status: string): string {
@@ -63,36 +66,52 @@ export function DirectiveItemView({
   decisionId,
   onNavigate,
   onWorkflowAction,
+  userName,
 }: DirectiveItemViewProps) {
   const status = (item.properties?.status as string) ?? "pending";
   const displayProperty = propertyName ?? (item.properties?.property_name as string) ?? "Property";
   const displayTarget = targetSourceName ?? "Source";
   const displayValue = targetValue ?? (item.properties?.target_value as string) ?? "—";
 
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleHold = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await holdItem(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to hold:", err);
+      setError(err instanceof Error ? err.message : "Failed to hold item");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleResume = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await resumeReview(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to resume:", err);
+      setError(err instanceof Error ? err.message : "Failed to resume review");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleFulfill = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await fulfillDirective(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to fulfill:", err);
+      setError(err instanceof Error ? err.message : "Failed to fulfill directive");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
@@ -171,7 +190,8 @@ export function DirectiveItemView({
               <button
                 type="button"
                 onClick={handleFulfill}
-                className="bg-stamp-wash text-stamp-ink border border-stamp rounded text-xs px-3 py-1.5 hover:bg-stamp/10 transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-stamp-wash text-stamp-ink border border-stamp rounded text-xs px-3 py-1.5 hover:bg-stamp/10 transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Mark Fulfilled
               </button>
@@ -182,7 +202,8 @@ export function DirectiveItemView({
               <button
                 type="button"
                 onClick={handleHold}
-                className="bg-transparent text-filed border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-filed-wash hover:border-filed transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-transparent text-filed border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-filed-wash hover:border-filed transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Hold
               </button>
@@ -193,12 +214,18 @@ export function DirectiveItemView({
               <button
                 type="button"
                 onClick={handleResume}
-                className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+                disabled={pending}
+                className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
               >
                 Resume
               </button>
             )}
           </div>
+          {error && (
+            <div className="mt-3 text-xs text-redline">
+              {error}
+            </div>
+          )}
         </div>
       )}
 
@@ -213,6 +240,9 @@ export function DirectiveItemView({
           </div>
         </div>
       )}
+
+      {/* Notes section (bottom of item view) */}
+      <ItemNotes itemId={item.id} userName={userName} />
     </div>
   );
 }

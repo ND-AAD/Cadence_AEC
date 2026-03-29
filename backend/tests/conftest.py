@@ -11,15 +11,23 @@ from typing import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 
+from app.api.deps import get_current_user
 from app.core.database import Base, get_db
 from app.main import app
 from app.models.core import Item, Connection, Snapshot  # noqa: F401
 from app.models.infrastructure import User, Permission, Notification  # noqa: F401
+
+
+# ─── Test user for auth override ─────────────────────────────
+
+TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+TEST_USER_EMAIL = "test@test.com"
+TEST_USER_NAME = "Test User"
 
 
 # ─── SQLite compatibility: JSONB → JSON, UUID → CHAR(36) ──────
@@ -63,7 +71,17 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """Provide a test HTTP client with database override."""
+    """Provide a test HTTP client with database and auth overrides."""
+
+    # Create the test user in the database so permission checks work
+    test_user = User(
+        id=TEST_USER_ID,
+        email=TEST_USER_EMAIL,
+        name=TEST_USER_NAME,
+        password_hash="not-a-real-hash",
+    )
+    db_session.add(test_user)
+    await db_session.flush()
 
     async def override_get_db():
         try:
@@ -73,7 +91,15 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
             await db_session.rollback()
             raise
 
+    async def override_get_current_user() -> User:
+        """Bypass JWT validation in tests — return the test user."""
+        result = await db_session.execute(
+            select(User).where(User.id == TEST_USER_ID)
+        )
+        return result.scalar_one()
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -89,7 +115,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def make_item(db_session: AsyncSession):
-    """Factory fixture for creating items."""
+    """Factory fixture for creating items. Auto-creates permission for project items."""
 
     async def _make(
         item_type: str = "door",
@@ -104,6 +130,25 @@ async def make_item(db_session: AsyncSession):
         db_session.add(item)
         await db_session.flush()
         await db_session.refresh(item)
+
+        # Auto-create permission for project items so API access checks pass.
+        # Only if the test user exists (i.e., `client` fixture was used).
+        if item_type == "project":
+            user_exists = await db_session.execute(
+                select(User).where(User.id == TEST_USER_ID)
+            )
+            if user_exists.scalar_one_or_none():
+                perm = Permission(
+                    user_id=TEST_USER_ID,
+                    scope_item_id=item.id,
+                    role="admin",
+                    can_resolve_conflicts=True,
+                    can_import=True,
+                    can_edit=True,
+                )
+                db_session.add(perm)
+                await db_session.flush()
+
         return item
 
     return _make

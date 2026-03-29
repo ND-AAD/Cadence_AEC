@@ -10,11 +10,12 @@ import { searchItems, type SearchResultItem } from "@/api/search";
 import { itemDisplayName } from "@/utils/displayName";
 
 interface SearchModalProps {
+  projectId?: string;
   onNavigate: (itemId: string) => void;
   onClose: () => void;
 }
 
-export function SearchModal({ onNavigate, onClose }: SearchModalProps) {
+export function SearchModal({ projectId, onNavigate, onClose }: SearchModalProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ export function SearchModal({ onNavigate, onClose }: SearchModalProps) {
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const data = await searchItems(query.trim());
+        const data = await searchItems(query.trim(), projectId);
         setResults(data.items);
         setSelectedIndex(0);
       } catch {
@@ -53,7 +54,7 @@ export function SearchModal({ onNavigate, onClose }: SearchModalProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, projectId]);
 
   // Keyboard navigation.
   const handleKeyDown = useCallback(

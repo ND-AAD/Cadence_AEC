@@ -23,9 +23,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.core.type_config import get_type_config
 from app.models.core import Connection, Item
+from app.models.infrastructure import User
 from app.schemas.imports import (
     ColumnProposalResponse,
     ConfirmMatchRequest,
@@ -92,6 +94,7 @@ async def _load_user_aliases(
 )
 async def get_import_mapping(
     source_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -114,6 +117,7 @@ async def get_import_mapping(
 async def set_import_mapping(
     source_id: uuid.UUID,
     mapping: ImportMappingConfig,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -150,6 +154,7 @@ async def analyze_file(
     file: UploadFile = File(...),
     source_item_id: str | None = Form(None),
     project_id: str | None = Form(None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -178,6 +183,7 @@ async def analyze_file(
     if project_id:
         try:
             proj_id = uuid.UUID(project_id)
+            await require_project_access(db, proj_id, current_user)
             user_aliases = await _load_user_aliases(db, proj_id)
         except ValueError:
             pass
@@ -237,6 +243,7 @@ async def analyze_file(
 async def confirm_mapping(
     proposal_id: uuid.UUID,
     payload: MappingCorrectionRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -335,6 +342,7 @@ async def import_file(
     mapping_config: str | None = Form(
         None, description="JSON-encoded ImportMappingConfig"
     ),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -367,6 +375,11 @@ async def import_file(
     # Validate source and context
     source_item = await _get_item_or_404(db, src_id, "Source item")
     time_context = await _validate_context(db, ctx_id)
+
+    # Check project access via source item
+    project_id_check = await get_project_for_item(db, src_id)
+    if project_id_check:
+        await require_project_access(db, project_id_check, current_user)
 
     # Read file bytes
     file_bytes = await file.read()
@@ -492,6 +505,7 @@ async def import_file(
 @router.get("/import/{batch_id}", response_model=dict)
 async def get_import_batch(
     batch_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get the status and metadata of an import batch."""
@@ -515,6 +529,7 @@ async def get_import_batch(
 @router.get("/import/{batch_id}/unmatched", response_model=list[UnmatchedRow])
 async def get_unmatched(
     batch_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -541,6 +556,7 @@ async def get_unmatched(
 async def confirm_import_match(
     batch_id: uuid.UUID,
     payload: ConfirmMatchRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """

@@ -19,8 +19,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.models.core import Item
+from app.models.infrastructure import User
 from app.schemas.items import ItemResponse
 from app.schemas.resolution import (
     ActionItemRollup,
@@ -51,6 +53,7 @@ router = APIRouter(tags=["workflow"])
 async def resolve_conflict(
     conflict_id: uuid.UUID,
     payload: ConflictResolveRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -68,6 +71,11 @@ async def resolve_conflict(
     conflict = result.scalar_one_or_none()
     if not conflict:
         raise HTTPException(status_code=404, detail="Conflict not found")
+
+    # Check project access via conflict item
+    project_id = await get_project_for_item(db, conflict_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     try:
         decision_item, directives = await resolution_service.resolve_conflict(
@@ -105,6 +113,7 @@ async def resolve_conflict(
 )
 async def acknowledge_change(
     change_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Acknowledge a detected change."""
@@ -114,6 +123,11 @@ async def acknowledge_change(
     change = result.scalar_one_or_none()
     if not change:
         raise HTTPException(status_code=404, detail="Change not found")
+
+    # Check project access via change item
+    project_id = await get_project_for_item(db, change_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     try:
         await resolution_service.acknowledge_change(db, change)
@@ -133,6 +147,7 @@ async def acknowledge_change(
 )
 async def fulfill_directive(
     directive_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Manually fulfill a directive (for Phase A testing)."""
@@ -142,6 +157,11 @@ async def fulfill_directive(
     directive = result.scalar_one_or_none()
     if not directive:
         raise HTTPException(status_code=404, detail="Directive not found")
+
+    # Check project access via directive item
+    project_id = await get_project_for_item(db, directive_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     try:
         await resolution_service.fulfill_directive(db, directive)
@@ -161,6 +181,7 @@ async def fulfill_directive(
 )
 async def bulk_resolve(
     payload: BulkResolveRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -261,6 +282,7 @@ async def _load_workflow_item(
 )
 async def start_review(
     item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -270,6 +292,11 @@ async def start_review(
     this item. Appears on Surface 2 (workflow item view) only.
     """
     item = await _load_workflow_item(db, item_id)
+
+    # Check project access via workflow item
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
     try:
         previous = await resolution_service.start_review(db, item)
     except ValueError as e:
@@ -290,6 +317,7 @@ async def start_review(
 )
 async def hold_item(
     item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -299,6 +327,11 @@ async def hold_item(
     so resume can restore it. Pip shifts to filed color.
     """
     item = await _load_workflow_item(db, item_id)
+
+    # Check project access via workflow item
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
     try:
         previous = await resolution_service.hold_item(db, item)
     except ValueError as e:
@@ -319,6 +352,7 @@ async def hold_item(
 )
 async def resume_review(
     item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -327,6 +361,11 @@ async def resume_review(
     DS-2 §6.5: Restores the pre-hold status (detected or in_review).
     """
     item = await _load_workflow_item(db, item_id)
+
+    # Check project access via workflow item
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
     try:
         previous = await resolution_service.resume_review(db, item)
     except ValueError as e:
@@ -353,6 +392,7 @@ async def resume_review(
 )
 async def get_action_items(
     project_id: uuid.UUID | None = Query(None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -361,6 +401,10 @@ async def get_action_items(
     Returns rollup counts for changes, conflicts, and directives,
     broken down by type and by property.
     """
+    # Check project access if project_id provided
+    if project_id:
+        await require_project_access(db, project_id, current_user)
+
     rollup = await resolution_service.get_action_items_rollup(db, project_id)
     return ActionItemRollup(**rollup)
 
@@ -379,6 +423,7 @@ async def get_directives(
     status: str | None = Query(
         None, description="Filter by status: pending, fulfilled, superseded"
     ),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """

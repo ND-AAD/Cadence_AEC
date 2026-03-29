@@ -17,10 +17,17 @@ export interface SearchResponse {
 }
 
 /**
- * Search for items by query string.
+ * Search for items by query string, scoped to a project.
  * Uses backend trigram fuzzy matching.
  */
-export async function searchItems(query: string): Promise<SearchResponse> {
+export async function searchItems(
+  query: string,
+  projectId?: string,
+): Promise<SearchResponse> {
   const encoded = encodeURIComponent(query);
-  return apiGet<SearchResponse>(`/v1/items?search=${encoded}&limit=20`);
+  let url = `/v1/items?search=${encoded}&limit=20`;
+  if (projectId) {
+    url += `&project=${projectId}`;
+  }
+  return apiGet<SearchResponse>(url);
 }

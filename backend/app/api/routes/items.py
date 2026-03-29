@@ -8,9 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, get_project_for_item, require_project_access
 from app.core.database import get_db
 from app.core.type_config import ITEM_TYPES, get_type_config
 from app.models.core import Connection, Item, Snapshot
+from app.models.infrastructure import Permission, User
 from app.schemas.items import (
     ItemCreate,
     ItemResponse,
@@ -46,6 +48,7 @@ def _natural_sort_key(s: str) -> list[tuple[int, int | str]]:
 async def create_item(
     payload: ItemCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new item. Type must be registered in configuration."""
     if payload.item_type not in ITEM_TYPES:
@@ -59,10 +62,25 @@ async def create_item(
         item_type=payload.item_type,
         identifier=payload.identifier,
         properties=payload.properties,
+        created_by=current_user.id,
     )
     db.add(item)
     await db.flush()
     await db.refresh(item)
+
+    # Auto-create admin permission when creating a project
+    if payload.item_type == "project":
+        permission = Permission(
+            user_id=current_user.id,
+            scope_item_id=item.id,
+            role="admin",
+            can_resolve_conflicts=True,
+            can_import=True,
+            can_edit=True,
+        )
+        db.add(permission)
+        await db.flush()
+
     return item
 
 
@@ -107,6 +125,7 @@ async def list_items(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     List items with filtering, search, and pagination.
@@ -120,6 +139,43 @@ async def list_items(
     if item_type:
         query = query.where(Item.item_type == item_type)
         count_query = count_query.where(Item.item_type == item_type)
+
+    # Permission filter: when listing projects, scope to user's permissions
+    if item_type == "project":
+        accessible_projects = (
+            select(Permission.scope_item_id)
+            .where(Permission.user_id == current_user.id)
+            .scalar_subquery()
+        )
+        query = query.where(Item.id.in_(accessible_projects))
+        count_query = count_query.where(Item.id.in_(accessible_projects))
+
+    # When listing non-project items without an explicit project filter,
+    # scope to items within the user's accessible projects or created by them.
+    if item_type != "project" and not project:
+        accessible_projects = (
+            select(Permission.scope_item_id)
+            .where(Permission.user_id == current_user.id)
+            .scalar_subquery()
+        )
+        direct_children = (
+            select(Connection.target_item_id)
+            .where(Connection.source_item_id.in_(accessible_projects))
+            .scalar_subquery()
+        )
+        grandchildren = (
+            select(Connection.target_item_id)
+            .where(Connection.source_item_id.in_(direct_children))
+            .scalar_subquery()
+        )
+        scope_filter = or_(
+            Item.id.in_(accessible_projects),
+            Item.id.in_(direct_children),
+            Item.id.in_(grandchildren),
+            Item.created_by == current_user.id,
+        )
+        query = query.where(scope_filter)
+        count_query = count_query.where(scope_filter)
 
     # Trigram search on identifier
     if search:
@@ -180,12 +236,19 @@ async def list_items(
 async def get_item(
     item_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a single item by ID."""
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    # Check project access
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
+
     return item
 
 
@@ -194,6 +257,7 @@ async def update_item(
     item_id: uuid.UUID,
     payload: ItemUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update an item's identifier or properties.
@@ -206,11 +270,19 @@ async def update_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
+    # Check project access
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
+
     if payload.identifier is not None:
         item.identifier = payload.identifier
     if payload.properties is not None:
         merged = {**item.properties, **payload.properties}
         item.properties = merged
+
+    if not item.created_by:
+        item.created_by = current_user.id
 
     await db.flush()
     await db.refresh(item)
@@ -221,6 +293,7 @@ async def update_item(
 async def delete_item(
     item_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete an item and its connections."""
     from sqlalchemy import or_
@@ -230,6 +303,11 @@ async def delete_item(
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    # Check project access
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     # Delete connections referencing this item (both directions).
     await db.execute(
@@ -260,6 +338,7 @@ async def get_connected_items(
         None, description="Comma-separated UUIDs to exclude (breadcrumb ancestors)"
     ),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get an item and its connected items, grouped by type.
@@ -277,6 +356,11 @@ async def get_connected_items(
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    # Check project access
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     # Parse exclusion list
     exclude_ids: set[uuid.UUID] = set()

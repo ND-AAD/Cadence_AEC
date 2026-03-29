@@ -169,16 +169,19 @@ export function useDockCategories(
       });
     }
 
-    // ─── Notes (placeholder) ───────────────────────────────────
-    // Notes backend is not yet built; show placeholder category.
-    categories.push({
-      key: "notes",
-      label: "Notes",
-      count: 0,
-      colorClass: "trace",
-      defaultExpanded: false,
-      groups: [],
-    });
+    // ─── Notes ─────────────────────────────────────────────────
+    // Collapsed by default; uses note count from by_type if available.
+    const noteCount = health.by_type["note"] ?? 0;
+    if (noteCount > 0) {
+      categories.push({
+        key: "notes",
+        label: "Notes",
+        count: noteCount,
+        colorClass: "trace",
+        defaultExpanded: false,
+        groups: [],
+      });
+    }
 
     return categories;
   }, [health, directiveStatus, affectedItems, getType]);

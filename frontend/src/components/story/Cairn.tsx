@@ -32,8 +32,9 @@ export function Cairn({
 
   // Triangle path: pointing up (△) or down (▽).
   // 10px triangle centered in 16px container.
-  const upPath = "M5 2L9.5 8.5H0.5L5 2Z";    // pointing up
-  const downPath = "M5 8.5L0.5 2H9.5L5 8.5Z"; // pointing down
+  // Vertices at approximately: top=1, bottom-left=9, bottom-right=9
+  const upPath = "M5 1 L9 9 L1 9 Z";      // pointing up
+  const downPath = "M5 9 L1 1 L9 1 Z";    // pointing down
 
   const path = isInverted ? downPath : upPath;
 
@@ -43,7 +44,7 @@ export function Cairn({
 
   return (
     <span
-      className={`inline-flex items-center justify-center w-[16px] h-[16px] shrink-0 ${interactiveClass}`}
+      className={`inline-flex items-center justify-center w-[16px] h-[16px] shrink-0 text-trace ${interactiveClass}`}
       title={tooltip}
       onClick={
         onClick
@@ -71,13 +72,15 @@ export function Cairn({
         width="10"
         height="10"
         viewBox="0 0 10 10"
-        className={isFilled ? "text-trace" : "text-trace"}
+        fill="none"
+        className="shrink-0"
       >
         <path
           d={path}
           fill={isFilled ? "currentColor" : "none"}
-          stroke="currentColor"
+          stroke={isFilled ? "none" : "currentColor"}
           strokeWidth={isFilled ? "0" : "1.5"}
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
       </svg>

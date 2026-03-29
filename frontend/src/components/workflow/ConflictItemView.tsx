@@ -13,14 +13,16 @@
 //   Resolution section with stamp
 //   Directive connection rows
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { ItemResponse } from "@/types/navigation";
 import type { ResolutionMethod } from "@/api/actionItems";
 import { resolveConflict } from "@/api/actionItems";
 import { startReview, holdItem, resumeReview } from "@/api/workflow";
+import { createNote } from "@/api/notes";
 import { ResolutionForm, type ResolutionSource } from "./ResolutionForm";
 import { ResolutionStamp } from "../story/ResolutionStamp";
 import { DirectiveSubRow } from "../story/DirectiveSubRow";
+import { ItemNotes } from "../story/ItemNotes";
 
 interface ConflictItemViewProps {
   /** The conflict item from the API. */
@@ -50,6 +52,8 @@ interface ConflictItemViewProps {
   onNavigate: (itemId: string) => void;
   /** Callback after workflow action to refresh data. */
   onWorkflowAction?: () => void;
+  /** Current user name (for note authorship). */
+  userName?: string;
 }
 
 /** Map backend status to UX label. */
@@ -86,18 +90,26 @@ export function ConflictItemView({
   directives,
   onNavigate,
   onWorkflowAction,
+  userName,
 }: ConflictItemViewProps) {
   const status = (item.properties?.status as string) ?? "detected";
   const propertyName = (item.properties?.property_name as string) ?? "Property";
   const isResolved = status === "resolved";
 
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // ── API handlers ──
   const handleStartReview = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await startReview(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to start review:", err);
+      setError(err instanceof Error ? err.message : "Failed to start review");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
@@ -109,6 +121,8 @@ export function ConflictItemView({
     decided_by: string;
     note?: string;
   }) => {
+    setError(null);
+    setPending(true);
     try {
       await resolveConflict(item.id, {
         chosen_value: request.chosen_value,
@@ -117,27 +131,48 @@ export function ConflictItemView({
         rationale: request.rationale,
         decided_by: request.decided_by,
       });
+
+      // Create a note if the user provided one, connected to the conflict item
+      if (request.note?.trim()) {
+        try {
+          await createNote(item.id, request.note, request.decided_by);
+        } catch (noteErr) {
+          console.error("Failed to create note:", noteErr);
+          // Don't fail the resolution if note creation fails
+        }
+      }
+
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to resolve conflict:", err);
+      setError(err instanceof Error ? err.message : "Failed to resolve conflict");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleHold = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await holdItem(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to hold:", err);
+      setError(err instanceof Error ? err.message : "Failed to hold item");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
   const handleResume = useCallback(async () => {
+    setError(null);
+    setPending(true);
     try {
       await resumeReview(item.id);
       onWorkflowAction?.();
     } catch (err) {
-      console.error("Failed to resume:", err);
+      setError(err instanceof Error ? err.message : "Failed to resume review");
+    } finally {
+      setPending(false);
     }
   }, [item.id, onWorkflowAction]);
 
@@ -256,13 +291,22 @@ export function ConflictItemView({
           <ResolutionForm
             sources={sources}
             status={status}
+            isSubmitting={pending}
             onStartReview={status === "detected" ? handleStartReview : undefined}
             onResolve={handleResolve}
             onHold={status !== "hold" ? handleHold : undefined}
             onResume={status === "hold" ? handleResume : undefined}
           />
+          {error && (
+            <div className="mt-3 text-xs text-redline">
+              {error}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Notes section (bottom of item view) */}
+      <ItemNotes itemId={item.id} userName={userName} />
     </div>
   );
 }

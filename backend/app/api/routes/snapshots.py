@@ -17,9 +17,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.core.type_config import get_conflict_excluded_types, get_type_config
 from app.models.core import Connection, Item, Snapshot
+from app.models.infrastructure import User
 from app.schemas.items import ItemSummary
 from app.schemas.snapshots import (
     EffectiveValue,
@@ -72,6 +74,7 @@ def _get_ordinal(item: Item) -> int:
 @router.post("/", response_model=SnapshotResponse, status_code=201)
 async def create_snapshot(
     payload: SnapshotCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -90,6 +93,11 @@ async def create_snapshot(
 
     # Validate context is a milestone
     await _validate_context(db, payload.context_id)
+
+    # Check project access via item
+    project_id = await get_project_for_item(db, payload.item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     # Check for existing snapshot with same triple (upsert)
     existing_result = await db.execute(
@@ -116,6 +124,7 @@ async def create_snapshot(
         context_id=payload.context_id,
         source_id=payload.source_id,
         properties=payload.properties,
+        created_by=current_user.id,
     )
     db.add(snapshot)
     await db.flush()
@@ -134,6 +143,7 @@ async def list_snapshots(
     ),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List snapshots with optional triple filters."""
@@ -154,6 +164,7 @@ async def list_snapshots(
 @router.get("/{snapshot_id}", response_model=SnapshotResponse)
 async def get_snapshot(
     snapshot_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single snapshot."""
@@ -167,6 +178,7 @@ async def get_snapshot(
 @router.delete("/{snapshot_id}", status_code=204)
 async def delete_snapshot(
     snapshot_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a snapshot."""
@@ -184,6 +196,7 @@ async def delete_snapshot(
 async def get_effective_value(
     item_id: uuid.UUID,
     source: uuid.UUID = Query(..., description="Source to get effective value from"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -199,6 +212,11 @@ async def get_effective_value(
     """
     await _get_item_or_404(db, item_id, "Item")
     source_item = await _get_item_or_404(db, source, "Source")
+
+    # Check project access via item
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     # Get all snapshots from this source for this item
     snapshots_result = await db.execute(
@@ -261,6 +279,7 @@ async def get_resolved_view(
         "cumulative",
         description="Value mode: cumulative, submitted, or current",
     ),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -288,6 +307,11 @@ async def get_resolved_view(
         )
 
     item = await _get_item_or_404(db, item_id, "Item")
+
+    # Check project access via item
+    project_id = await get_project_for_item(db, item_id)
+    if project_id:
+        await require_project_access(db, project_id, current_user)
     context_item = None
     context_ordinal = 0
     if mode != "current":

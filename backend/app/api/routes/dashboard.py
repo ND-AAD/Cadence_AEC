@@ -16,7 +16,9 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access
 from app.core.database import get_db
+from app.models.infrastructure import User
 from app.schemas.dashboard import (
     ActionItemCounts,
     AffectedItemGroup,
@@ -46,6 +48,7 @@ router = APIRouter(tags=["dashboard"])
 )
 async def get_project_health(
     project: uuid.UUID | None = Query(None, description="Project item ID"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -54,6 +57,10 @@ async def get_project_health(
     Returns total item counts by type, action item breakdowns
     by property, source pair, and affected item type.
     """
+    # Check project access if project provided
+    if project:
+        await require_project_access(db, project, current_user)
+
     data = await dashboard_service.get_project_health(db, project_id=project)
 
     return ProjectHealthResponse(
@@ -79,6 +86,7 @@ async def get_project_health(
 async def get_import_summary(
     project: uuid.UUID | None = Query(None, description="Project item ID"),
     batch_id: uuid.UUID | None = Query(None, description="Specific batch ID"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -86,6 +94,10 @@ async def get_import_summary(
 
     Returns summary counts and per-source breakdowns.
     """
+    # Check project access if project provided
+    if project:
+        await require_project_access(db, project, current_user)
+
     data = await dashboard_service.get_import_summary(
         db, project_id=project, batch_id=batch_id
     )
@@ -102,6 +114,7 @@ async def get_import_summary(
 )
 async def get_temporal_trend(
     project: uuid.UUID | None = Query(None, description="Project item ID"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -110,6 +123,10 @@ async def get_temporal_trend(
     Shows how changes, conflicts, and directives evolve
     across the project's milestone timeline.
     """
+    # Check project access if project provided
+    if project:
+        await require_project_access(db, project, current_user)
+
     data = await dashboard_service.get_temporal_trend(db, project_id=project)
 
     return TemporalTrendResponse(
@@ -127,6 +144,7 @@ async def get_temporal_trend(
 )
 async def get_directive_status(
     project: uuid.UUID | None = Query(None, description="Project item ID"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -135,6 +153,10 @@ async def get_directive_status(
     Shows pending vs fulfilled directive counts per source,
     plus global totals.
     """
+    # Check project access if project provided
+    if project:
+        await require_project_access(db, project, current_user)
+
     data = await dashboard_service.get_directive_status(db, project_id=project)
 
     by_source = []
@@ -173,6 +195,7 @@ async def get_directive_status(
 )
 async def get_affected_items(
     project: uuid.UUID | None = Query(None, description="Project item ID"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -185,6 +208,10 @@ async def get_affected_items(
     full graph traversal (via _get_project_item_ids) rather than just
     immediate connected items.
     """
+    # Check project access if project provided
+    if project:
+        await require_project_access(db, project, current_user)
+
     data = await dashboard_service.get_affected_items(db, project_id=project)
 
     groups = [

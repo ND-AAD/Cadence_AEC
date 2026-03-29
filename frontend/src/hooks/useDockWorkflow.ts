@@ -59,10 +59,10 @@ export function useDockWorkflow(
     }
 
     // ── Resolved (collapsed by default) ──
-    // TODO: When backend provides resolved counts, add this category.
+    // Note: Use useDockCategories instead; this hook is legacy.
 
     // ── Notes (collapsed by default) ──
-    // TODO: When notes/cairns API exists, add this category.
+    // Note: Use useDockCategories instead; this hook is legacy.
 
     return categories;
   }, [rollup, directives]);
@@ -73,21 +73,19 @@ function buildGroupsFromByType(
   byType: Record<string, number>,
   _category: string,
 ) {
-  // The by_type dict has keys like "changes", "conflicts", "directives".
-  // For now, we create a single "All" group.
-  // TODO: When backend provides by-item-type breakdowns, create real groups.
+  // Note: This hook is legacy. Use useDockCategories for proper by-item-type breakdowns.
   return Object.entries(byType)
     .filter(([, count]) => count > 0)
     .map(([typeName, count]) => ({
       typeName: typeName.charAt(0).toUpperCase() + typeName.slice(1),
       count,
-      instances: [], // TODO: Populate with real instance data.
+      instances: [],
     }));
 }
 
 /** Build directive groups from the directive list response. */
 function buildDirectiveGroups(directives: DirectiveListResponse) {
-  // Group by target source.
+  // Note: This hook is legacy. Use useDockCategories for proper directive grouping by item type.
   const bySource = new Map<string, typeof directives.directives>();
   for (const d of directives.directives) {
     const key = d.target_source_id ?? "unknown";
@@ -96,7 +94,7 @@ function buildDirectiveGroups(directives: DirectiveListResponse) {
   }
 
   return Array.from(bySource.entries()).map(([sourceId, items]) => ({
-    typeName: sourceId, // TODO: Resolve source name from ID.
+    typeName: sourceId,
     count: items.length,
     instances: items.slice(0, 5).map((d) => ({
       id: d.id,

@@ -9,9 +9,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.core.type_config import get_type_config
 from app.models.core import Connection, Item, Snapshot
+from app.models.infrastructure import User
 
 router = APIRouter()
 
@@ -245,6 +247,7 @@ async def _find_path_bfs(
 @router.post("/navigate", response_model=NavigateResponse)
 async def navigate(
     request: NavigateRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -280,6 +283,11 @@ async def navigate(
 
     if not await _item_exists(db, request.target):
         raise HTTPException(status_code=404, detail="Target item not found")
+
+    # Check project access via first breadcrumb item
+    project_id = await get_project_for_item(db, request.breadcrumb[0])
+    if project_id:
+        await require_project_access(db, project_id, current_user)
 
     current_item = request.breadcrumb[-1]
 

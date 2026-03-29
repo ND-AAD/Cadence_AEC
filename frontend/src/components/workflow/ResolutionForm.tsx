@@ -30,6 +30,8 @@ interface ResolutionFormProps {
   sources: ResolutionSource[];
   /** Current workflow status of the item. */
   status: string;
+  /** Whether an API call is in flight. */
+  isSubmitting?: boolean;
   /** Called when user starts review. */
   onStartReview?: () => void;
   /** Called when user resolves. */
@@ -50,6 +52,7 @@ interface ResolutionFormProps {
 export function ResolutionForm({
   sources,
   status,
+  isSubmitting = false,
   onStartReview,
   onResolve,
   onHold,
@@ -209,9 +212,10 @@ export function ResolutionForm({
               e.stopPropagation();
               onStartReview();
             }}
-            className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+            disabled={isSubmitting}
+            className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
           >
-            Start Review
+            Start Review{isSubmitting ? "..." : ""}
           </button>
         )}
 
@@ -223,10 +227,10 @@ export function ResolutionForm({
               e.stopPropagation();
               handleResolve();
             }}
-            disabled={!canResolve}
+            disabled={!canResolve || isSubmitting}
             className="bg-stamp-wash text-stamp-ink border border-stamp rounded text-xs px-3 py-1.5 hover:bg-stamp/10 transition-colors duration-100 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
           >
-            Resolve
+            Resolve{isSubmitting ? "..." : ""}
           </button>
         )}
 
@@ -238,9 +242,10 @@ export function ResolutionForm({
               e.stopPropagation();
               onHold();
             }}
-            className="bg-transparent text-filed border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-filed-wash hover:border-filed transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+            disabled={isSubmitting}
+            className="bg-transparent text-filed border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-filed-wash hover:border-filed transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
           >
-            Hold
+            Hold{isSubmitting ? "..." : ""}
           </button>
         )}
 
@@ -252,9 +257,10 @@ export function ResolutionForm({
               e.stopPropagation();
               onResume();
             }}
-            className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
+            disabled={isSubmitting}
+            className="bg-transparent text-ink border border-rule-emphasis rounded text-xs px-3 py-1.5 hover:bg-board/20 hover:border-graphite transition-colors duration-100 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-1"
           >
-            Resume Review
+            Resume Review{isSubmitting ? "..." : ""}
           </button>
         )}
       </div>
