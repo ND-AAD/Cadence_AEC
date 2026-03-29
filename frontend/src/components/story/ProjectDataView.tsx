@@ -39,6 +39,8 @@ interface ProjectDataViewProps {
   selectedItemId?: string | null;
   /** Whether Quiet mode is active. Filters out milestone groups. */
   isQuiet?: boolean;
+  /** Comparison categories for child items (from bulk parent comparison). */
+  comparisonCategoryMap?: Map<string, "added" | "removed" | "modified" | "unchanged">;
 }
 
 export function ProjectDataView({
@@ -53,6 +55,7 @@ export function ProjectDataView({
   workflowPerspective,
   selectedItemId,
   isQuiet = false,
+  comparisonCategoryMap,
 }: ProjectDataViewProps) {
   // All sections default to expanded.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -324,6 +327,7 @@ export function ProjectDataView({
                                       item={item}
                                       typeLabel={typeGroup.label}
                                       comparisonActive={comparisonActive}
+                                      comparisonCategory={comparisonCategoryMap?.get(item.id)}
                                       onNavigate={onNavigate}
                                       expanded={expandedItems.has(item.id)}
                                       onToggle={() => toggleItem(item.id)}
@@ -392,6 +396,7 @@ export function ProjectDataView({
                         item={item}
                         typeLabel={typeLabel}
                         comparisonActive={comparisonActive}
+                        comparisonCategory={comparisonCategoryMap?.get(item.id)}
                         onNavigate={onNavigate}
                         expanded={expandedItems.has(item.id)}
                         onToggle={() => toggleItem(item.id)}

@@ -23,6 +23,7 @@ import { MilestonePicker, type MilestoneOption } from "@/components/comparison/M
 import { useCurrentItem } from "@/hooks/useCurrentItem";
 import { useConnectedItems } from "@/hooks/useConnectedItems";
 import { useComparisonData } from "@/hooks/useComparisonData";
+import { useParentComparison } from "@/hooks/useParentComparison";
 import { useTypeRegistry } from "@/hooks/useTypeRegistry";
 import { useDashboardHealth } from "@/hooks/useDashboardHealth";
 import { useDockCategories } from "@/hooks/useDockCategories";
@@ -245,6 +246,10 @@ function AppShellContent() {
   // ─── Comparison data (FE-2) ─────────────────────────────────────
 
   const { data: comparisonData } = useComparisonData(currentItemId);
+
+  // Bulk comparison for list views (project/milestone level).
+  // Fetches all children's categories when comparison is active.
+  const { categoryMap: childComparisonMap } = useParentComparison(currentItemId);
 
   /** Available milestones derived from project root connected items.
    *  Uses projectConnectedData (not currentItem's connections) so
@@ -565,6 +570,7 @@ function AppShellContent() {
           workflowPerspective={workflowPerspective}
           selectedItemId={selectedItemId}
           isQuiet={temporalState.isQuiet}
+          comparisonCategoryMap={childComparisonMap}
         />
       );
     } else if (itemType === "conflict") {
@@ -642,6 +648,7 @@ function AppShellContent() {
             onCompareToggle={handleCompareToggle}
             compareVisible={!temporalState.isQuiet}
             isQuiet={temporalState.isQuiet}
+            comparisonCategoryMap={childComparisonMap}
           />
 
           {/* Milestone picker dropdown (anchored to header area) */}

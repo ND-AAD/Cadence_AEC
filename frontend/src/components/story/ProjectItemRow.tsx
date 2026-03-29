@@ -17,6 +17,8 @@ interface ProjectItemRowProps {
   typeLabel: string;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Comparison category for this item (from bulk parent comparison). */
+  comparisonCategory?: "added" | "removed" | "modified" | "unchanged";
   /** Navigation callback — triggers ZOOM (Powers of Ten). */
   onNavigate: (itemId: string) => void;
   /** Whether this item's inline content is expanded. */
@@ -27,10 +29,19 @@ interface ProjectItemRowProps {
   breadcrumbIds?: Set<string>;
 }
 
+/** Visual treatment classes per comparison category. */
+const categoryStyles: Record<string, { row: string; label: string }> = {
+  added:     { row: "bg-pencil/5",   label: "text-pencil-ink" },
+  removed:   { row: "bg-redline/5",  label: "text-redline-ink" },
+  modified:  { row: "",              label: "" },
+  unchanged: { row: "opacity-50",    label: "" },
+};
+
 export function ProjectItemRow({
   item,
   typeLabel,
   comparisonActive = false,
+  comparisonCategory,
   onNavigate,
   expanded = false,
   onToggle,
@@ -44,21 +55,42 @@ export function ProjectItemRow({
     onToggle?.();
   };
 
+  // Comparison-aware styling
+  const catStyle = comparisonActive && comparisonCategory
+    ? categoryStyles[comparisonCategory] ?? { row: "", label: "" }
+    : { row: "", label: "" };
+
+  // Category badge for added/removed
+  const badge = comparisonActive && comparisonCategory === "added"
+    ? "+"
+    : comparisonActive && comparisonCategory === "removed"
+    ? "−"
+    : null;
+
+  const badgeColor = comparisonCategory === "added"
+    ? "text-pencil-ink"
+    : comparisonCategory === "removed"
+    ? "text-redline-ink"
+    : "";
+
   return (
     <>
-      <div className="w-full text-left grid grid-cols-[120px_1fr_28px_28px] gap-x-3 items-center px-4 min-h-[34px] py-[7px] text-sm transition-colors duration-150 hover:bg-board/40 group">
+      <div className={`w-full text-left grid grid-cols-[120px_1fr_28px_28px] gap-x-3 items-center px-4 min-h-[34px] py-[7px] text-sm transition-colors duration-150 hover:bg-board/40 group ${catStyle.row}`}>
         {/* Navigation button — main content area */}
         <button
           type="button"
           onClick={() => onNavigate(item.id)}
           className="col-span-2 text-left flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-[-2px]"
         >
-          <span className="text-graphite text-xs leading-[20px] truncate">
+          <span className={`text-graphite text-xs leading-[20px] truncate ${catStyle.label}`}>
             {typeLabel}
           </span>
 
           <div className="min-w-0 flex items-center gap-2">
-            <span className="font-mono text-ink">{name}</span>
+            <span className={`font-mono text-ink ${catStyle.label}`}>{name}</span>
+            {badge && (
+              <span className={`text-xs font-semibold ${badgeColor}`}>{badge}</span>
+            )}
           </div>
         </button>
 

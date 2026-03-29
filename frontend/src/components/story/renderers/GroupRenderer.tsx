@@ -13,6 +13,8 @@ interface GroupRendererProps {
   onNavigate: (itemId: string) => void;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Comparison categories for child items (from bulk parent comparison). */
+  comparisonCategoryMap?: Map<string, "added" | "removed" | "modified" | "unchanged">;
 }
 
 export function GroupRenderer({
@@ -21,9 +23,10 @@ export function GroupRenderer({
   breadcrumbIds,
   onNavigate,
   comparisonActive = false,
+  comparisonCategoryMap,
 }: GroupRendererProps) {
   // Alpha: all connection groups render as list. Table/card/timeline
   // renderers exist but aren't wired to snapshot data yet.
-  const props = { group, typeConfig, breadcrumbIds, onNavigate, comparisonActive };
+  const props = { group, typeConfig, breadcrumbIds, onNavigate, comparisonActive, comparisonCategoryMap };
   return <ListRenderer {...props} />;
 }

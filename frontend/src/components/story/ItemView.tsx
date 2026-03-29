@@ -82,6 +82,8 @@ interface ItemViewProps {
   compareVisible?: boolean;
   /** Whether Quiet mode is active (DTC-8: diamond problem rendering). */
   isQuiet?: boolean;
+  /** Comparison categories for child items (from bulk parent comparison). */
+  comparisonCategoryMap?: Map<string, "added" | "removed" | "modified" | "unchanged">;
 }
 
 /** Map resolved property status to PropertyRow status. */
@@ -129,6 +131,7 @@ export function ItemView({
   onCompareToggle,
   compareVisible = true,
   isQuiet = false,
+  comparisonCategoryMap,
 }: ItemViewProps) {
   // ── Expansion state (lifted from PropertyRow) ──
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -197,6 +200,10 @@ export function ItemView({
     }
     return map;
   }, [comparisonData]);
+
+  // Item-level comparison category: "added" means this item didn't exist
+  // at the from-context, "removed" means it doesn't exist at the to-context.
+  const comparisonCategory = comparisonData?.category ?? null;
 
   // Get the property definitions from type config (if available).
   const propertyDefs = typeConfig?.properties ?? [];
@@ -299,7 +306,7 @@ export function ItemView({
   }
 
   return (
-    <div className="bg-sheet min-h-full">
+    <div className={`min-h-full ${comparisonActive ? "bg-transparent" : "bg-sheet"}`}>
       {/* Sibling strip (Z-axis awareness) */}
       {siblings && siblings.items.length > 1 && (
         <SiblingStrip
@@ -389,8 +396,46 @@ export function ItemView({
               // layout. Changed properties show old/new values with color
               // treatment. Unchanged properties show the same value in both
               // columns (silent — no decoration).
+              // Added items: from-column is empty, to-column shows values.
+              // Removed items: from-column shows values, to-column is empty.
               let comparisonColumns: [ComparisonColumn, ComparisonColumn] | undefined;
-              if (comparisonActive && change) {
+              if (comparisonActive && comparisonCategory === "added") {
+                // Item didn't exist at from-context — empty from, value in to.
+                comparisonColumns = [
+                  {
+                    contextLabel: fromContextName,
+                    value: <span className="font-mono text-base-size text-trace">—</span>,
+                    isOld: true,
+                  },
+                  {
+                    contextLabel: toContextName,
+                    value: (
+                      <span className="font-mono text-base-size text-pencil-ink">
+                        {formatValue(entry.value, entry.unit)}
+                      </span>
+                    ),
+                    isOld: false,
+                  },
+                ];
+              } else if (comparisonActive && comparisonCategory === "removed") {
+                // Item doesn't exist at to-context — value in from, empty to.
+                comparisonColumns = [
+                  {
+                    contextLabel: fromContextName,
+                    value: (
+                      <span className="font-mono text-base-size">
+                        {formatValue(entry.value, entry.unit)}
+                      </span>
+                    ),
+                    isOld: false,
+                  },
+                  {
+                    contextLabel: toContextName,
+                    value: <span className="font-mono text-base-size text-trace">—</span>,
+                    isOld: true,
+                  },
+                ];
+              } else if (comparisonActive && change) {
                 comparisonColumns = [
                   {
                     contextLabel: fromContextName,
@@ -604,6 +649,7 @@ export function ItemView({
               breadcrumbIds={breadcrumbIds}
               onNavigate={onNavigate}
               comparisonActive={comparisonActive}
+              comparisonCategoryMap={comparisonCategoryMap}
             />
           ))}
       </div>

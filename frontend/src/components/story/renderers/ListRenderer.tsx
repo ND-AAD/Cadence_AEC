@@ -17,6 +17,8 @@ export interface RendererProps {
   onNavigate: (itemId: string) => void;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Comparison categories for child items (from bulk parent comparison). */
+  comparisonCategoryMap?: Map<string, "added" | "removed" | "modified" | "unchanged">;
 }
 
 export function ListRenderer({
@@ -25,6 +27,7 @@ export function ListRenderer({
   breadcrumbIds,
   onNavigate,
   comparisonActive = false,
+  comparisonCategoryMap,
 }: RendererProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -66,6 +69,7 @@ export function ListRenderer({
                 item={item}
                 typeLabel={typeLabel}
                 comparisonActive={comparisonActive}
+                comparisonCategory={comparisonCategoryMap?.get(item.id)}
                 onNavigate={onNavigate}
                 expanded={expandedItems.has(item.id)}
                 onToggle={() => toggleItem(item.id)}
