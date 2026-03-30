@@ -93,9 +93,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     async def override_get_current_user() -> User:
         """Bypass JWT validation in tests — return the test user."""
-        result = await db_session.execute(
-            select(User).where(User.id == TEST_USER_ID)
-        )
+        result = await db_session.execute(select(User).where(User.id == TEST_USER_ID))
         return result.scalar_one()
 
     app.dependency_overrides[get_db] = override_get_db

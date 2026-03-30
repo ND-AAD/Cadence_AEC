@@ -52,9 +52,7 @@ async def get_project_for_item(
     Returns the project UUID or None if no project ancestor found.
     """
     # Check if the item itself is a project
-    result = await db.execute(
-        select(Item.item_type).where(Item.id == item_id)
-    )
+    result = await db.execute(select(Item.item_type).where(Item.id == item_id))
     row = result.one_or_none()
     if not row:
         return None
@@ -63,16 +61,12 @@ async def get_project_for_item(
 
     # Check direct parents (items that connect TO this item)
     parents_result = await db.execute(
-        select(Connection.source_item_id).where(
-            Connection.target_item_id == item_id
-        )
+        select(Connection.source_item_id).where(Connection.target_item_id == item_id)
     )
     parent_ids = [r[0] for r in parents_result.all()]
 
     for pid in parent_ids:
-        p_result = await db.execute(
-            select(Item.item_type).where(Item.id == pid)
-        )
+        p_result = await db.execute(select(Item.item_type).where(Item.id == pid))
         p_row = p_result.one_or_none()
         if p_row and p_row[0] == "project":
             return pid
@@ -80,15 +74,11 @@ async def get_project_for_item(
     # Check grandparents (one more hop)
     for pid in parent_ids:
         gp_result = await db.execute(
-            select(Connection.source_item_id).where(
-                Connection.target_item_id == pid
-            )
+            select(Connection.source_item_id).where(Connection.target_item_id == pid)
         )
         gp_ids = [r[0] for r in gp_result.all()]
         for gpid in gp_ids:
-            gp_type = await db.execute(
-                select(Item.item_type).where(Item.id == gpid)
-            )
+            gp_type = await db.execute(select(Item.item_type).where(Item.id == gpid))
             gp_row = gp_type.one_or_none()
             if gp_row and gp_row[0] == "project":
                 return gpid
@@ -109,12 +99,14 @@ async def require_project_access(
     enforcement is deferred.
     """
     result = await db.execute(
-        select(Permission.id).where(
+        select(Permission.id)
+        .where(
             and_(
                 Permission.user_id == user.id,
                 Permission.scope_item_id == project_id,
             )
-        ).limit(1)
+        )
+        .limit(1)
     )
     if not result.scalar_one_or_none():
         raise HTTPException(
