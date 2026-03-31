@@ -38,6 +38,7 @@ import { ConflictExpansion, type ConflictSource } from "./ConflictExpansion";
 // import { HoldExpansion } from "./HoldExpansion";
 import { ResolvedExpansion } from "./ResolvedExpansion";
 import { SilentExpansion } from "./SilentExpansion";
+import { ChangeItemsExpansion } from "./ChangeItemsExpansion";
 import { GroupRenderer } from "./renderers/GroupRenderer";
 import { ItemNotes } from "./ItemNotes";
 import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
@@ -379,11 +380,9 @@ export function ItemView({
               if ((isChanged && !isAcknowledgedFallback) || hasWorkflowChanges) {
                 pips.push({
                   key: "change",
-                  filled: comparisonActive && isChanged, // Filled only when comparison shows it
+                  filled: hasWorkflowChanges || (comparisonActive && isChanged),
                   color: "pencil",
-                  tooltip: isChanged
-                    ? `${toContextName} \u00B7 ${entry.label} \u00B7 changed`
-                    : `${entry.label} \u00B7 changed`,
+                  tooltip: `${entry.label} \u00B7 changed`,
                 });
               }
               if (entry.status === "conflicted") {
@@ -573,26 +572,14 @@ export function ItemView({
                   />
                 );
               } else if (hasWorkflowChanges && !isChanged) {
-                // Workflow-sourced change — no comparison data available.
-                // DS-2 §1.3: Adjacent change, minimal expansion with navigation link.
+                // Workflow-sourced change — lazy-fetch change items for full detail.
                 const changeIds = entry.resolved?.workflow?.change_ids ?? [];
                 expansionContent = (
-                  <div className="px-4 py-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-graphite">
-                        {changeIds.length === 1 ? "1 change detected" : `${changeIds.length} changes detected`}
-                      </span>
-                      {changeIds.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => onNavigate(changeIds[0])}
-                          className="text-xs text-pencil-ink hover:underline"
-                        >
-                          View change ›
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <ChangeItemsExpansion
+                    changeIds={changeIds}
+                    propertyName={entry.key}
+                    onNavigate={onNavigate}
+                  />
                 );
               } else if (entry.resolved && Object.keys(entry.resolved.sources).length > 0) {
                 // Silent (aligned) with sources → SilentExpansion
