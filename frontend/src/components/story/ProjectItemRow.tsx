@@ -17,6 +17,10 @@ interface ProjectItemRowProps {
   typeLabel: string;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Additional categories to mark as "present" (filled pip).
+   *  Used when the rendering context makes those categories inspectable
+   *  (e.g., workflow perspective with expandable change details). */
+  presentOverrides?: Set<string>;
   /** Comparison category for this item (from bulk parent comparison). */
   comparisonCategory?: "added" | "removed" | "modified" | "unchanged";
   /** Navigation callback — triggers ZOOM (Powers of Ten). */
@@ -41,6 +45,7 @@ export function ProjectItemRow({
   item,
   typeLabel,
   comparisonActive = false,
+  presentOverrides,
   comparisonCategory,
   onNavigate,
   expanded = false,
@@ -48,7 +53,11 @@ export function ProjectItemRow({
   breadcrumbIds,
 }: ProjectItemRowProps) {
   const name = itemDisplayName(item.identifier, item.item_type);
-  const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
+  const present = presentCategories(comparisonActive);
+  if (presentOverrides) {
+    for (const key of presentOverrides) present.add(key);
+  }
+  const pips = buildPips(item.action_counts, present);
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
