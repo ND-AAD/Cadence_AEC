@@ -568,12 +568,73 @@ async def run_import(
             )
             prior_snap = prior_snap_result.scalar_one_or_none()
 
-            if not prior_snap:
-                # No prior snapshot, so no changes to detect
-                continue
-
             # Extract properties from row (current values)
             current_props = {k: v for k, v in row.items() if not k.startswith("_")}
+
+            if not prior_snap:
+                # No prior snapshot — this item is NEW (added between milestones).
+                # Create an "added" change item connected directly to the item.
+                change_item = Item(
+                    item_type="change",
+                    identifier=f"{source_item.identifier} / {matched_item.identifier} / added@{time_context.identifier}",
+                    properties={
+                        "status": "DETECTED",
+                        "change_type": "added",
+                        "changes": {
+                            k: {"old": None, "new": v} for k, v in current_props.items()
+                        },
+                        "from_context": str(prior_context.id),
+                        "to_context": str(time_context.id),
+                        "source": str(source_item.id),
+                        "affected_item": str(matched_item.id),
+                    },
+                )
+                db.add(change_item)
+                await db.flush()
+                await db.refresh(change_item)
+
+                change_snap = Snapshot(
+                    item_id=change_item.id,
+                    context_id=time_context.id,
+                    source_id=change_item.id,
+                    properties=change_item.properties,
+                )
+                db.add(change_snap)
+                await db.flush()
+
+                # Connect: change→source, change→to_context, change→from_context, change→affected_item
+                for target_id in [
+                    source_item.id,
+                    time_context.id,
+                    prior_context.id,
+                    matched_item.id,
+                ]:
+                    db.add(
+                        Connection(
+                            source_item_id=change_item.id,
+                            target_item_id=target_id,
+                            properties={},
+                        )
+                    )
+                await db.flush()
+
+                # No property item connections — the door itself is the subject.
+                summary.source_changes += 1
+                affected_items_set.add(matched_item.id)
+                change_items_result.append(
+                    ChangeItemResult(
+                        change_item_id=change_item.id,
+                        affected_item_id=matched_item.id,
+                        affected_item_identifier=matched_item.identifier,
+                        property_name="(added)",
+                        old_value=None,
+                        new_value=None,
+                        from_context_id=prior_context.id,
+                        to_context_id=time_context.id,
+                    )
+                )
+                continue
+
             prior_props = prior_snap.properties
 
             # Compare properties using values_match
