@@ -618,7 +618,20 @@ async def run_import(
                     )
                 await db.flush()
 
-                # No property item connections — the door itself is the subject.
+                # Connect change to property items — every property is also new.
+                for prop_name in current_props.keys():
+                    prop_item, _ = await get_or_create_property_item(
+                        db, matched_item.item_type, prop_name
+                    )
+                    db.add(
+                        Connection(
+                            source_item_id=change_item.id,
+                            target_item_id=prop_item.id,
+                            properties={},
+                        )
+                    )
+                await db.flush()
+
                 summary.source_changes += 1
                 affected_items_set.add(matched_item.id)
                 change_items_result.append(
