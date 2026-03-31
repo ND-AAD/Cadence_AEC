@@ -296,9 +296,6 @@ async def delete_item(
     current_user: User = Depends(get_current_user),
 ):
     """Delete an item and its connections."""
-    from sqlalchemy import or_
-    from app.models.core import Connection, Snapshot
-
     result = await db.execute(select(Item).where(Item.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
@@ -322,6 +319,76 @@ async def delete_item(
     await db.execute(Snapshot.__table__.delete().where(Snapshot.item_id == item_id))
     # Delete the item itself via raw SQL to avoid ORM stale-state issues.
     await db.execute(Item.__table__.delete().where(Item.id == item_id))
+
+
+@router.delete("/{item_id}/cascade", status_code=200)
+async def delete_project_cascade(
+    item_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Delete a project and ALL items reachable from it.
+
+    Walks the connection graph from the project outward, collecting every
+    reachable item, then deletes all snapshots, connections, permissions,
+    and items in that set. Alpha-only — no soft delete, no undo.
+    """
+    result = await db.execute(select(Item).where(Item.id == item_id))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if item.item_type != "project":
+        raise HTTPException(
+            status_code=400, detail="Cascade delete is only for projects"
+        )
+
+    await require_project_access(db, item_id, current_user)
+
+    # BFS to collect all reachable item IDs from the project
+    visited: set[uuid.UUID] = {item_id}
+    frontier: set[uuid.UUID] = {item_id}
+
+    while frontier:
+        outbound = await db.execute(
+            select(Connection.target_item_id).where(
+                Connection.source_item_id.in_(frontier)
+            )
+        )
+        inbound = await db.execute(
+            select(Connection.source_item_id).where(
+                Connection.target_item_id.in_(frontier)
+            )
+        )
+        neighbours = {r[0] for r in outbound.all()} | {r[0] for r in inbound.all()}
+        neighbours -= visited
+        visited |= neighbours
+        frontier = neighbours
+
+    # Delete in dependency order: snapshots → connections → permissions → items
+    await db.execute(
+        Snapshot.__table__.delete().where(
+            or_(
+                Snapshot.item_id.in_(visited),
+                Snapshot.context_id.in_(visited),
+                Snapshot.source_id.in_(visited),
+            )
+        )
+    )
+    await db.execute(
+        Connection.__table__.delete().where(
+            or_(
+                Connection.source_item_id.in_(visited),
+                Connection.target_item_id.in_(visited),
+            )
+        )
+    )
+    await db.execute(
+        Permission.__table__.delete().where(Permission.scope_item_id == item_id)
+    )
+    await db.execute(Item.__table__.delete().where(Item.id.in_(visited)))
+
+    return {"deleted_items": len(visited)}
 
 
 # ─── Connected Items ───────────────────────────────────────────
