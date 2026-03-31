@@ -4,14 +4,14 @@
 // from project-level groups. Caps item listing per group to avoid
 // burying sibling rows — shows a "+ N more" link for overflow.
 //
-// Nesting indent: ml-[68px] = centerline of the 120px type label
-// column (60px) + half the row's px-4 padding (8px). The left border
-// drops through the middle of the parent row's type label, visually
-// anchoring the expansion to the category it belongs to.
+// When workflowFilter is set, only shows items that have action counts
+// for the specified category (e.g., only properties with changes).
+// Pips for the filtered category render filled because those items
+// ARE the thing the user is looking at.
 
 import { useState, useEffect, useCallback } from "react";
 import { getConnectedItems } from "@/api/connected";
-import type { ConnectedItemsResponse, ItemSummary } from "@/types/navigation";
+import type { ConnectedItemsResponse, ConnectedGroup, ItemSummary } from "@/types/navigation";
 import { filterDataGroups, excludeBreadcrumbItems } from "@/utils/groupFilters";
 import { useTypeRegistry } from "@/hooks/useTypeRegistry";
 import { buildPips, presentCategories } from "@/utils/buildPips";
@@ -21,6 +21,13 @@ import { IndicatorLane } from "./IndicatorLane";
 /** Max items shown per group before "+ N more" appears. */
 const MAX_VISIBLE_ITEMS = 5;
 
+/** Map workflow filter keys to action_counts keys. */
+const WORKFLOW_ACTION_KEY: Record<string, keyof ItemSummary["action_counts"]> = {
+  changes: "changes",
+  conflicts: "conflicts",
+  directives: "directives",
+};
+
 interface InlineItemPreviewProps {
   itemId: string;
   expanded: boolean;
@@ -28,9 +35,12 @@ interface InlineItemPreviewProps {
   onNavigate?: (itemId: string) => void;
   /** Breadcrumb item IDs to exclude from the preview (parent items). */
   breadcrumbIds?: Set<string>;
+  /** Active workflow filter. When set, only items with this action
+   *  category are shown, and their pips render filled. */
+  workflowFilter?: string;
 }
 
-export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds }: InlineItemPreviewProps) {
+export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds, workflowFilter }: InlineItemPreviewProps) {
   const [data, setData] = useState<ConnectedItemsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +112,21 @@ export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds 
 
   // Filter to data groups only, then exclude breadcrumb items (parents).
   const filtered = filterDataGroups(data.connected, getType);
-  const dataGroups = breadcrumbIds ? excludeBreadcrumbItems(filtered, breadcrumbIds) : filtered;
+  let dataGroups = breadcrumbIds ? excludeBreadcrumbItems(filtered, breadcrumbIds) : filtered;
+
+  // When a workflow filter is active, only show items with that action count > 0.
+  const actionKey = workflowFilter ? WORKFLOW_ACTION_KEY[workflowFilter] : undefined;
+  if (actionKey) {
+    dataGroups = filterGroupsByAction(dataGroups, actionKey);
+  }
+
+  // Build the present set for pip rendering.
+  // When workflow filter is active, the filtered category is "present" (filled)
+  // because these items ARE the thing the user is looking at.
+  const present = presentCategories(false);
+  if (workflowFilter) {
+    present.add(workflowFilter);
+  }
 
   if (dataGroups.length === 0) {
     return (
@@ -126,9 +150,7 @@ export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds 
 
         return (
           <div key={group.item_type}>
-            {/* Nested group header — dual gesture: row = navigate, chevron = collapse.
-                Grid matches [content, chevron(28), pip(28)] so chevrons and pips
-                align vertically with ProjectItemRow and InlineRow. */}
+            {/* Nested group header — dual gesture: row = navigate, chevron = collapse. */}
             <div className="w-full grid grid-cols-[1fr_28px_28px] gap-x-3 items-center pr-4 min-h-[28px] hover:bg-board/40 transition-colors duration-100">
               {/* Label area — click navigates to parent item */}
               <button
@@ -182,6 +204,7 @@ export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds 
                       item={item}
                       typeLabel={typeLabel}
                       onNavigate={onNavigate}
+                      present={present}
                     />
                   ))}
                 </div>
@@ -205,18 +228,37 @@ export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds 
   );
 }
 
+/** Filter connected groups to only include items with the given action count > 0. */
+function filterGroupsByAction(
+  groups: ConnectedGroup[],
+  actionKey: keyof ItemSummary["action_counts"],
+): ConnectedGroup[] {
+  const result: ConnectedGroup[] = [];
+  for (const group of groups) {
+    const filtered = group.items.filter(
+      (item) => (item.action_counts[actionKey] ?? 0) > 0,
+    );
+    if (filtered.length > 0) {
+      result.push({ ...group, items: filtered, count: filtered.length });
+    }
+  }
+  return result;
+}
+
 /** Compact inline row — smaller than ProjectItemRow, no expand chevron. */
 function InlineRow({
   item,
   typeLabel,
   onNavigate,
+  present,
 }: {
   item: ItemSummary;
   typeLabel: string;
   onNavigate?: (itemId: string) => void;
+  present: Set<string>;
 }) {
   const name = itemDisplayName(item.identifier, item.item_type);
-  const pips = buildPips(item.action_counts, presentCategories(false));
+  const pips = buildPips(item.action_counts, present);
 
   return (
     <button

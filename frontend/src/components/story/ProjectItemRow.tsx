@@ -17,10 +17,6 @@ interface ProjectItemRowProps {
   typeLabel: string;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
-  /** Additional categories to mark as "present" (filled pip).
-   *  Used when the rendering context makes those categories inspectable
-   *  (e.g., workflow perspective with expandable change details). */
-  presentOverrides?: Set<string>;
   /** Comparison category for this item (from bulk parent comparison). */
   comparisonCategory?: "added" | "removed" | "modified" | "unchanged";
   /** Navigation callback — triggers ZOOM (Powers of Ten). */
@@ -31,6 +27,9 @@ interface ProjectItemRowProps {
   onToggle?: () => void;
   /** Breadcrumb IDs to pass through for inline preview filtering. */
   breadcrumbIds?: Set<string>;
+  /** Active workflow filter category (e.g., "changes"). When set,
+   *  InlineItemPreview filters to only show items with that action. */
+  workflowFilter?: string;
 }
 
 /** Visual treatment classes per comparison category. */
@@ -45,19 +44,15 @@ export function ProjectItemRow({
   item,
   typeLabel,
   comparisonActive = false,
-  presentOverrides,
   comparisonCategory,
   onNavigate,
   expanded = false,
   onToggle,
   breadcrumbIds,
+  workflowFilter,
 }: ProjectItemRowProps) {
   const name = itemDisplayName(item.identifier, item.item_type);
-  const present = presentCategories(comparisonActive);
-  if (presentOverrides) {
-    for (const key of presentOverrides) present.add(key);
-  }
-  const pips = buildPips(item.action_counts, present);
+  const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -141,7 +136,13 @@ export function ProjectItemRow({
           style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
         >
           <div className="overflow-hidden">
-            <InlineItemPreview itemId={item.id} expanded={expanded} onNavigate={onNavigate} breadcrumbIds={breadcrumbIds} />
+            <InlineItemPreview
+              itemId={item.id}
+              expanded={expanded}
+              onNavigate={onNavigate}
+              breadcrumbIds={breadcrumbIds}
+              workflowFilter={workflowFilter}
+            />
           </div>
         </div>
       )}

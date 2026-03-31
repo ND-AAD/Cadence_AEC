@@ -327,12 +327,12 @@ export function ProjectDataView({
                                       item={item}
                                       typeLabel={typeGroup.label}
                                       comparisonActive={comparisonActive}
-                                      presentOverrides={new Set([category])}
                                       comparisonCategory={comparisonCategoryMap?.get(item.id)}
                                       onNavigate={onNavigate}
                                       expanded={expandedItems.has(item.id)}
                                       onToggle={() => toggleItem(item.id)}
                                       breadcrumbIds={breadcrumbIds}
+                                      workflowFilter={category}
                                     />
                                   ))}
                                 </div>
