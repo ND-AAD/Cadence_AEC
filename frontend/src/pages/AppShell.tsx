@@ -115,11 +115,17 @@ function AppShellContent() {
   }, [temporalState.isComparing, setComparing, deactivate]);
 
   // Clear selection when navigation state changes (breadcrumb or fork update).
+  // Only clear workflowPerspective when the project root changes — drilling
+  // into a child item (instance click in dock) should preserve the perspective.
+  const projectRootId = state.breadcrumb.length > 0 ? state.breadcrumb[0].id : null;
   useEffect(() => {
     setSelectedItemId(null);
     setSelectedGroupType(null);
-    setWorkflowPerspective(null);
   }, [state.breadcrumb, state.fork]);
+
+  useEffect(() => {
+    setWorkflowPerspective(null);
+  }, [projectRootId]);
 
 
   // ─── Derive IDs from breadcrumb ──────────────────────────────────

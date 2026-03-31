@@ -17,6 +17,8 @@ interface ProjectItemRowProps {
   typeLabel: string;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
+  /** Active workflow category — makes that category's pips filled ("present"). */
+  workflowCategory?: string;
   /** Comparison category for this item (from bulk parent comparison). */
   comparisonCategory?: "added" | "removed" | "modified" | "unchanged";
   /** Navigation callback — triggers ZOOM (Powers of Ten). */
@@ -41,6 +43,7 @@ export function ProjectItemRow({
   item,
   typeLabel,
   comparisonActive = false,
+  workflowCategory,
   comparisonCategory,
   onNavigate,
   expanded = false,
@@ -48,7 +51,9 @@ export function ProjectItemRow({
   breadcrumbIds,
 }: ProjectItemRowProps) {
   const name = itemDisplayName(item.identifier, item.item_type);
-  const pips = buildPips(item.action_counts, presentCategories(comparisonActive));
+  const present = presentCategories(comparisonActive);
+  if (workflowCategory) present.add(workflowCategory);
+  const pips = buildPips(item.action_counts, present);
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();

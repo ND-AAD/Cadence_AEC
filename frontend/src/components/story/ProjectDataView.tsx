@@ -327,6 +327,7 @@ export function ProjectDataView({
                                       item={item}
                                       typeLabel={typeGroup.label}
                                       comparisonActive={comparisonActive}
+                                      workflowCategory={category}
                                       comparisonCategory={comparisonCategoryMap?.get(item.id)}
                                       onNavigate={onNavigate}
                                       expanded={expandedItems.has(item.id)}
