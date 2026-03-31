@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildItem, buildSource } from "@/test/helpers";
 import { ConflictItemView } from "../ConflictItemView";
@@ -23,7 +23,7 @@ vi.mock("@/components/story/ItemNotes", () => ({
 }));
 
 import { resolveConflict } from "@/api/actionItems";
-import { startReview, holdItem, resumeReview } from "@/api/workflow";
+import { startReview, holdItem } from "@/api/workflow";
 
 // ── Test data ─────────────────────────────────────────────────────
 
