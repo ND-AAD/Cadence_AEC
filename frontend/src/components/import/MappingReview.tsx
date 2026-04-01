@@ -11,6 +11,7 @@ interface MappingReviewProps {
 export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewProps) {
   const { getType } = useTypeRegistry();
   const [corrections, setCorrections] = useState<Record<string, string | null>>({});
+  const [editing, setEditing] = useState<Set<string>>(new Set());
 
   // Get property definitions for the target item type
   const typeConfig = getType(proposal.target_item_type);
@@ -100,7 +101,7 @@ export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewPr
               <div className="flex-1 min-w-0">
                 {isIdentifier ? (
                   <span className="text-sm text-ink font-medium">{proposal.target_item_type} ID</span>
-                ) : isHighConfidence && !(col.column_name in corrections) ? (
+                ) : isHighConfidence && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
                   <span className="text-sm text-ink">{col.proposed_property}</span>
                 ) : (
                   <select
@@ -124,12 +125,19 @@ export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewPr
                 )}
               </div>
 
-              {/* Status indicator */}
+              {/* Status indicator / edit toggle */}
               <div className="w-8 text-center shrink-0">
                 {isIdentifier ? (
                   <span className="text-xs text-trace">🔑</span>
-                ) : isHighConfidence && !(col.column_name in corrections) ? (
-                  <span className="text-xs text-ink">✓</span>
+                ) : isHighConfidence && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditing((prev) => new Set(prev).add(col.column_name))}
+                    className="text-xs text-trace hover:text-ink transition-colors cursor-pointer"
+                    title="Edit mapping"
+                  >
+                    ✎
+                  </button>
                 ) : (
                   <span className="text-xs text-trace">✎</span>
                 )}
