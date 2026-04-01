@@ -343,7 +343,7 @@ function AppShellContent() {
     importSummary,
     directiveStatus,
     loading: dockLoading,
-  } = useDashboardHealth();
+  } = useDashboardHealth(projectId ?? undefined);
 
   // ─── Affected items for workflow perspective ───────────────────
 
