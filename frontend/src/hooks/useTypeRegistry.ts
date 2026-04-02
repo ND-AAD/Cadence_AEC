@@ -13,6 +13,8 @@ export interface TypeRegistryResult {
   getType: (typeName: string) => TypeConfigEntry | undefined;
   loading: boolean;
   error: string | null;
+  /** Force a re-fetch of the type registry (e.g. after creating a new type). */
+  refresh: () => void;
 }
 
 export function useTypeRegistry(): TypeRegistryResult {
@@ -54,5 +56,11 @@ export function useTypeRegistry(): TypeRegistryResult {
     [registry],
   );
 
-  return { registry, getType, loading, error };
+  const refresh = useCallback(() => {
+    setFetched(false);
+    setLoading(true);
+    setError(null);
+  }, []);
+
+  return { registry, getType, loading, error, refresh };
 }

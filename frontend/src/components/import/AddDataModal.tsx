@@ -145,6 +145,17 @@ export function AddDataModal({
           {phase === "review" && proposal && (
             <MappingReview
               proposal={proposal}
+              onReanalyze={async () => {
+                if (!file || !source) return;
+                try {
+                  const result = await analyzeFile(file, source.id, projectId);
+                  setProposal(result);
+                } catch (err) {
+                  setErrorMessage(err instanceof Error ? err.message : "Re-analysis failed");
+                  setErrorReturnPhase("review");
+                  setPhase("error");
+                }
+              }}
               onConfirm={async (corrections) => {
                 try {
                   const confirmed = await confirmMapping(proposal.proposal_id, corrections);

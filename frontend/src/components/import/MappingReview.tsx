@@ -1,15 +1,19 @@
 import { useState } from "react";
 import { useTypeRegistry } from "@/hooks/useTypeRegistry";
+import { CreateTypeInline } from "./CreateTypeInline";
 import type { ColumnProposal, ProposedMappingResponse } from "@/api/import";
 
 interface MappingReviewProps {
   proposal: ProposedMappingResponse;
   onConfirm: (corrections: Record<string, string | null>) => void;
   onCancel: () => void;
+  /** Re-run analysis after creating a new type. */
+  onReanalyze?: () => void;
 }
 
-export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewProps) {
-  const { getType } = useTypeRegistry();
+export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: MappingReviewProps) {
+  const { getType, refresh: refreshTypes } = useTypeRegistry();
+  const [showCreateType, setShowCreateType] = useState(false);
   const [corrections, setCorrections] = useState<Record<string, string | null>>({});
   const [editing, setEditing] = useState<Set<string>>(new Set());
 
@@ -49,6 +53,29 @@ export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewPr
     })),
   ];
 
+  const lowConfidence = proposal.overall_confidence < 0.5;
+
+  function handleTypeCreated(_typeName: string) {
+    setShowCreateType(false);
+    refreshTypes();
+    onReanalyze?.();
+  }
+
+  if (showCreateType) {
+    const allColumnNames = [
+      ...proposal.columns.map((c) => c.column_name),
+      ...proposal.unmatched_columns,
+    ];
+    return (
+      <CreateTypeInline
+        unmatchedColumns={proposal.unmatched_columns}
+        allColumns={allColumnNames}
+        onTypeCreated={handleTypeCreated}
+        onCancel={() => setShowCreateType(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -58,6 +85,23 @@ export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewPr
           Here's how we mapped your columns:
         </p>
       </div>
+
+      {/* Low confidence prompt */}
+      {lowConfidence && (
+        <div className="flex items-center justify-between px-3 py-2 border border-pencil-wash bg-pencil-wash/30">
+          <span className="text-xs text-graphite">
+            Low confidence match ({Math.round(proposal.overall_confidence * 100)}%).
+            Does this data belong to a different type?
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowCreateType(true)}
+            className="px-2 py-1 text-xs font-medium text-ink border border-rule hover:bg-vellum transition-colors shrink-0 ml-2"
+          >
+            Create New Type
+          </button>
+        </div>
+      )}
 
       {/* Mapping table */}
       <div className="border border-rule divide-y divide-rule">
@@ -164,6 +208,15 @@ export function MappingReview({ proposal, onConfirm, onCancel }: MappingReviewPr
         >
           Cancel
         </button>
+        {!lowConfidence && (
+          <button
+            type="button"
+            onClick={() => setShowCreateType(true)}
+            className="px-3 py-1.5 text-xs text-graphite border border-rule hover:text-ink transition-colors"
+          >
+            Create New Type
+          </button>
+        )}
         <button
           onClick={handleConfirm}
           className="px-3 py-1.5 text-xs font-medium bg-ink text-sheet hover:bg-ink/90 transition-colors"
