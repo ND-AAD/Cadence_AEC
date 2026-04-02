@@ -414,6 +414,11 @@ function AppShellContent() {
 
   const handleSelectWorkflowGroup = useCallback(
     (category: string, groupKey: string, groupLabel: string) => {
+      // If drilled into a child item, pop back to project level first.
+      // Workflow perspective only renders in ProjectDataView (project root).
+      if (state.breadcrumb.length > 1 || state.fork) {
+        popTo(0);
+      }
       // Toggle: clicking the already-selected group deselects it.
       setWorkflowPerspective((prev) =>
         prev?.category === category && prev?.groupKey === groupKey
@@ -423,13 +428,18 @@ function AppShellContent() {
       // Clear structural selection when workflow is active.
       setSelectedGroupType(null);
     },
-    []
+    [state.breadcrumb.length, state.fork, popTo]
   );
 
   // ─── Workflow category handler (category level from dock) ────
 
   const handleSelectWorkflowCategory = useCallback(
     (category: string) => {
+      // If drilled into a child item, pop back to project level first.
+      // Workflow perspective only renders in ProjectDataView (project root).
+      if (state.breadcrumb.length > 1 || state.fork) {
+        popTo(0);
+      }
       // Toggle: clicking the already-selected category deselects it.
       // Uses empty groupKey to indicate "all types in this category".
       setWorkflowPerspective((prev) =>
@@ -440,13 +450,13 @@ function AppShellContent() {
       // Clear structural selection when workflow is active.
       setSelectedGroupType(null);
     },
-    []
+    [state.breadcrumb.length, state.fork, popTo]
   );
 
   // ─── Navigation handler (main area / right panel ZOOM gesture) ─
 
-  const handleNavigate = useCallback((targetId: string) => {
-    navigate(targetId);
+  const handleNavigate = useCallback((targetId: string, via?: string) => {
+    navigate(targetId, via);
   }, [navigate]);
 
   // ─── Search navigation ──────────────────────────────────────────

@@ -694,6 +694,24 @@ export function ItemView({
 /** Conversion factors from canonical mm to display units. */
 const MM_TO: Record<string, number> = { in: 25.4, ft: 304.8 };
 
+/** Imperial unit indicators — if a string contains these, it already
+ *  carries its own units and should not have a suffix appended. */
+const IMPERIAL_INDICATORS = /[''\u2018\u2019""\u201c\u201d]|(?:^|\s)(?:ft|in|feet|inch(?:es)?)\b/i;
+
+/** Strip quoting artifacts that CSV parsers sometimes leave behind.
+ *  e.g. `"7' - 6""` → `7' - 6"` */
+function stripQuoteArtifacts(s: string): string {
+  // Remove a matched leading/trailing double-quote pair, then collapse
+  // doubled internal quotes (CSV escape) to singles.
+  let cleaned = s;
+  if (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length > 1) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  // Collapse doubled quotes: "" → "
+  cleaned = cleaned.replace(/""/g, '"');
+  return cleaned;
+}
+
 /** Format a property value for display.
  *  Dimension properties are stored as canonical mm (WP-6b).
  *  When the type_config unit is "in" or "ft", convert before display. */
@@ -709,6 +727,11 @@ function formatValue(value: unknown, unit: string | null): string {
     }
   }
 
-  const str = String(value);
-  return unit ? `${str} ${unit}` : str;
+  // Non-numeric value: clean up quoting artifacts and check whether
+  // the string already carries unit indicators before appending a suffix.
+  let str = stripQuoteArtifacts(String(value));
+  if (!unit || IMPERIAL_INDICATORS.test(str)) {
+    return str;
+  }
+  return `${str} ${unit}`;
 }

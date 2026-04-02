@@ -31,8 +31,10 @@ const WORKFLOW_ACTION_KEY: Record<string, keyof ItemSummary["action_counts"]> = 
 interface InlineItemPreviewProps {
   itemId: string;
   expanded: boolean;
-  /** Navigation callback — passed through to item rows. */
-  onNavigate?: (itemId: string) => void;
+  /** Navigation callback — passed through to item rows.
+   *  Second argument is an optional `via` intermediate item ID,
+   *  used so the backend routes through the expanded parent. */
+  onNavigate?: (itemId: string, via?: string) => void;
   /** Breadcrumb item IDs to exclude from the preview (parent items). */
   breadcrumbIds?: Set<string>;
   /** Active workflow filter. When set, only items with this action
@@ -204,6 +206,7 @@ export function InlineItemPreview({ itemId, expanded, onNavigate, breadcrumbIds,
                       item={item}
                       typeLabel={typeLabel}
                       onNavigate={onNavigate}
+                      viaItemId={itemId}
                       present={present}
                     />
                   ))}
@@ -250,11 +253,15 @@ function InlineRow({
   item,
   typeLabel,
   onNavigate,
+  viaItemId,
   present,
 }: {
   item: ItemSummary;
   typeLabel: string;
-  onNavigate?: (itemId: string) => void;
+  onNavigate?: (itemId: string, via?: string) => void;
+  /** Parent item whose inline preview this row belongs to.
+   *  Passed as `via` so navigation routes through the parent. */
+  viaItemId?: string;
   present: Set<string>;
 }) {
   const name = itemDisplayName(item.identifier, item.item_type);
@@ -263,7 +270,7 @@ function InlineRow({
   return (
     <button
       type="button"
-      onClick={() => onNavigate?.(item.id)}
+      onClick={() => onNavigate?.(item.id, viaItemId)}
       className="w-full text-left grid grid-cols-[80px_1fr_28px_28px] gap-x-3 items-center pl-3 pr-4 min-h-[28px] py-1 text-xs group cursor-pointer transition-colors duration-150 hover:bg-board/40"
     >
       <span className="text-trace truncate">{typeLabel}</span>

@@ -23,8 +23,9 @@ interface ProjectDataViewProps {
   getType: (typeName: string) => TypeConfigEntry | undefined;
   /** Set of breadcrumb item IDs for in-path detection. */
   breadcrumbIds: Set<string>;
-  /** Navigation callback (zoom = main area click). */
-  onNavigate: (itemId: string) => void;
+  /** Navigation callback (zoom = main area click).
+   *  Optional `via` routes through an intermediate item. */
+  onNavigate: (itemId: string, via?: string) => void;
   /** Whether comparison mode is active (drives pip filled state). */
   comparisonActive?: boolean;
   /** When set, only show items of this type (category-level selection from left panel). */

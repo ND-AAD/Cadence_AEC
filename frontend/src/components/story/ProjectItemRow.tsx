@@ -19,8 +19,9 @@ interface ProjectItemRowProps {
   comparisonActive?: boolean;
   /** Comparison category for this item (from bulk parent comparison). */
   comparisonCategory?: "added" | "removed" | "modified" | "unchanged";
-  /** Navigation callback — triggers ZOOM (Powers of Ten). */
-  onNavigate: (itemId: string) => void;
+  /** Navigation callback — triggers ZOOM (Powers of Ten).
+   *  Optional `via` routes through an intermediate item. */
+  onNavigate: (itemId: string, via?: string) => void;
   /** Whether this item's inline content is expanded. */
   expanded?: boolean;
   /** Callback to toggle expand/collapse. */

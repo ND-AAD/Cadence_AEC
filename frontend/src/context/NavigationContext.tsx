@@ -150,8 +150,11 @@ function getEffectiveBreadcrumb(state: NavigationState): BreadcrumbItem[] {
 
 interface NavigationContextValue {
   state: NavigationState;
-  /** Navigate to a target item. Handles the full async flow. */
-  navigate: (targetId: string) => Promise<void>;
+  /** Navigate to a target item. Handles the full async flow.
+   *  Optional `via` ID injects an intermediate item into the breadcrumb
+   *  sent to the API, so the backend routes through it (e.g., navigating
+   *  to a door from within a milestone's inline preview). */
+  navigate: (targetId: string, via?: string) => Promise<void>;
   /** Snap back to a breadcrumb segment by index. */
   popTo: (index: number) => void;
   /** Directly set the breadcrumb (for initial load / seed). */
@@ -224,17 +227,24 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   // ── Navigate ────────────────────────────────────────────────────
 
   const navigate = useCallback(
-    async (targetId: string) => {
+    async (targetId: string, via?: string) => {
       dispatch({ type: "NAVIGATE_START" });
 
       try {
         // Build the current breadcrumb IDs for the API call.
-        const currentIds = state.fork
+        let currentIds = state.fork
           ? [
               ...state.fork.stem.map((i) => i.id),
               ...state.fork.active.map((i) => i.id),
             ]
           : state.breadcrumb.map((i) => i.id);
+
+        // When navigating "via" an intermediate item (e.g., clicking a door
+        // from a milestone's inline preview), append it to the breadcrumb
+        // so the backend routes through it rather than picking arbitrarily.
+        if (via && !currentIds.includes(via) && via !== targetId) {
+          currentIds = [...currentIds, via];
+        }
 
         const response = await navigateToItem(currentIds, targetId);
 
