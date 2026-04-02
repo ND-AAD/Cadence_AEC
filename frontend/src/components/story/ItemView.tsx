@@ -395,6 +395,17 @@ export function ItemView({
                   tooltip: `${entry.label} \u00B7 conflict`,
                 });
               }
+              // Directive pip: show when directives exist on this property
+              // (whether the conflict is still active or already resolved).
+              const directiveIds = entry.resolved?.workflow?.directive_ids ?? [];
+              if (directiveIds.length > 0) {
+                pips.push({
+                  key: "directive",
+                  filled: true,
+                  color: "overlay",
+                  tooltip: `${entry.label} \u00B7 ${directiveIds.length} directive${directiveIds.length !== 1 ? "s" : ""}`,
+                });
+              }
 
               // ── Build cairn data ──
               // Two conditions for cairn:
@@ -648,6 +659,8 @@ export function ItemView({
                             onNavigate(entry.resolved.workflow.conflict_id);
                           } else if (clickedPip.key === "change" && entry.resolved.workflow.change_ids?.[0]) {
                             onNavigate(entry.resolved.workflow.change_ids[0]);
+                          } else if (clickedPip.key === "directive" && entry.resolved.workflow.directive_ids?.[0]) {
+                            onNavigate(entry.resolved.workflow.directive_ids[0]);
                           }
                         }}
                         onCairnClick={

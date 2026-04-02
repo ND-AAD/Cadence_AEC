@@ -1,6 +1,6 @@
 // ─── useTypeRegistry Hook ─────────────────────────────────────────
 // Fetches and caches the type configuration registry.
-// Called once on mount; type config is stable for the session.
+// Uses a module-level cache so all component instances share the same data.
 
 import { useState, useEffect, useCallback } from "react";
 import { getTypeRegistry } from "@/api/types";
@@ -17,37 +17,61 @@ export interface TypeRegistryResult {
   refresh: () => void;
 }
 
+// ── Module-level shared cache ──
+let cachedRegistry: TypeRegistryResponse | null = null;
+let fetchPromise: Promise<TypeRegistryResponse> | null = null;
+let cacheVersion = 0;
+
+function fetchShared(): Promise<TypeRegistryResponse> {
+  if (!fetchPromise) {
+    fetchPromise = getTypeRegistry()
+      .then((data) => {
+        cachedRegistry = data;
+        fetchPromise = null;
+        return data;
+      })
+      .catch((err) => {
+        fetchPromise = null;
+        throw err;
+      });
+  }
+  return fetchPromise;
+}
+
 export function useTypeRegistry(): TypeRegistryResult {
-  const [registry, setRegistry] = useState<TypeRegistryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [registry, setRegistry] = useState<TypeRegistryResponse | null>(cachedRegistry);
+  const [loading, setLoading] = useState(!cachedRegistry);
   const [error, setError] = useState<string | null>(null);
-  // StrictMode double-mounts: track with state, not ref, so the
-  // second mount re-fetches after the first is cancelled.
-  const [fetched, setFetched] = useState(false);
+  const [version, setVersion] = useState(cacheVersion);
 
   useEffect(() => {
-    if (fetched) return;
+    // If cache is already populated and version matches, skip fetch.
+    if (cachedRegistry && version === cacheVersion) {
+      setRegistry(cachedRegistry);
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
-    (async () => {
-      try {
-        const data = await getTypeRegistry();
+    setLoading(true);
+
+    fetchShared()
+      .then((data) => {
         if (!cancelled) {
           setRegistry(data);
           setLoading(false);
-          setFetched(true);
+          setError(null);
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load type registry");
           setLoading(false);
-          setFetched(true);
         }
-      }
-    })();
+      });
 
     return () => { cancelled = true; };
-  }, [fetched]);
+  }, [version]);
 
   const getType = useCallback(
     (typeName: string): TypeConfigEntry | undefined => {
@@ -57,9 +81,10 @@ export function useTypeRegistry(): TypeRegistryResult {
   );
 
   const refresh = useCallback(() => {
-    setFetched(false);
-    setLoading(true);
-    setError(null);
+    cachedRegistry = null;
+    fetchPromise = null;
+    cacheVersion++;
+    setVersion(cacheVersion);
   }, []);
 
   return { registry, getType, loading, error, refresh };
