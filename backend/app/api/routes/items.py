@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_project_for_item, require_project_access
 from app.core.database import get_db
 from app.core.type_config import ITEM_TYPES, get_type_config
+from app.services.dynamic_types import resolve_user_firm, get_merged_registry
 from app.models.core import Connection, Item, Snapshot
 from app.models.infrastructure import Permission, User
 from app.schemas.items import (
@@ -50,13 +51,17 @@ async def create_item(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new item. Type must be registered in configuration."""
+    """Create a new item. Type must be registered in OS config or firm vocabulary."""
+    # Check OS types first (fast path), then fall back to merged registry
     if payload.item_type not in ITEM_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown item type: {payload.item_type}. "
-            f"Valid types: {list(ITEM_TYPES.keys())}",
-        )
+        firm = await resolve_user_firm(db, current_user.id)
+        merged = await get_merged_registry(db, firm.id)
+        if payload.item_type not in merged:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown item type: {payload.item_type}. "
+                f"Valid types: {list(merged.keys())}",
+            )
 
     item = Item(
         item_type=payload.item_type,

@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, require_project_access, get_project_for_item
 from app.core.database import get_db
 from app.core.type_config import get_type_config
+from app.services.dynamic_types import resolve_user_firm, get_merged_registry
 from app.models.core import Connection, Item
 from app.models.infrastructure import User
 from app.schemas.imports import (
@@ -128,12 +129,15 @@ async def set_import_mapping(
     """
     source = await _get_item_or_404(db, source_id, "Source")
 
-    # Validate the target item type exists in type config
+    # Validate the target item type exists in OS config or firm vocabulary
     if not get_type_config(mapping.target_item_type):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown target item type: {mapping.target_item_type}",
-        )
+        firm = await resolve_user_firm(db, current_user.id)
+        merged = await get_merged_registry(db, firm.id)
+        if mapping.target_item_type not in merged:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown target item type: {mapping.target_item_type}",
+            )
 
     # Store mapping in source properties (merge, don't replace)
     new_props = {**source.properties, "import_mapping": mapping.model_dump()}

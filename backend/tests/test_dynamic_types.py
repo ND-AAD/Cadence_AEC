@@ -665,3 +665,74 @@ async def test_api_seed_idempotent(client):
 
     assert count1 > 0
     assert count2 == 0  # Nothing new to seed
+
+
+# ─── DYN-4: Item Creation with Firm Types ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_item_with_firm_type(client):
+    """After creating a type definition, items of that type can be created."""
+    # Create a firm type
+    await client.post(
+        "/api/v1/types",
+        json={"type_name": "hardware_set", "label": "Hardware Set"},
+    )
+
+    # Create an item of that type
+    response = await client.post(
+        "/api/v1/items/",
+        json={"item_type": "hardware_set", "identifier": "HW-001"},
+    )
+    assert response.status_code == 201
+    assert response.json()["item_type"] == "hardware_set"
+
+
+@pytest.mark.asyncio
+async def test_create_item_with_unknown_type_rejected(client):
+    """Item creation with a type that's neither OS nor firm-defined is rejected."""
+    response = await client.post(
+        "/api/v1/items/",
+        json={"item_type": "nonexistent_type_xyz", "identifier": "X-001"},
+    )
+    assert response.status_code == 400
+    assert "Unknown item type" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_import_mapping_accepts_firm_type(client):
+    """Import mapping validation accepts firm-defined types."""
+    # Seed firm types so "door" is a firm type (it's also OS currently, but
+    # this test verifies the merged registry path works)
+    await client.post("/api/v1/types/seed")
+
+    # Create a custom type
+    await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "hardware_set",
+            "label": "Hardware Set",
+            "property_defs": [{"name": "mark", "label": "Mark"}],
+        },
+    )
+
+    # Create a source item to store the mapping on
+    source_resp = await client.post(
+        "/api/v1/items/",
+        json={"item_type": "schedule", "identifier": "HW Schedule"},
+    )
+    source_id = source_resp.json()["id"]
+
+    # Set import mapping with the firm type
+    response = await client.put(
+        f"/api/v1/items/{source_id}/import-mapping",
+        json={
+            "file_type": "excel",
+            "identifier_column": "Mark",
+            "target_item_type": "hardware_set",
+            "header_row": 1,
+            "property_mapping": {"Mark": "mark"},
+            "normalizations": {},
+        },
+    )
+    assert response.status_code == 200
