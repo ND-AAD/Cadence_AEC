@@ -525,9 +525,26 @@ async def get_resolved_view(
         # Determine status
         unique_vals = list(source_values.values())
 
-        if prop_name in resolved_properties:
+        # Check resolution: decision snapshots on the item OR connected
+        # conflict item with status="resolved" (conflict resolution snapshots
+        # live on the conflict item, not the affected item — per Decision 8).
+        prop_conflicts = workflow_by_property.get(prop_name, {}).get("conflict", [])
+        conflict_resolved = any(
+            (c.properties or {}).get("status") == "resolved" for c in prop_conflicts
+        )
+        if prop_name in resolved_properties or conflict_resolved:
             status = "resolved"
-            value = resolved_values.get(prop_name, unique_vals[0])
+            # Try decision snapshot value first, then decision item's resolved_value
+            rv = resolved_values.get(prop_name)
+            if rv is None and conflict_resolved:
+                prop_decisions = workflow_by_property.get(prop_name, {}).get(
+                    "decision", []
+                )
+                for d in prop_decisions:
+                    rv = (d.properties or {}).get("resolved_value")
+                    if rv is not None:
+                        break
+            value = rv if rv is not None else unique_vals[0]
         elif len(source_values) == 1:
             status = "single_source"
             value = unique_vals[0]
