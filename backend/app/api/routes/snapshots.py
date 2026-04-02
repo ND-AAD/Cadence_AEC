@@ -479,6 +479,17 @@ async def get_resolved_view(
         workflow_as_source.scalars().all()
     )
 
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"WORKFLOW DEBUG: item_id={item_id}, found {len(all_workflow_items)} workflow items"
+    )
+    for _wi in all_workflow_items:
+        logger.info(
+            f"  WORKFLOW: {_wi.id} type={_wi.item_type} has_changes={bool((_wi.properties or {}).get('changes'))} prop_name={(_wi.properties or {}).get('property_name')}"
+        )
+
     # Deduplicate
     seen_workflow: set[uuid.UUID] = set()
     unique_workflow: list[Item] = []
