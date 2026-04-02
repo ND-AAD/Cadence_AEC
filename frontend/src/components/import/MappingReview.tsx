@@ -16,16 +16,33 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
   const [showCreateType, setShowCreateType] = useState(false);
   const [corrections, setCorrections] = useState<Record<string, string | null>>({});
   const [editing, setEditing] = useState<Set<string>>(new Set());
+  const [customInputs, setCustomInputs] = useState<Set<string>>(new Set());
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
 
   // Get property definitions for the target item type
   const typeConfig = getType(proposal.target_item_type);
   const propertyOptions = typeConfig?.properties ?? [];
 
   function handlePropertyChange(columnName: string, value: string) {
+    if (value === "__custom__") {
+      setCustomInputs((prev) => new Set(prev).add(columnName));
+      // Auto-generate a snake_case property name from the column header
+      const snake = columnName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      setCustomValues((prev) => ({ ...prev, [columnName]: snake }));
+      setCorrections((prev) => ({ ...prev, [columnName]: snake }));
+      return;
+    }
+    setCustomInputs((prev) => { const s = new Set(prev); s.delete(columnName); return s; });
     setCorrections((prev) => ({
       ...prev,
       [columnName]: value === "__skip__" ? null : value,
     }));
+  }
+
+  function handleCustomPropertyName(columnName: string, propName: string) {
+    const snake = propName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    setCustomValues((prev) => ({ ...prev, [columnName]: snake }));
+    setCorrections((prev) => ({ ...prev, [columnName]: snake || null }));
   }
 
   function getEffectiveProperty(col: ColumnProposal): string | null {
@@ -147,6 +164,26 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
                   <span className="text-sm text-ink font-medium">{proposal.target_item_type} ID</span>
                 ) : isHighConfidence && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
                   <span className="text-sm text-ink">{col.proposed_property}</span>
+                ) : customInputs.has(col.column_name) ? (
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={customValues[col.column_name] ?? ""}
+                      onChange={(e) => handleCustomPropertyName(col.column_name, e.target.value)}
+                      placeholder="property_name"
+                      autoFocus
+                      className="flex-1 px-2 py-1 text-sm font-mono bg-sheet border border-ink text-ink
+                                 focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handlePropertyChange(col.column_name, "__skip__")}
+                      className="px-1.5 text-xs text-trace hover:text-ink transition-colors"
+                      title="Cancel custom property"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ) : (
                   <select
                     value={effective ?? "__skip__"}
@@ -165,6 +202,7 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
                           {p.label || p.name}
                         </option>
                       ))}
+                    <option value="__custom__">— new property —</option>
                   </select>
                 )}
               </div>
