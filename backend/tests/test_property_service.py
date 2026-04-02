@@ -23,7 +23,7 @@ from app.services.property_service import (
 
 @pytest.mark.asyncio
 async def test_create_registered_property(db_session: AsyncSession):
-    """Property item created with metadata from PropertyDef."""
+    """Property item created with metadata from PropertyDef (firm vocabulary)."""
     prop, is_new = await get_or_create_property_item(db_session, "door", "fire_rating")
     assert is_new is True
     assert prop.identifier == "door/fire_rating"
@@ -68,7 +68,7 @@ async def test_type_scoping(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_ensure_property_connection(db_session: AsyncSession, make_item):
-    """Connection created property → instance."""
+    """Connection created property -> instance."""
     prop, _ = await get_or_create_property_item(db_session, "door", "finish")
     door = await make_item("door", "Door 101")
 
@@ -105,9 +105,9 @@ async def test_get_property_items_for_type(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_seed_from_config(db_session: AsyncSession):
-    """Seed creates items for all PropertyDefs on the type."""
+    """Seed creates items for all PropertyDefs on the type (from firm vocabulary)."""
     items = await seed_property_items_from_config(db_session, "door")
-    # door type has 22 PropertyDefs in type_config.py
+    # door type has 22 PropertyDefs in starter catalog
     assert len(items) >= 10  # at least the core ones; exact count depends on config
 
     # Idempotent
@@ -118,7 +118,7 @@ async def test_seed_from_config(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_seed_from_config_room(db_session: AsyncSession):
-    """Seed creates items for room type."""
+    """Seed creates items for room type (from firm vocabulary)."""
     items = await seed_property_items_from_config(db_session, "room")
     # room type should have several PropertyDefs
     assert len(items) >= 5
@@ -138,7 +138,7 @@ async def test_seed_nonexistent_type(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_property_metadata_from_registered_def(db_session: AsyncSession):
-    """Property item captures metadata from registered PropertyDef."""
+    """Property item captures metadata from registered PropertyDef (firm vocabulary)."""
     # door/width is a registered property with unit and normalization
     prop, _ = await get_or_create_property_item(db_session, "door", "width")
     assert prop.properties["label"] == "Width"

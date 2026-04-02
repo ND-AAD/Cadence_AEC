@@ -432,10 +432,20 @@ async def import_file(
                 user_aliases = await _load_user_aliases(db, parent.id)
                 break
 
+        # Resolve firm types for auto-mapping (DYN-0: spatial types are firm vocab)
+        firm = await resolve_user_firm(db, current_user.id)
+        merged = await get_merged_registry(db, firm.id)
+        firm_importable = [
+            tc
+            for tc in merged.values()
+            if tc.properties and tc.category in ("spatial",)
+        ]
+
         proposed = propose_mapping(
             file_bytes=file_bytes,
             file_type=file_type,
             user_aliases=user_aliases,
+            importable_types=firm_importable if firm_importable else None,
         )
 
         # Path 3a: High confidence → proceed automatically

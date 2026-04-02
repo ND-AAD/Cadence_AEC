@@ -8,8 +8,6 @@ instead of the global ITEM_TYPES registry when provided.
 import csv
 import io
 
-import pytest
-
 from app.core.type_config import PropertyDef, TypeConfig
 
 
@@ -74,15 +72,19 @@ def test_detect_target_type_custom_aliases():
     assert confidence > 0.5
 
 
-def test_detect_target_type_without_param_uses_default():
-    """Without importable_types param, uses get_importable_types() as before."""
+def test_detect_target_type_without_param_returns_empty():
+    """Without importable_types param, get_importable_types() is empty (DYN-0).
+
+    After DYN-0, spatial types are firm vocabulary. The OS-level
+    get_importable_types() returns empty. Callers must pass importable_types.
+    """
     from app.services.auto_mapping import detect_target_type
 
-    # Door headers should still match (door is in ITEM_TYPES currently)
     headers = ["Mark", "Width", "Height", "Material", "Fire Rating"]
     target, confidence, _ = detect_target_type(headers)
-    assert target == "door"
-    assert confidence > 0.5
+    # No OS spatial types → no match
+    assert target == ""
+    assert confidence == 0.0
 
 
 # ─── build_property_mapping with custom types ─────────────────

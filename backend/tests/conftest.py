@@ -21,6 +21,7 @@ from app.core.database import Base, get_db
 from app.main import app
 from app.models.core import Item, Connection, Snapshot  # noqa: F401
 from app.models.infrastructure import User, Permission, Notification  # noqa: F401
+from app.services.dynamic_types import resolve_user_firm, seed_firm_types
 
 
 # ─── Test user for auth override ─────────────────────────────
@@ -64,8 +65,26 @@ async def setup_db():
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Provide a test database session."""
+    """Provide a test database session with firm vocabulary pre-seeded.
+
+    After DYN-0, spatial types (door, room, etc.) live in firm vocabulary,
+    not the OS ITEM_TYPES registry. We seed them here so any test that creates
+    spatial items or looks up their type config will work.
+    """
     async with test_session() as session:
+        # Create a minimal user + firm + starter types for every test
+        user = User(
+            id=TEST_USER_ID,
+            email=TEST_USER_EMAIL,
+            name=TEST_USER_NAME,
+            password_hash="not-a-real-hash",
+        )
+        session.add(user)
+        await session.flush()
+
+        firm = await resolve_user_firm(session, TEST_USER_ID)
+        await seed_firm_types(session, firm.id)
+
         yield session
 
 
@@ -73,15 +92,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Provide a test HTTP client with database and auth overrides."""
 
-    # Create the test user in the database so permission checks work
-    test_user = User(
-        id=TEST_USER_ID,
-        email=TEST_USER_EMAIL,
-        name=TEST_USER_NAME,
-        password_hash="not-a-real-hash",
-    )
-    db_session.add(test_user)
-    await db_session.flush()
+    # User and firm types already seeded by db_session fixture
 
     async def override_get_db():
         try:

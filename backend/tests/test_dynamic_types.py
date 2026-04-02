@@ -16,43 +16,17 @@ TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 @pytest_asyncio.fixture
 async def test_user(db_session):
-    """Ensure the test user exists for FK constraints."""
-    user = User(
-        id=TEST_USER_ID,
-        email="test@test.com",
-        name="Test User",
-        password_hash="not-a-real-hash",
-    )
-    db_session.add(user)
-    await db_session.flush()
-    return user
+    """Return the test user (already created by db_session fixture)."""
+    result = await db_session.execute(select(User).where(User.id == TEST_USER_ID))
+    return result.scalar_one()
 
 
 @pytest_asyncio.fixture
 async def firm(db_session, test_user):
-    """Create a firm item with permission for the test user."""
-    firm_item = Item(
-        item_type="firm",
-        identifier="Test Firm",
-        properties={"name": "Test Firm"},
-        created_by=TEST_USER_ID,
-    )
-    db_session.add(firm_item)
-    await db_session.flush()
-    await db_session.refresh(firm_item)
+    """Return the firm already created by db_session fixture."""
+    from app.services.dynamic_types import resolve_user_firm
 
-    perm = Permission(
-        user_id=TEST_USER_ID,
-        scope_item_id=firm_item.id,
-        role="admin",
-        can_resolve_conflicts=True,
-        can_import=True,
-        can_edit=True,
-    )
-    db_session.add(perm)
-    await db_session.flush()
-
-    return firm_item
+    return await resolve_user_firm(db_session, TEST_USER_ID)
 
 
 # --- resolve_user_firm ------------------------------------------------
@@ -227,12 +201,15 @@ async def test_create_type_defaults(db_session, firm):
 
 
 @pytest.mark.asyncio
-async def test_get_firm_types_empty(db_session, firm):
-    """Firm with no type definitions returns empty dict."""
+async def test_get_firm_types_has_starter_types(db_session, firm):
+    """Firm has starter catalog types from db_session fixture seeding."""
     from app.services.dynamic_types import get_firm_types
 
     types = await get_firm_types(db_session, firm.id)
-    assert types == {}
+    # db_session seeds starter catalog types
+    assert "door" in types
+    assert "room" in types
+    assert "building" in types
 
 
 @pytest.mark.asyncio
@@ -416,17 +393,15 @@ async def test_delete_rejects_if_items_exist(db_session, firm):
 
 @pytest.mark.asyncio
 async def test_seed_firm_types(db_session, firm):
-    """Seeding creates starter catalog types as type_definition items."""
-    from app.services.dynamic_types import seed_firm_types, get_firm_types
-
-    seeded = await seed_firm_types(db_session, firm.id)
-    assert len(seeded) > 0
+    """Firm has starter catalog types (seeded by db_session fixture)."""
+    from app.services.dynamic_types import get_firm_types
 
     types = await get_firm_types(db_session, firm.id)
     # Should have at least door, room, building from the catalog
     assert "door" in types
     assert "room" in types
     assert "building" in types
+    assert len(types) > 0
 
 
 @pytest.mark.asyncio
@@ -640,13 +615,14 @@ async def test_api_delete_os_type_rejected(client):
 
 @pytest.mark.asyncio
 async def test_api_seed_types(client):
-    """POST /v1/types/seed populates the user's firm with starter vocabulary."""
+    """POST /v1/types/seed is idempotent (db_session already seeds starter vocab)."""
+    # db_session already seeds firm types, so seeded_count is 0
     response = await client.post("/api/v1/types/seed")
     assert response.status_code == 200
     data = response.json()
-    assert data["seeded_count"] > 0
+    assert data["seeded_count"] == 0  # Already seeded by test fixture
 
-    # Verify types are now available
+    # Verify types are available (from fixture seeding)
     response = await client.get("/api/v1/types")
     types = response.json()
     assert "door" in types
@@ -656,15 +632,15 @@ async def test_api_seed_types(client):
 
 @pytest.mark.asyncio
 async def test_api_seed_idempotent(client):
-    """POST /v1/types/seed twice doesn't duplicate types."""
+    """POST /v1/types/seed twice returns 0 both times (already seeded)."""
     response1 = await client.post("/api/v1/types/seed")
     count1 = response1.json()["seeded_count"]
 
     response2 = await client.post("/api/v1/types/seed")
     count2 = response2.json()["seeded_count"]
 
-    assert count1 > 0
-    assert count2 == 0  # Nothing new to seed
+    assert count1 == 0  # Already seeded by fixture
+    assert count2 == 0  # Still nothing new
 
 
 # ─── DYN-4: Item Creation with Firm Types ─────────────────────

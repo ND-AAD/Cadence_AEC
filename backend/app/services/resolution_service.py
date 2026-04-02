@@ -69,11 +69,28 @@ async def _find_conflict_affected_item(
     db: AsyncSession,
     conflict_item: Item,
 ) -> Item | None:
-    """Find the affected spatial item connected to a conflict."""
+    """Find the affected item connected to a conflict.
+
+    The affected item is the one that is NOT a source, context, or workflow type.
+    After DYN-0, spatial types live in firm vocabulary (not ITEM_TYPES), so we
+    identify the affected item by exclusion: it's the connected item whose type
+    is not recognized as source, context, or workflow in the OS registry.
+    """
     connected = await _get_connected_items_by_type(db, conflict_item.id)
     for item in connected:
         tc = get_type_config(item.item_type)
-        if tc and tc.category == "spatial":
+        # If the type is in OS config, skip source/context/workflow types
+        if tc:
+            if tc.is_source_type or tc.is_context_type or tc.category == "workflow":
+                continue
+            # OS type that's not source/context/workflow — could be affected item
+            # but organization/definition types shouldn't be conflict targets
+            if tc.category in ("organization", "definition", "temporal"):
+                continue
+            return item
+        else:
+            # Type not in OS config — it's a firm vocabulary type (spatial),
+            # which is the affected item we're looking for.
             return item
     return None
 

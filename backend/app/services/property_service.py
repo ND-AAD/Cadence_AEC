@@ -12,8 +12,35 @@ MasterFormat governance connections.
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.type_config import get_type_config
+from app.core.type_config import TypeConfig, get_type_config
 from app.models.core import Connection, Item
+
+
+async def _resolve_type_config(db: AsyncSession, type_name: str) -> TypeConfig | None:
+    """Resolve type config from OS registry or firm vocabulary.
+
+    After DYN-0, spatial types live in firm vocabulary (type_definition items)
+    rather than the OS ITEM_TYPES registry. This helper checks both.
+    """
+    tc = get_type_config(type_name)
+    if tc:
+        return tc
+
+    # Check firm vocabulary: look for a type_definition item with this identifier
+    from app.services.dynamic_types import _item_to_type_config
+
+    result = await db.execute(
+        select(Item)
+        .where(
+            Item.item_type == "type_definition",
+            Item.identifier == type_name,
+        )
+        .limit(1)
+    )
+    type_def = result.scalar_one_or_none()
+    if type_def:
+        return _item_to_type_config(type_def)
+    return None
 
 
 async def get_or_create_property_item(
@@ -50,7 +77,7 @@ async def get_or_create_property_item(
     data_type = "string"
     unit = None
 
-    tc = get_type_config(parent_type)
+    tc = await _resolve_type_config(db, parent_type)
     if tc and tc.properties:
         for prop_def in tc.properties:
             if prop_def.name == property_name:
@@ -138,7 +165,7 @@ async def seed_property_items_from_config(
     Idempotent — skips existing items.
     Returns list of ALL property items for this type (new + existing).
     """
-    tc = get_type_config(parent_type)
+    tc = await _resolve_type_config(db, parent_type)
     if not tc or not tc.properties:
         return []
 

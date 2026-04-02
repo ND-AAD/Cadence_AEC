@@ -261,7 +261,8 @@ async def test_health_returns_total_items(client, dashboard_scenario):
     data = response.json()
     # Count expected items: project, building, 2 doors, 2 sources, 2 milestones,
     # conflict, change, decision, 2 directives, import_batch = 14
-    assert data["total_items"] == 14
+    # Plus DYN-0 infrastructure: 1 firm + 6 type_definitions = 7
+    assert data["total_items"] == 14 + 7
 
 
 @pytest.mark.asyncio
@@ -341,8 +342,10 @@ async def test_health_empty_project(client):
     response = await client.get("/api/v1/dashboard/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["total_items"] == 0
-    assert data["by_type"] == {}
+    # DYN-0 infrastructure: 1 firm + 6 type_definitions = 7 (always present)
+    assert data["total_items"] == 7
+    assert data["by_type"]["firm"] == 1
+    assert data["by_type"]["type_definition"] == 6
     assert data["action_items"]["unresolved_changes"] == 0
 
 

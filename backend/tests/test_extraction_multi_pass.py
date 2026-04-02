@@ -14,12 +14,10 @@ import json
 import pytest
 
 from app.core.type_config import (
-    get_type_config,
-    get_vocabulary_for_division,
-    get_types_for_division,
+    PropertyDef,
 )
+from app.core.type_starter_catalog import STARTER_TYPES
 from app.services.extraction_service import (
-    assemble_vocabulary,
     attribute_nouns_to_elements,
     build_noun_identification_prompt,
     build_per_noun_extraction_prompt,
@@ -31,6 +29,20 @@ from app.services.extraction_service import (
     parse_per_noun_extraction_response,
 )
 from app.schemas.extraction import NounExtraction, NounIdentification
+
+
+def _starter_vocabulary(division: str) -> dict[str, dict[str, list[PropertyDef]]]:
+    """Build vocabulary from starter catalog (replaces assemble_vocabulary for tests).
+
+    After DYN-0, spatial types are firm vocabulary. The OS-level
+    assemble_vocabulary returns empty for spatial divisions. Tests that need
+    vocabulary must build it from the starter catalog directly.
+    """
+    primary = {}
+    for tc in STARTER_TYPES:
+        if division in tc.masterformat_divisions:
+            primary[tc.name] = list(tc.properties)
+    return {"primary": primary, "secondary": {}}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -69,22 +81,28 @@ PART 1 - GENERAL
 
 
 class TestFrameTypeRegistration:
-    """Verify the frame type is properly registered (Decision D-25)."""
+    """Verify the frame type is in the starter catalog (Decision D-25).
+
+    After DYN-0, spatial types live in firm vocabulary (starter catalog),
+    not the OS ITEM_TYPES registry.
+    """
+
+    def _get_starter(self, name: str):
+        return next((t for t in STARTER_TYPES if t.name == name), None)
 
     def test_frame_type_exists(self):
-        tc = get_type_config("frame")
+        tc = self._get_starter("frame")
         assert tc is not None
         assert tc.label == "Frame"
         assert tc.category == "spatial"
 
     def test_frame_in_division_08(self):
-        types = get_types_for_division("08")
-        assert "frame" in types
+        tc = self._get_starter("frame")
+        assert "08" in tc.masterformat_divisions
 
     def test_frame_vocabulary(self):
-        vocab = get_vocabulary_for_division("08")
-        assert "frame" in vocab
-        prop_names = {p.name for p in vocab["frame"]}
+        tc = self._get_starter("frame")
+        prop_names = {p.name for p in tc.properties}
         assert "material" in prop_names
         assert "gauge" in prop_names
         assert "fire_rating" in prop_names
@@ -92,7 +110,7 @@ class TestFrameTypeRegistration:
         assert "type" in prop_names
 
     def test_frame_properties_count(self):
-        tc = get_type_config("frame")
+        tc = self._get_starter("frame")
         assert len(tc.properties) == 5
 
 
@@ -105,7 +123,7 @@ class TestNounIdentificationPrompt:
     """Test build_noun_identification_prompt."""
 
     def test_prompt_includes_known_types(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_noun_identification_prompt(
             "08 11 00",
             "Metal Doors and Frames",
@@ -116,7 +134,7 @@ class TestNounIdentificationPrompt:
         assert "frame" in prompt
 
     def test_prompt_includes_section_text(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_noun_identification_prompt(
             "08 11 00",
             "Metal Doors and Frames",
@@ -127,7 +145,7 @@ class TestNounIdentificationPrompt:
         assert "16 gauge" in prompt
 
     def test_prompt_includes_identification_rules(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_noun_identification_prompt(
             "08 11 00",
             None,
@@ -138,7 +156,7 @@ class TestNounIdentificationPrompt:
         assert "qualifying attributes" in prompt
 
     def test_prompt_includes_output_schema(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_noun_identification_prompt(
             "08 11 00",
             None,
@@ -159,7 +177,7 @@ class TestNounIdentificationParsing:
     """Test parse_noun_identification_response."""
 
     def _valid_types(self) -> set[str]:
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         return set(vocab.get("primary", {}).keys())
 
     def test_parse_valid_response(self):
@@ -286,7 +304,7 @@ class TestPerNounExtractionPrompt:
     """Test build_per_noun_extraction_prompt."""
 
     def test_prompt_scoped_to_noun(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_per_noun_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -299,7 +317,7 @@ class TestPerNounExtractionPrompt:
         assert "Focus ONLY on what the section says about" in prompt
 
     def test_prompt_includes_type_properties(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_per_noun_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -312,7 +330,7 @@ class TestPerNounExtractionPrompt:
         assert "fire_rating" in prompt
 
     def test_prompt_includes_section_text(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_per_noun_extraction_prompt(
             "08 11 00",
             None,
@@ -333,7 +351,7 @@ class TestPerNounExtractionParsing:
     """Test parse_per_noun_extraction_response."""
 
     def _valid_props(self) -> dict[str, set[str]]:
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         return build_valid_properties(vocab)
 
     def test_parse_valid_extraction(self):
@@ -484,7 +502,7 @@ class TestIdentifyNouns:
         async def mock_caller(prompt: str) -> str:
             return noun_response
 
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         result = await identify_nouns(
             "08 11 00", "Metal Doors", SAMPLE_PART2, vocab, mock_caller
         )
@@ -497,7 +515,7 @@ class TestIdentifyNouns:
         async def error_caller(prompt: str) -> str:
             raise RuntimeError("API error")
 
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         result = await identify_nouns(
             "08 11 00", None, SAMPLE_PART2, vocab, error_caller
         )
@@ -541,7 +559,7 @@ class TestExtractPerNoun:
                 noun_phrase="steel doors", matched_type="door", qualifiers={}
             ),
         ]
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
 
         results = await extract_per_noun(
             "08 11 00", None, SAMPLE_PART2, nouns, vocab, mock_caller
@@ -560,7 +578,7 @@ class TestExtractPerNoun:
                 noun_phrase="weatherstripping", matched_type=None, qualifiers={}
             ),
         ]
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
 
         results = await extract_per_noun(
             "08 11 00", None, SAMPLE_PART2, nouns, vocab, mock_caller
@@ -577,7 +595,7 @@ class TestExtractPerNoun:
         nouns = [
             NounIdentification(noun_phrase="doors", matched_type="door", qualifiers={}),
         ]
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
 
         results = await extract_per_noun(
             "08 11 00", None, SAMPLE_PART2, nouns, vocab, error_caller
@@ -746,6 +764,7 @@ class TestExtractSectionMultiPass:
             part1_text=SAMPLE_PART1,
             section_division="08",
             llm_caller=mock_caller,
+            vocabulary=_starter_vocabulary("08"),
         )
 
         assert result.status == "extracted"
@@ -816,6 +835,7 @@ class TestExtractSectionMultiPass:
             part1_text=None,
             section_division="08",
             llm_caller=mock_caller,
+            vocabulary=_starter_vocabulary("08"),
         )
         assert result.status == "extracted"
         assert len(result.nouns) == 0
@@ -871,6 +891,7 @@ class TestExtractSectionMultiPass:
             part1_text=None,
             section_division="08",
             llm_caller=mock_caller,
+            vocabulary=_starter_vocabulary("08"),
         )
 
         # Each noun returns the same cross-ref, but it should be deduplicated

@@ -123,12 +123,12 @@ async def test_list_items_pagination(client):
             },
         )
 
-    response = await client.get("/api/v1/items/?limit=2&offset=0")
+    response = await client.get("/api/v1/items/?item_type=door&limit=2&offset=0")
     data = response.json()
     assert data["total"] == 5
     assert len(data["items"]) == 2
 
-    response = await client.get("/api/v1/items/?limit=2&offset=4")
+    response = await client.get("/api/v1/items/?item_type=door&limit=2&offset=4")
     data = response.json()
     assert len(data["items"]) == 1
 
@@ -189,13 +189,15 @@ async def test_update_identifier(client):
 
 @pytest.mark.asyncio
 async def test_list_types(client):
-    """Types endpoint returns all registered types with config."""
+    """Types endpoint returns OS-layer types (spatial types are now firm vocabulary)."""
     response = await client.get("/api/v1/items/types")
     assert response.status_code == 200
     data = response.json()
-    assert "door" in data
+    # Spatial types removed from OS registry
+    assert "door" not in data
+    assert "room" not in data
+    # OS types remain
     assert "milestone" in data
-    assert data["door"]["category"] == "spatial"
     assert data["milestone"]["is_context_type"] is True
     assert data["schedule"]["is_source_type"] is True
 

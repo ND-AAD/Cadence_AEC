@@ -15,12 +15,11 @@ import pytest
 import pytest_asyncio
 
 from app.core.type_config import (
-    get_vocabulary_for_division,
-    get_types_for_division,
+    PropertyDef,
 )
+from app.core.type_starter_catalog import STARTER_TYPES
 from app.models.core import Connection
 from app.services.extraction_service import (
-    assemble_vocabulary,
     build_extraction_prompt,
     build_valid_properties,
     extract_section,
@@ -29,6 +28,41 @@ from app.services.extraction_service import (
     run_extraction,
 )
 from tests.mock_helpers import make_multi_pass_mock, make_multi_pass_mock_error
+
+
+def _starter_vocabulary(
+    division: str, related: list[str] | None = None
+) -> dict[str, dict[str, list[PropertyDef]]]:
+    """Build vocabulary from starter catalog (replaces assemble_vocabulary for tests).
+
+    After DYN-0, spatial types are firm vocabulary. The OS-level
+    assemble_vocabulary returns empty for spatial divisions.
+    """
+    primary = {}
+    for tc in STARTER_TYPES:
+        if division in tc.masterformat_divisions:
+            primary[tc.name] = list(tc.properties)
+    secondary = {}
+    if related:
+        for div in related:
+            for tc in STARTER_TYPES:
+                if div in tc.masterformat_divisions and tc.name not in primary:
+                    secondary[tc.name] = list(tc.properties)
+    return {"primary": primary, "secondary": secondary}
+
+
+def _starter_types_for_division(division: str) -> list[str]:
+    """Get type names from starter catalog for a division."""
+    return [tc.name for tc in STARTER_TYPES if division in tc.masterformat_divisions]
+
+
+def _starter_vocab_for_division(division: str) -> dict[str, list[PropertyDef]]:
+    """Get vocabulary dict from starter catalog for a division."""
+    result = {}
+    for tc in STARTER_TYPES:
+        if division in tc.masterformat_divisions:
+            result[tc.name] = list(tc.properties)
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -169,10 +203,14 @@ async def _mock_llm_caller_error(prompt: str) -> str:
 
 
 class TestVocabularyLookup:
-    """Test get_vocabulary_for_division and get_types_for_division."""
+    """Test vocabulary lookup from starter catalog.
+
+    After DYN-0, spatial types are firm vocabulary. These tests verify the
+    starter catalog contains the expected division mappings.
+    """
 
     def test_division_08_returns_door(self):
-        vocab = get_vocabulary_for_division("08")
+        vocab = _starter_vocab_for_division("08")
         assert "door" in vocab
         prop_names = {p.name for p in vocab["door"]}
         assert "material" in prop_names
@@ -180,22 +218,22 @@ class TestVocabularyLookup:
         assert "finish" in prop_names
 
     def test_division_09_returns_room(self):
-        vocab = get_vocabulary_for_division("09")
+        vocab = _starter_vocab_for_division("09")
         assert "room" in vocab
         prop_names = {p.name for p in vocab["room"]}
         assert "finish_floor" in prop_names
         assert "finish_wall" in prop_names
 
     def test_unknown_division_returns_empty(self):
-        vocab = get_vocabulary_for_division("99")
+        vocab = _starter_vocab_for_division("99")
         assert vocab == {}
 
     def test_get_types_for_division_08(self):
-        types = get_types_for_division("08")
+        types = _starter_types_for_division("08")
         assert "door" in types
 
     def test_get_types_for_division_unknown(self):
-        types = get_types_for_division("99")
+        types = _starter_types_for_division("99")
         assert types == []
 
 
@@ -243,31 +281,35 @@ class TestRelatedSectionsParsing:
 
 
 class TestVocabularyAssembly:
-    """Test assemble_vocabulary function."""
+    """Test vocabulary assembly from starter catalog.
+
+    After DYN-0, spatial types are firm vocabulary. These tests use the
+    _starter_vocabulary helper instead of assemble_vocabulary.
+    """
 
     def test_primary_only(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         assert "door" in vocab["primary"]
         assert vocab["secondary"] == {}
 
     def test_primary_with_related(self):
-        vocab = assemble_vocabulary("08", related_divisions=["09"])
+        vocab = _starter_vocabulary("08", related=["09"])
         assert "door" in vocab["primary"]
         assert "room" in vocab["secondary"]
 
     def test_related_same_as_primary_excluded(self):
-        vocab = assemble_vocabulary("08", related_divisions=["08"])
+        vocab = _starter_vocabulary("08", related=["08"])
         # Division 08 types should only appear in primary
         assert "door" in vocab["primary"]
         assert "door" not in vocab["secondary"]
 
     def test_unknown_division(self):
-        vocab = assemble_vocabulary("99")
+        vocab = _starter_vocabulary("99")
         assert vocab["primary"] == {}
         assert vocab["secondary"] == {}
 
     def test_no_related(self):
-        vocab = assemble_vocabulary("08", related_divisions=None)
+        vocab = _starter_vocabulary("08", related=None)
         assert vocab["secondary"] == {}
 
 
@@ -280,7 +322,7 @@ class TestPromptConstruction:
     """Test build_extraction_prompt."""
 
     def test_prompt_includes_section_text(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -291,7 +333,7 @@ class TestPromptConstruction:
         assert "Hollow metal" in prompt
 
     def test_prompt_includes_property_names(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -303,7 +345,7 @@ class TestPromptConstruction:
         assert "finish" in prompt
 
     def test_prompt_includes_section_number(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -313,7 +355,7 @@ class TestPromptConstruction:
         assert "08 11 00" in prompt
 
     def test_prompt_includes_title(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -323,7 +365,7 @@ class TestPromptConstruction:
         assert "Metal Doors" in prompt
 
     def test_prompt_no_title(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             None,
@@ -334,7 +376,7 @@ class TestPromptConstruction:
         assert "08 11 00" in prompt
 
     def test_prompt_includes_secondary_vocabulary(self):
-        vocab = assemble_vocabulary("08", related_divisions=["09"])
+        vocab = _starter_vocabulary("08", related=["09"])
         prompt = build_extraction_prompt(
             "08 11 00",
             "Metal Doors",
@@ -345,7 +387,7 @@ class TestPromptConstruction:
         assert "finish_floor" in prompt or "Floor Finish" in prompt
 
     def test_prompt_includes_extraction_rules(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             None,
@@ -356,7 +398,7 @@ class TestPromptConstruction:
         assert "Do not infer" in prompt
 
     def test_prompt_includes_output_schema(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         prompt = build_extraction_prompt(
             "08 11 00",
             None,
@@ -378,7 +420,7 @@ class TestResponseParsing:
 
     def _valid_props(self) -> dict[str, set[str]]:
         """Standard valid properties for door type."""
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         return build_valid_properties(vocab)
 
     def test_parse_valid_response(self):
@@ -514,13 +556,13 @@ class TestBuildValidProperties:
     """Test build_valid_properties helper."""
 
     def test_includes_primary(self):
-        vocab = assemble_vocabulary("08")
+        vocab = _starter_vocabulary("08")
         vp = build_valid_properties(vocab)
         assert "door" in vp
         assert "material" in vp["door"]
 
     def test_includes_secondary(self):
-        vocab = assemble_vocabulary("08", related_divisions=["09"])
+        vocab = _starter_vocabulary("08", related=["09"])
         vp = build_valid_properties(vocab)
         assert "door" in vp
         assert "room" in vp
@@ -548,6 +590,7 @@ class TestExtractSection:
             part1_text=SAMPLE_PART1_WITH_RELATED,
             section_division="08",
             llm_caller=_mock_llm_caller,
+            vocabulary=_starter_vocabulary("08"),
         )
         assert result.status == "extracted"
         assert len(result.extractions) == 3
@@ -601,6 +644,7 @@ class TestExtractSection:
             part1_text=None,
             section_division="08",
             llm_caller=_mock_llm_caller_error,
+            vocabulary=_starter_vocabulary("08"),
         )
         assert result.status == "failed"
         assert "LLM call failed" in result.error
@@ -614,6 +658,7 @@ class TestExtractSection:
             part1_text=None,
             section_division="08",
             llm_caller=_mock_llm_caller_invalid_json,
+            vocabulary=_starter_vocabulary("08"),
         )
         assert result.status == "failed"
 
@@ -626,6 +671,7 @@ class TestExtractSection:
             part1_text=None,
             section_division="08",
             llm_caller=_mock_llm_caller_with_fencing,
+            vocabulary=_starter_vocabulary("08"),
         )
         assert result.status == "extracted"
         assert len(result.extractions) == 3
@@ -639,6 +685,7 @@ class TestExtractSection:
             part1_text=None,
             section_division="08",
             llm_caller=_mock_llm_caller_empty,
+            vocabulary=_starter_vocabulary("08"),
         )
         assert result.status == "extracted"
         assert len(result.extractions) == 0
@@ -730,6 +777,7 @@ class TestRunExtraction:
             preprocess_batch_id=data["pp_batch"].id,
             context_id=data["milestone"].id,
             llm_caller=make_multi_pass_mock(MOCK_LLM_RESPONSE_METAL_DOORS),
+            vocabulary=_starter_vocabulary("08"),
         )
 
         assert batch.item_type == "extraction_batch"
@@ -758,6 +806,7 @@ class TestRunExtraction:
             preprocess_batch_id=data["pp_batch"].id,
             context_id=data["milestone"].id,
             llm_caller=make_multi_pass_mock(MOCK_LLM_RESPONSE_METAL_DOORS),
+            vocabulary=_starter_vocabulary("08"),
         )
 
         # Should have connections to preprocess_batch, spec, and milestone
@@ -850,6 +899,7 @@ class TestRunExtraction:
             context_id=data["milestone"].id,
             section_numbers=["09 91 00"],  # Not in our test data
             llm_caller=make_multi_pass_mock(MOCK_LLM_RESPONSE_METAL_DOORS),
+            vocabulary=_starter_vocabulary("08"),
         )
 
         assert batch.properties["sections_total"] == 0
@@ -865,6 +915,7 @@ class TestRunExtraction:
             preprocess_batch_id=data["pp_batch"].id,
             context_id=data["milestone"].id,
             llm_caller=make_multi_pass_mock_error(),
+            vocabulary=_starter_vocabulary("08"),
         )
 
         assert batch.properties["status"] == "extracted"
@@ -886,6 +937,7 @@ class TestRunExtraction:
             preprocess_batch_id=data["pp_batch"].id,
             context_id=data["milestone"].id,
             llm_caller=make_multi_pass_mock(MOCK_LLM_RESPONSE_METAL_DOORS),
+            vocabulary=_starter_vocabulary("08"),
         )
 
         assert "Test Specification" in batch.identifier

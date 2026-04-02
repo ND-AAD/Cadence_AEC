@@ -7,18 +7,14 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_type_config_endpoint_returns_all_types(client):
-    """Type config endpoint returns all registered types with properties."""
+async def test_type_config_endpoint_returns_os_types(client):
+    """Type config endpoint returns OS-layer types (not firm vocabulary)."""
     response = await client.get("/api/v1/config/types")
     assert response.status_code == 200
     data = response.json()
 
-    # All types should be present
+    # OS types should be present
     assert "project" in data
-    assert "building" in data
-    assert "floor" in data
-    assert "room" in data
-    assert "door" in data
     assert "schedule" in data
     assert "specification" in data
     assert "milestone" in data
@@ -27,6 +23,13 @@ async def test_type_config_endpoint_returns_all_types(client):
     assert "conflict" in data
     assert "decision" in data
     assert "note" in data
+
+    # Spatial types are now firm vocabulary — NOT in OS config
+    assert "building" not in data
+    assert "floor" not in data
+    assert "room" not in data
+    assert "door" not in data
+    assert "frame" not in data
 
     # All type entries should have expected keys
     for type_name, type_config in data.items():
@@ -50,47 +53,20 @@ async def test_type_config_endpoint_returns_all_types(client):
 
 
 @pytest.mark.asyncio
-async def test_door_type_has_expected_properties(client):
-    """Door type has width, height, frame, hardware, and other properties."""
-    response = await client.get("/api/v1/config/types")
-    assert response.status_code == 200
-    data = response.json()
-
-    door_config = data["door"]
-
-    # Verify door properties
-    property_names = {p["name"] for p in door_config["properties"]}
-    assert "mark" in property_names
-    assert "width" in property_names
-    assert "height" in property_names
-    assert "type" in property_names
-    assert "hardware_set" in property_names
-    assert "fire_rating" in property_names
-    assert "frame_type" in property_names
-    assert "glazing" in property_names
-
-    # Verify width and height are numeric
-    width_prop = next(p for p in door_config["properties"] if p["name"] == "width")
-    height_prop = next(p for p in door_config["properties"] if p["name"] == "height")
-    assert width_prop["data_type"] == "number"
-    assert height_prop["data_type"] == "number"
-    assert width_prop["unit"] == "in"
-    assert height_prop["unit"] == "in"
-
-
-@pytest.mark.asyncio
-async def test_type_config_includes_all_categories(client):
-    """Types span all categories: spatial, document, temporal, workflow, organization."""
+async def test_type_config_includes_os_categories(client):
+    """OS types span document, temporal, workflow, organization, definition categories."""
     response = await client.get("/api/v1/config/types")
     assert response.status_code == 200
     data = response.json()
 
     categories = {cfg["category"] for cfg in data.values()}
-    assert "spatial" in categories
+    # Spatial types are now firm vocabulary, not OS
+    assert "spatial" not in categories
     assert "document" in categories
     assert "temporal" in categories
     assert "workflow" in categories
     assert "organization" in categories
+    assert "definition" in categories
 
 
 @pytest.mark.asyncio
@@ -127,15 +103,15 @@ async def test_milestone_is_navigable(client):
 
 
 @pytest.mark.asyncio
-async def test_door_render_mode_is_table(client):
-    """Door type renders as a table (tabular data with many properties)."""
+async def test_render_modes_for_os_types(client):
+    """OS types have expected render modes."""
     response = await client.get("/api/v1/config/types")
     assert response.status_code == 200
     data = response.json()
 
-    assert data["door"]["render_mode"] == "table"
-    assert data["room"]["render_mode"] == "cards"
     assert data["milestone"]["render_mode"] == "timeline"
+    assert data["schedule"]["render_mode"] == "table"
+    assert data["project"]["render_mode"] == "cards"
 
 
 @pytest.mark.asyncio
@@ -158,18 +134,15 @@ async def test_workflow_types_excluded_from_conflicts(client):
 
 @pytest.mark.asyncio
 async def test_search_fields_populated(client):
-    """Types have search_fields configured for indexing."""
+    """OS types have search_fields configured for indexing."""
     response = await client.get("/api/v1/config/types")
     assert response.status_code == 200
     data = response.json()
 
-    # Doors should be searchable by mark
-    assert "mark" in data["door"]["search_fields"]
-    # Rooms should be searchable by name and number
-    assert "name" in data["room"]["search_fields"]
-    assert "number" in data["room"]["search_fields"]
     # Schedules should be searchable by name
     assert "name" in data["schedule"]["search_fields"]
+    # Milestones should be searchable by name
+    assert "name" in data["milestone"]["search_fields"]
 
 
 # ─── Milestone Template Endpoint ───────────────────────────────

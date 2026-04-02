@@ -934,6 +934,7 @@ async def extract_section(
     part1_text: str | None,
     section_division: str,
     llm_caller: LLMCaller,
+    vocabulary: dict[str, dict[str, list[PropertyDef]]] | None = None,
 ) -> SectionExtraction:
     """
     Extract properties from a single spec section (v1 single-pass).
@@ -960,9 +961,10 @@ async def extract_section(
             error="No Part 2 text available for extraction",
         )
 
-    # Assemble vocabulary
-    related_divs = parse_related_sections(part1_text)
-    vocabulary = assemble_vocabulary(section_division, related_divs)
+    # Assemble vocabulary (use provided vocabulary if given, e.g., from firm types)
+    if vocabulary is None:
+        related_divs = parse_related_sections(part1_text)
+        vocabulary = assemble_vocabulary(section_division, related_divs)
 
     # Check we have at least some vocabulary
     has_vocab = bool(vocabulary.get("primary")) or bool(vocabulary.get("secondary"))
@@ -1132,6 +1134,7 @@ async def extract_section_multi_pass(
     part1_text: str | None,
     section_division: str,
     llm_caller: LLMCaller,
+    vocabulary: dict[str, dict[str, list[PropertyDef]]] | None = None,
 ) -> SectionExtraction:
     """
     Multi-pass extraction for a single spec section (v2).
@@ -1160,9 +1163,10 @@ async def extract_section_multi_pass(
             error="No Part 2 text available for extraction",
         )
 
-    # Assemble vocabulary
-    related_divs = parse_related_sections(part1_text)
-    vocabulary = assemble_vocabulary(section_division, related_divs)
+    # Assemble vocabulary (use provided vocabulary if given, e.g., from firm types)
+    if vocabulary is None:
+        related_divs = parse_related_sections(part1_text)
+        vocabulary = assemble_vocabulary(section_division, related_divs)
 
     has_vocab = bool(vocabulary.get("primary")) or bool(vocabulary.get("secondary"))
     if not has_vocab:
@@ -1297,6 +1301,7 @@ async def run_extraction(
     context_id: uuid.UUID,
     section_numbers: list[str] | None = None,
     llm_caller: LLMCaller | None = None,
+    vocabulary: dict[str, dict[str, list[PropertyDef]]] | None = None,
 ) -> tuple[Item, dict[str, SectionExtraction]]:
     """
     Run multi-pass extraction for all (or specified) sections of a preprocessed spec.
@@ -1391,6 +1396,31 @@ async def run_extraction(
             )
         )
 
+    # If no vocabulary provided, build from firm types in DB
+    if vocabulary is None:
+        from app.services.dynamic_types import get_firm_types
+
+        # Find any firm (for batch extraction, use the firm's type vocabulary)
+        firm_result = await db.execute(
+            select(Item).where(Item.item_type == "firm").limit(1)
+        )
+        firm_item = firm_result.scalar_one_or_none()
+        if firm_item:
+            firm_types = await get_firm_types(db, firm_item.id)
+            # Build vocabulary from firm types with masterformat_divisions
+            all_divisions_vocab: dict[str, dict[str, list[PropertyDef]]] = {}
+            for type_name, tc in firm_types.items():
+                for div in tc.masterformat_divisions:
+                    if div not in all_divisions_vocab:
+                        all_divisions_vocab[div] = {}
+                    all_divisions_vocab[div][type_name] = list(tc.properties)
+            # vocabulary will be resolved per-section below using this lookup
+            _firm_vocab_by_division = all_divisions_vocab
+        else:
+            _firm_vocab_by_division = {}
+    else:
+        _firm_vocab_by_division = None  # sentinel: use the provided vocabulary
+
     # Run multi-pass extraction per section
     results: dict[str, SectionExtraction] = {}
     sections_extracted = 0
@@ -1410,6 +1440,15 @@ async def run_extraction(
             sections_failed += 1
             continue
 
+        # Resolve vocabulary for this section's division
+        if vocabulary is not None:
+            section_vocab = vocabulary
+        elif _firm_vocab_by_division is not None:
+            primary = _firm_vocab_by_division.get(division, {})
+            section_vocab = {"primary": primary, "secondary": {}} if primary else None
+        else:
+            section_vocab = None
+
         extraction = await extract_section_multi_pass(
             db=db,
             section_number=section_num,
@@ -1418,6 +1457,7 @@ async def run_extraction(
             part1_text=section_data["part1_text"],
             section_division=division,
             llm_caller=caller,
+            vocabulary=section_vocab,
         )
 
         results[section_num] = extraction
