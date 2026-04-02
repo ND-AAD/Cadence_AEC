@@ -404,6 +404,25 @@ async def run_import(
     await db.flush()
     await db.refresh(batch_item)
 
+    # Ensure project → source connection (so source appears in project's connected items).
+    if project_id:
+        existing_proj_src = await db.execute(
+            select(Connection).where(
+                and_(
+                    Connection.source_item_id == project_id,
+                    Connection.target_item_id == source_item.id,
+                )
+            )
+        )
+        if not existing_proj_src.scalar_one_or_none():
+            db.add(
+                Connection(
+                    source_item_id=project_id,
+                    target_item_id=source_item.id,
+                )
+            )
+            await db.flush()
+
     # Step 1: Process each parsed row and store mapping of raw_id → matched_item
     row_to_item: dict[str, Item] = {}
     for row in parsed_rows:
