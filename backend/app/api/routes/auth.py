@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.models.infrastructure import User
 from app.api.deps import get_current_user
 from app.schemas.auth import RegisterRequest
+from app.services.dynamic_types import resolve_user_firm, seed_firm_types
 
 router = APIRouter()
 
@@ -72,8 +73,14 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
         password_hash=hash_password(payload.password),
     )
     db.add(user)
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
+
+    # Auto-create firm and seed starter vocabulary
+    firm = await resolve_user_firm(db, user.id)
+    await seed_firm_types(db, firm.id)
+
+    await db.commit()
 
     # Return immediate auth token
     token = create_access_token(str(user.id), user.email)

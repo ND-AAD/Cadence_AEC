@@ -736,3 +736,60 @@ async def test_import_mapping_accepts_firm_type(client):
         },
     )
     assert response.status_code == 200
+
+
+# ─── DYN-6: Account Setup Seeding ─────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_registration_creates_firm_and_seeds_types(db_session):
+    """New user registration auto-creates a firm and seeds starter types."""
+    from httpx import ASGITransport, AsyncClient
+    from app.main import app
+    from app.core.database import get_db
+    from app.core.config import settings
+    from app.services.dynamic_types import resolve_user_firm, get_firm_types
+
+    async def override_get_db():
+        try:
+            yield db_session
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post(
+                "/api/v1/auth/register",
+                json={
+                    "email": "newuser@example.com",
+                    "name": "New User",
+                    "password": "testpass123",
+                    "invite_code": settings.ALPHA_INVITE_CODE,
+                },
+            )
+        assert response.status_code == 200
+
+        from app.models.infrastructure import User
+
+        result = await db_session.execute(
+            select(User).where(User.email == "newuser@example.com")
+        )
+        user = result.scalar_one()
+
+        # User should have a firm with seeded types
+        firm = await resolve_user_firm(db_session, user.id)
+        assert firm is not None
+        assert firm.item_type == "firm"
+
+        types = await get_firm_types(db_session, firm.id)
+        assert "door" in types
+        assert "room" in types
+        assert "building" in types
+    finally:
+        app.dependency_overrides.clear()
