@@ -593,6 +593,14 @@ export function ItemView({
                     changeIds={changeIds}
                     propertyName={entry.key}
                     onNavigate={onNavigate}
+                    onAcknowledge={async (changeItemId) => {
+                      try {
+                        await acknowledgeChange(changeItemId);
+                        onWorkflowAction?.();
+                      } catch (err) {
+                        console.error("Failed to acknowledge change:", err);
+                      }
+                    }}
                   />
                 );
               } else if (entry.resolved && Object.keys(entry.resolved.sources).length > 0) {

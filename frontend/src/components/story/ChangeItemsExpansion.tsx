@@ -16,6 +16,8 @@ interface ChangeItemsExpansionProps {
   propertyName: string;
   /** Navigation callback — click a change item to page-turn to Surface 2. */
   onNavigate: (itemId: string) => void;
+  /** Acknowledge a change by its item ID. */
+  onAcknowledge?: (changeItemId: string) => void;
 }
 
 interface ChangeDetail {
@@ -31,6 +33,7 @@ export function ChangeItemsExpansion({
   changeIds,
   propertyName,
   onNavigate,
+  onAcknowledge,
 }: ChangeItemsExpansionProps) {
   const [changes, setChanges] = useState<ChangeDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,14 +152,25 @@ export function ChangeItemsExpansion({
               </span>
             )}
           </div>
-          {/* Navigate to change item (Surface 2) */}
-          <button
-            type="button"
-            onClick={() => onNavigate(change.id)}
-            className="text-xs text-pencil-ink hover:underline shrink-0"
-          >
-            View ›
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onAcknowledge && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAcknowledge(change.id); }}
+                className="bg-pencil-wash text-pencil-ink border border-pencil rounded text-xs px-2 py-1 hover:bg-pencil/10 transition-colors duration-100"
+              >
+                Acknowledge
+              </button>
+            )}
+            {/* Navigate to change item (Surface 2) */}
+            <button
+              type="button"
+              onClick={() => onNavigate(change.id)}
+              className="text-xs text-pencil-ink hover:underline shrink-0"
+            >
+              View ›
+            </button>
+          </div>
         </div>
       ))}
     </div>
