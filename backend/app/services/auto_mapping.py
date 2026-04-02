@@ -30,12 +30,25 @@ from app.core.column_aliases import (
     is_ignored_column,
 )
 from app.core.type_config import (
+    TypeConfig,
     build_label_map,
     get_dimension_properties,
     get_importable_types,
     get_type_config,
 )
 from app.schemas.imports import ImportMappingConfig
+
+
+def _build_label_map_from_config(tc: TypeConfig) -> dict[str, str]:
+    """Build label map directly from a TypeConfig (for dynamic types not in ITEM_TYPES)."""
+    label_map: dict[str, str] = {}
+    for prop in tc.properties:
+        label_map[prop.label.lower()] = prop.name
+        label_map[prop.name] = prop.name
+        if prop.aliases:
+            for alias in prop.aliases:
+                label_map[alias.lower()] = prop.name
+    return label_map
 
 
 # ─── Data Classes ────────────────────────────────────────────────
@@ -229,6 +242,7 @@ def _detect_header_row_csv(
 def detect_target_type(
     headers: list[str],
     user_aliases: dict[str, str] | None = None,
+    importable_types: list[TypeConfig] | None = None,
 ) -> tuple[str, float, dict[str, int]]:
     """
     Determine which registered item type best matches the column headers.
@@ -239,6 +253,8 @@ def detect_target_type(
     Args:
         headers: List of raw column header strings
         user_aliases: Optional project-level user corrections
+        importable_types: Optional list of TypeConfig objects to match against.
+            When provided, uses these instead of the global ITEM_TYPES registry.
 
     Returns:
         (type_name, confidence, match_counts_per_type)
@@ -247,14 +263,14 @@ def detect_target_type(
     # Also keep lowercased raw headers for label matching
     lower_headers = [h.lower().strip() for h in headers]
 
-    importable_types = get_importable_types()
-    if not importable_types:
+    types_to_check = importable_types if importable_types is not None else get_importable_types()
+    if not types_to_check:
         return ("", 0.0, {})
 
     match_counts: dict[str, int] = {}
 
-    for tc in importable_types:
-        label_map = build_label_map(tc.name)
+    for tc in types_to_check:
+        label_map = _build_label_map_from_config(tc)
         domain_aliases = get_aliases_for_type(tc.name)
 
         matches = 0
@@ -305,6 +321,7 @@ def build_property_mapping(
     headers: list[str],
     target_type: str,
     user_aliases: dict[str, str] | None = None,
+    importable_types: list[TypeConfig] | None = None,
 ) -> list[ColumnProposal]:
     """
     For each column header, propose a property mapping on the target type.
@@ -321,13 +338,19 @@ def build_property_mapping(
         headers: Raw column header strings
         target_type: The target item type name
         user_aliases: Optional project-level user corrections
+        importable_types: Optional list of TypeConfig objects. When provided,
+            looks up the target type from this list instead of ITEM_TYPES.
 
     Returns:
         List of ColumnProposal, one per header
     """
-    label_map = build_label_map(target_type)
+    if importable_types is not None:
+        tc = next((t for t in importable_types if t.name == target_type), None)
+        label_map = _build_label_map_from_config(tc) if tc else {}
+    else:
+        label_map = build_label_map(target_type)
+        tc = get_type_config(target_type)
     domain_aliases = get_aliases_for_type(target_type)
-    tc = get_type_config(target_type)
     property_names = [p.name for p in tc.properties] if tc else []
 
     proposals: list[ColumnProposal] = []
@@ -538,6 +561,7 @@ def propose_mapping(
     file_type: str = "excel",
     user_aliases: dict[str, str] | None = None,
     project_id: str | None = None,
+    importable_types: list[TypeConfig] | None = None,
 ) -> ProposedMapping:
     """
     Analyze a file and propose a complete column-to-property mapping.
@@ -577,7 +601,9 @@ def propose_mapping(
         )
 
     # Step 3: Detect target type
-    target_type, type_confidence, _ = detect_target_type(headers, user_aliases)
+    target_type, type_confidence, _ = detect_target_type(
+        headers, user_aliases, importable_types=importable_types,
+    )
 
     # Step 4: Detect identifier column
     identifier_col, identifier_confidence = detect_identifier_column(
@@ -586,7 +612,9 @@ def propose_mapping(
 
     # Step 5: Build property mapping
     if target_type:
-        column_proposals = build_property_mapping(headers, target_type, user_aliases)
+        column_proposals = build_property_mapping(
+            headers, target_type, user_aliases, importable_types=importable_types,
+        )
     else:
         column_proposals = [
             ColumnProposal(column_name=h, cleaned_name=clean_column_name(h))
@@ -606,7 +634,10 @@ def propose_mapping(
 
     # Get dimension properties for normalization assignment
     get_dimension_properties(target_type) if target_type else set()
-    tc = get_type_config(target_type)
+    if importable_types is not None:
+        tc = next((t for t in importable_types if t.name == target_type), None)
+    else:
+        tc = get_type_config(target_type)
 
     for cp in column_proposals:
         if (

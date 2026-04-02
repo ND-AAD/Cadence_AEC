@@ -833,3 +833,23 @@ register_type(
         ],
     )
 )
+
+
+register_type(
+    TypeConfig(
+        name="type_definition",
+        label="Type Definition",
+        plural_label="Type Definitions",
+        category="definition",
+        navigable=False,
+        exclude_from_conflicts=True,
+        properties=[
+            PropertyDef("type_name", "Type Name", required=True),
+            PropertyDef("label", "Label", required=True),
+            PropertyDef("plural_label", "Plural Label"),
+            PropertyDef("category", "Category"),
+            PropertyDef("render_mode", "Render Mode"),
+            PropertyDef("property_defs", "Property Definitions"),
+        ],
+    )
+)

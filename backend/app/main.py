@@ -21,6 +21,7 @@ from app.api.routes import (
     auth,
     notes,
     admin,
+    types,
 )
 
 app = FastAPI(
@@ -61,3 +62,4 @@ app.include_router(extraction.router, prefix="/api/v1", tags=["extraction"])
 app.include_router(propagation.router, prefix="/api/v1", tags=["spec-propagation"])
 app.include_router(notes.router, prefix="/api/v1", tags=["notes"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(types.router, prefix="/api/v1/types", tags=["types"])
