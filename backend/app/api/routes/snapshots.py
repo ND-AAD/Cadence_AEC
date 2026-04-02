@@ -498,10 +498,11 @@ async def get_resolved_view(
         if prop_name:
             workflow_by_property[prop_name][wi.item_type].append(wi)
 
-    # Collect all properties across all effective snapshots
+    # Collect all properties across all effective snapshots.
+    # Exclude internal _raw suffix properties (WP-6b dual storage).
     all_props: set[str] = set()
     for snap in effective_by_source.values():
-        all_props.update(snap.properties.keys())
+        all_props.update(k for k in snap.properties.keys() if not k.endswith("_raw"))
 
     # Build per-property resolution
     property_resolutions = []
