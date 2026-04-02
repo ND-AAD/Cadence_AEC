@@ -497,6 +497,10 @@ async def get_resolved_view(
         )
         if prop_name:
             workflow_by_property[prop_name][wi.item_type].append(wi)
+        elif wi.item_type == "change" and wi.properties.get("changes"):
+            # "Added" or multi-property change: index under each changed property
+            for changed_prop in wi.properties["changes"]:
+                workflow_by_property[changed_prop][wi.item_type].append(wi)
 
     # Collect all properties across all effective snapshots.
     # Exclude internal _raw suffix properties (WP-6b dual storage).
