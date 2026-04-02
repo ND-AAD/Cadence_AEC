@@ -4,8 +4,8 @@
 //
 // Layout:
 //   ✓ CONFLICT · ACCEPTED · CD
-//   [Source A]  [value A]    (text-trace)
-//   [Source B]  [value B]    (redline-muted for non-chosen)
+//   [Source A]  [value A]    (stamp if matches resolution, redline-muted if not)
+//   [Source B]  [value B]    (stamp if matches resolution, redline-muted if not)
 //   ─────────────────────────────────
 //   [ResolutionStamp]
 //   ─────────────────────────────────
@@ -107,26 +107,33 @@ export function ResolvedExpansion({
         )}
       </div>
 
-      {/* Original disagreement (both sources in trace, non-chosen in redline-muted) */}
+      {/* Original disagreement — values matching the resolution are green,
+           values that need to change are red. Custom resolution = both red. */}
       {sources && sources.length > 0 && (
         <div className="space-y-1">
-          {sources.map((source) => (
-            <div
-              key={source.sourceId}
-              className="grid grid-cols-[100px_1fr] gap-x-3 items-baseline"
-            >
-              <span className={`text-xs truncate ${
-                source.isChosen ? "text-trace" : "text-redline/50"
-              }`}>
-                {source.sourceName}
-              </span>
-              <span className={`text-sm font-mono ${
-                source.isChosen ? "text-trace" : "text-redline/50"
-              }`}>
-                {formatValue(source.value)}
-              </span>
-            </div>
-          ))}
+          {sources.map((source) => {
+            const valueStr = formatValue(source.value);
+            const matchesResolution = resolution
+              ? valueStr === resolution.chosenValue
+              : source.isChosen;
+            return (
+              <div
+                key={source.sourceId}
+                className="grid grid-cols-[100px_1fr] gap-x-3 items-baseline"
+              >
+                <span className={`text-xs truncate ${
+                  matchesResolution ? "text-stamp" : "text-redline/50"
+                }`}>
+                  {source.sourceName}
+                </span>
+                <span className={`text-sm font-mono ${
+                  matchesResolution ? "text-stamp" : "text-redline/50"
+                }`}>
+                  {valueStr}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 

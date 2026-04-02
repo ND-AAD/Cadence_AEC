@@ -4,7 +4,7 @@
 //
 // Layout:
 //   ● (blue)  Finish Schedule → update fire_rating to 60 min
-//              directive · pending                           ›
+//              directive · awaiting update                    ›
 
 import { Pip } from "./Pip";
 
@@ -28,7 +28,7 @@ interface DirectiveSubRowProps {
 function statusBadge(status: string): { label: string; className: string } {
   switch (status) {
     case "pending":
-      return { label: "pending", className: "text-overlay" };
+      return { label: "awaiting update", className: "text-overlay" };
     case "fulfilled":
       return { label: "fulfilled", className: "text-stamp" };
     case "hold":
