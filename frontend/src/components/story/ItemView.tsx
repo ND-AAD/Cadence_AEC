@@ -106,11 +106,13 @@ function mapResolvedStatus(status: ResolvedProperty["status"]): PropertyStatus {
 function extractConflictSources(resolved: ResolvedProperty): ConflictSource[] {
   // The resolved property's sources dict (from backend PropertyResolution)
   // maps source_identifier (human-readable name) → that source's asserted value.
+  // source_ids maps source_identifier → UUID.
   const entries = Object.entries(resolved.sources);
   if (entries.length === 0) return [];
 
+  const idMap = resolved.source_ids ?? {};
   return entries.map(([sourceName, value]) => ({
-    sourceId: sourceName,   // Using name as ID until backend provides UUIDs
+    sourceId: idMap[sourceName] ?? sourceName,
     sourceName,
     value,
   }));

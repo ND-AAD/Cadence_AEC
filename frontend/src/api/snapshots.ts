@@ -34,6 +34,8 @@ export interface ResolvedProperty {
   unit: string | null;
   /** Source identifier → that source's asserted value. From backend PropertyResolution.sources. */
   sources: Record<string, unknown>;
+  /** Source identifier → source item UUID. From backend PropertyResolution.source_ids. */
+  source_ids?: Record<string, string>;
   /** Workflow navigation handles. Null when no workflow items exist for this property. */
   workflow: PropertyWorkflowRefs | null;
   /** Milestone identifier where the value originated. Null when submitted at the viewed context. */

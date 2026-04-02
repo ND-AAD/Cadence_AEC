@@ -78,6 +78,10 @@ class PropertyResolution(BaseModel):
         default_factory=dict,
         description="source_identifier → value for each source",
     )
+    source_ids: dict[str, str] = Field(
+        default_factory=dict,
+        description="source_identifier → source item UUID",
+    )
     effective_context: str | None = Field(
         default=None,
         description="Milestone identifier where the effective value originated. Null when the value was submitted at the requested context.",

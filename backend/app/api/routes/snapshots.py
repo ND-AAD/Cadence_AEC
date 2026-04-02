@@ -508,6 +508,7 @@ async def get_resolved_view(
     property_resolutions = []
     for prop_name in sorted(all_props):
         source_values: dict[str, object] = {}
+        source_id_map: dict[str, str] = {}
         contributing_sources: list[uuid.UUID] = []
         for src_id, snap in effective_by_source.items():
             val = snap.properties.get(prop_name)
@@ -515,6 +516,7 @@ async def get_resolved_view(
                 src = sources.get(src_id)
                 src_label = src.identifier if src else str(src_id)
                 source_values[src_label] = val
+                source_id_map[src_label] = str(src_id)
                 contributing_sources.append(src_id)
 
         if len(source_values) == 0:
@@ -612,6 +614,7 @@ async def get_resolved_view(
                 status=status,
                 value=value,
                 sources=source_values,
+                source_ids=source_id_map,
                 effective_context=eff_ctx,
                 workflow=workflow_refs,
             )

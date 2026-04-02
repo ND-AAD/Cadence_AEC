@@ -28,6 +28,25 @@ export class ApiError extends Error {
   }
 }
 
+/** Parse error detail from a non-ok response.
+ *  Handles both string detail and Pydantic validation error arrays. */
+async function parseErrorDetail(response: Response): Promise<string | undefined> {
+  const text = await response.text().catch(() => "");
+  try {
+    const parsed = JSON.parse(text)?.detail;
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((e: { msg?: string; loc?: string[] }) =>
+          `${(e.loc ?? []).join(".")}: ${e.msg ?? "invalid"}`,
+        )
+        .join("; ");
+    }
+    return typeof parsed === "string" ? parsed : parsed ? JSON.stringify(parsed) : undefined;
+  } catch {
+    return text || undefined;
+  }
+}
+
 /**
  * Make a GET request to the API.
  */
@@ -38,13 +57,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   }
   const response = await fetch(`${API_BASE}${path}`, { headers });
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    let detail: string | undefined;
-    try {
-      detail = JSON.parse(body)?.detail;
-    } catch {
-      detail = body || undefined;
-    }
+    const detail = await parseErrorDetail(response);
     throw new ApiError(response.status, response.statusText, detail);
   }
   return response.json();
@@ -98,21 +111,12 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    let detail: string | undefined;
-    try {
-      detail = JSON.parse(text)?.detail;
-    } catch {
-      detail = text || undefined;
-    }
+    const detail = await parseErrorDetail(response);
     throw new ApiError(response.status, response.statusText, detail);
   }
   return response.json();
 }
 
-/**
- * Make a POST request with FormData (for file uploads).
- */
 /**
  * Make a DELETE request to the API. Returns void (expects 204).
  */
@@ -126,13 +130,7 @@ export async function apiDelete(path: string): Promise<void> {
     headers,
   });
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    let detail: string | undefined;
-    try {
-      detail = JSON.parse(text)?.detail;
-    } catch {
-      detail = text || undefined;
-    }
+    const detail = await parseErrorDetail(response);
     throw new ApiError(response.status, response.statusText, detail);
   }
 }
@@ -149,13 +147,7 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
     body: formData,
   });
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    let detail: string | undefined;
-    try {
-      detail = JSON.parse(text)?.detail;
-    } catch {
-      detail = text || undefined;
-    }
+    const detail = await parseErrorDetail(response);
     throw new ApiError(response.status, response.statusText, detail);
   }
   return response.json();
