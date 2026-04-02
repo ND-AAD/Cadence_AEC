@@ -533,7 +533,9 @@ export function ItemView({
                 );
               } else if (entry.status === "resolved") {
                 // Resolved → ResolvedExpansion
-                const chosenSource = entry.resolved?.workflow?.resolution_metadata?.chosen_source ?? null;
+                const resolvedValue = String(entry.value ?? entry.resolved?.value ?? "");
+                const resMeta = entry.resolved?.workflow?.resolution_metadata;
+                const chosenSource = resMeta?.chosen_source ?? null;
                 const sources = entry.resolved
                   ? Object.entries(entry.resolved.sources).map(([sourceName, value]) => ({
                       sourceId: sourceName,
@@ -542,19 +544,18 @@ export function ItemView({
                       isChosen: chosenSource === sourceName,
                     }))
                   : [];
-                const resMeta = entry.resolved?.workflow?.resolution_metadata;
                 expansionContent = (
                   <ResolvedExpansion
                     propertyName={entry.label}
                     itemType="conflict"
                     sources={sources}
-                    resolution={resMeta ? {
-                      chosenValue: String(entry.resolved?.value ?? ""),
-                      chosenSourceName: resMeta.chosen_source ?? undefined,
-                      decidedBy: resMeta.decided_by ?? undefined,
-                      method: resMeta.method ?? undefined,
-                      date: resMeta.resolved_at ?? undefined,
-                    } : undefined}
+                    resolution={{
+                      chosenValue: resolvedValue,
+                      chosenSourceName: resMeta?.chosen_source ?? undefined,
+                      decidedBy: resMeta?.decided_by ?? undefined,
+                      method: resMeta?.method ?? undefined,
+                      date: resMeta?.resolved_at ?? undefined,
+                    }}
                     directives={entry.resolved?.workflow?.directive_ids?.map((id) => ({
                       directiveId: id,
                       targetSourceName: "",

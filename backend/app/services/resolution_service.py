@@ -313,14 +313,15 @@ async def resolve_conflict(
                     best_ordinal = snap_ord
                     effective_value = snap.properties.get(property_name)
 
-        # Determine directive status
+        # Skip directive if source's value already matches the resolution
         already_matches = False
         if effective_value is not None and chosen_value is not None:
             already_matches = values_match(
                 str(effective_value), str(chosen_value), property_name
             )
 
-        directive_status = "fulfilled" if already_matches else "pending"
+        if already_matches:
+            continue  # Source already has the correct value — no directive needed
 
         # Create directive item
         directive = Item(
@@ -332,7 +333,7 @@ async def resolve_conflict(
                 "target_source_id": str(source.id),
                 "decision_item_id": str(decision_item.id),
                 "affected_item_id": str(affected_item.id),
-                "status": directive_status,
+                "status": "pending",
             },
         )
         db.add(directive)
@@ -348,7 +349,7 @@ async def resolve_conflict(
                 "property_name": property_name,
                 "target_value": chosen_value,
                 "target_source_id": str(source.id),
-                "status": directive_status,
+                "status": "pending",
             },
         )
         db.add(directive_snap)
