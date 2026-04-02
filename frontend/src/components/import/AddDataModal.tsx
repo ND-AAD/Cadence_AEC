@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { MilestoneCombobox } from "./MilestoneCombobox";
 import { SourceCombobox } from "./SourceCombobox";
 import { FileDropZone } from "./FileDropZone";
 import { MappingReview } from "./MappingReview";
 import { ImportProgress } from "./ImportProgress";
 import { analyzeFile, confirmMapping, runImport, type ProposedMappingResponse, type ImportResult } from "@/api/import";
+import { apiDelete } from "@/api/client";
 
 type ModalPhase = "form" | "review" | "progress" | "error";
 
@@ -30,6 +31,24 @@ export function AddDataModal({
   const [source, setSource] = useState<{ id: string; name: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
 
+  // Track items created during this flow (for cleanup on cancel).
+  const [createdItemIds, setCreatedItemIds] = useState<string[]>([]);
+
+  const trackCreatedItem = useCallback((id: string) => {
+    setCreatedItemIds((prev) => [...prev, id]);
+  }, []);
+
+  /** Delete any items created during this modal flow (milestone, source). */
+  const cleanupCreatedItems = useCallback(async () => {
+    for (const id of createdItemIds) {
+      try {
+        await apiDelete(`/v1/items/${id}`);
+      } catch {
+        // Best-effort cleanup — item may already be gone or in use.
+      }
+    }
+  }, [createdItemIds]);
+
   // Analyze result (passed to MappingReview in OB-6)
   const [proposal, setProposal] = useState<ProposedMappingResponse | null>(null);
 
@@ -52,9 +71,15 @@ export function AddDataModal({
     }
   }
 
+  /** Cancel: clean up any items created during this flow, then close. */
+  const handleCancel = useCallback(async () => {
+    await cleanupCreatedItems();
+    onClose();
+  }, [cleanupCreatedItems, onClose]);
+
   // Handle backdrop click
   function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleCancel();
   }
 
   return (
@@ -67,7 +92,7 @@ export function AddDataModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-rule">
           <h2 className="text-sm font-semibold text-ink">Add Data</h2>
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             className="text-graphite hover:text-ink transition-colors text-lg leading-none"
           >
             ×
@@ -87,6 +112,7 @@ export function AddDataModal({
                   projectId={projectId}
                   value={milestone}
                   onChange={setMilestone}
+                  onItemCreated={trackCreatedItem}
                 />
               </div>
 
@@ -99,6 +125,7 @@ export function AddDataModal({
                   projectId={projectId}
                   value={source}
                   onChange={setSource}
+                  onItemCreated={trackCreatedItem}
                 />
               </div>
 
@@ -169,7 +196,7 @@ export function AddDataModal({
                   setPhase("error");
                 }
               }}
-              onCancel={onClose}
+              onCancel={handleCancel}
             />
           )}
 
@@ -197,7 +224,7 @@ export function AddDataModal({
         {phase === "form" && (
           <div className="flex justify-end gap-2 px-6 py-4 border-t border-rule">
             <button
-              onClick={onClose}
+              onClick={handleCancel}
               className="px-3 py-1.5 text-xs text-graphite border border-rule hover:text-ink transition-colors"
             >
               Cancel

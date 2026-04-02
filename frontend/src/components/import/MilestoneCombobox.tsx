@@ -16,6 +16,8 @@ interface MilestoneComboboxProps {
   projectId: string;
   value: { id: string; name: string } | null;
   onChange: (val: { id: string; name: string } | null) => void;
+  /** Called when a new milestone is created (not selected). For cancel cleanup. */
+  onItemCreated?: (id: string) => void;
 }
 
 function computeOrdinal(name: string, existingOrdinals: number[]): number {
@@ -36,7 +38,7 @@ function computeOrdinal(name: string, existingOrdinals: number[]): number {
   return maxExisting + 100;
 }
 
-export function MilestoneCombobox({ projectId, value, onChange }: MilestoneComboboxProps) {
+export function MilestoneCombobox({ projectId, value, onChange, onItemCreated }: MilestoneComboboxProps) {
   const [milestones, setMilestones] = useState<MilestoneItem[]>([]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -113,6 +115,7 @@ export function MilestoneCombobox({ projectId, value, onChange }: MilestoneCombo
       }));
 
       onChange({ id: milestone.id, name: milestone.identifier });
+      onItemCreated?.(milestone.id);
       setQuery("");
       setOpen(false);
     } catch {

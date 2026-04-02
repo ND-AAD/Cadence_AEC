@@ -113,6 +113,30 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 /**
  * Make a POST request with FormData (for file uploads).
  */
+/**
+ * Make a DELETE request to the API. Returns void (expects 204).
+ */
+export async function apiDelete(path: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    let detail: string | undefined;
+    try {
+      detail = JSON.parse(text)?.detail;
+    } catch {
+      detail = text || undefined;
+    }
+    throw new ApiError(response.status, response.statusText, detail);
+  }
+}
+
 export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
   const headers: Record<string, string> = {};
   if (authToken) {

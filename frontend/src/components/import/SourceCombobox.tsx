@@ -17,6 +17,8 @@ interface SourceComboboxProps {
   projectId: string;
   value: { id: string; name: string } | null;
   onChange: (val: { id: string; name: string } | null) => void;
+  /** Called when a new source is created (not selected). For cancel cleanup. */
+  onItemCreated?: (id: string) => void;
 }
 
 const SOURCE_TYPES = [
@@ -25,7 +27,7 @@ const SOURCE_TYPES = [
   { value: "drawing", label: "Drawing" },
 ];
 
-export function SourceCombobox({ projectId, value, onChange }: SourceComboboxProps) {
+export function SourceCombobox({ projectId, value, onChange, onItemCreated }: SourceComboboxProps) {
   const [sources, setSources] = useState<SourceItem[]>([]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -90,6 +92,7 @@ export function SourceCombobox({ projectId, value, onChange }: SourceComboboxPro
 
       setSources((prev) => [...prev, source]);
       onChange({ id: source.id, name: source.identifier });
+      onItemCreated?.(source.id);
       setQuery("");
       setOpen(false);
       setShowTypeSelector(false);
