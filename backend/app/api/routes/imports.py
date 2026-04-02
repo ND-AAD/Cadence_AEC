@@ -192,12 +192,20 @@ async def analyze_file(
         except ValueError:
             pass
 
+    # Resolve firm types for auto-mapping (DYN-3)
+    firm = await resolve_user_firm(db, current_user.id)
+    merged = await get_merged_registry(db, firm.id)
+    importable = [
+        tc for tc in merged.values() if tc.properties and tc.category in ("spatial",)
+    ]
+
     # Run auto-mapping analysis
     proposed = propose_mapping(
         file_bytes=file_bytes,
         file_type=file_type,
         user_aliases=user_aliases,
         project_id=str(proj_id) if proj_id else None,
+        importable_types=importable,
     )
 
     # Build response
