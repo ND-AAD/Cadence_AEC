@@ -600,9 +600,19 @@ async def get_resolved_view(
 
         if prop_workflow:
             conflicts = prop_workflow.get("conflict", [])
-            changes = prop_workflow.get("change", [])
+            # Exclude acknowledged changes — they're no longer active workflow items
+            changes = [
+                c
+                for c in prop_workflow.get("change", [])
+                if (c.properties or {}).get("status", "").lower() != "acknowledged"
+            ]
             decisions = prop_workflow.get("decision", [])
-            directives = prop_workflow.get("directive", [])
+            # Exclude fulfilled directives
+            directives = [
+                d
+                for d in prop_workflow.get("directive", [])
+                if (d.properties or {}).get("status", "").lower() != "fulfilled"
+            ]
 
             # For resolution metadata, use the decision item's properties.
             res_metadata = None
