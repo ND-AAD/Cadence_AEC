@@ -76,7 +76,9 @@ def _item_to_type_config(item: Item) -> TypeConfig:
     return TypeConfig(
         name=item.identifier,
         label=props.get("label", item.identifier),
-        plural_label=props.get("plural_label", f"{props.get('label', item.identifier)}s"),
+        plural_label=props.get(
+            "plural_label", f"{props.get('label', item.identifier)}s"
+        ),
         category=props.get("category", "spatial"),
         navigable=props.get("navigable", True),
         is_source_type=props.get("is_source_type", False),

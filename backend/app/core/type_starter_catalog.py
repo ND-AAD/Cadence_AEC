@@ -248,18 +248,14 @@ STARTER_TYPES: list[TypeConfig] = [
                 "material", "Material", aliases=("window_material", "mat", "mtl")
             ),
             PropertyDef("finish", "Finish", aliases=("window_finish", "fnsh")),
-            PropertyDef(
-                "glazing", "Glazing", aliases=("glass", "gl", "glass_type")
-            ),
+            PropertyDef("glazing", "Glazing", aliases=("glass", "gl", "glass_type")),
             PropertyDef("frame_material", "Frame Material", aliases=("frame_mat",)),
             PropertyDef("frame_finish", "Frame Finish"),
             PropertyDef(
                 "fire_rating", "Fire Rating", aliases=("fr", "fire_rate", "rating")
             ),
             PropertyDef("hardware", "Hardware", aliases=("hw", "hardware_set")),
-            PropertyDef(
-                "operation", "Operation", aliases=("op", "operation_type")
-            ),
+            PropertyDef("operation", "Operation", aliases=("op", "operation_type")),
             PropertyDef(
                 "sill_height",
                 "Sill Height",

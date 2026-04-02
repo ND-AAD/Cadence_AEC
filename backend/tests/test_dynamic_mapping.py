@@ -34,12 +34,15 @@ def make_test_type(name, properties):
     )
 
 
-HARDWARE_TYPE = make_test_type("hardware_set", [
-    {"name": "mark", "label": "Mark", "aliases": ["hardware_mark", "hw_mark"]},
-    {"name": "manufacturer", "label": "Manufacturer", "aliases": ["mfr", "mfg"]},
-    {"name": "series", "label": "Series"},
-    {"name": "finish", "label": "Finish"},
-])
+HARDWARE_TYPE = make_test_type(
+    "hardware_set",
+    [
+        {"name": "mark", "label": "Mark", "aliases": ["hardware_mark", "hw_mark"]},
+        {"name": "manufacturer", "label": "Manufacturer", "aliases": ["mfr", "mfg"]},
+        {"name": "series", "label": "Series"},
+        {"name": "finish", "label": "Finish"},
+    ],
+)
 
 
 # ─── detect_target_type with custom types ─────────────────────
@@ -97,7 +100,9 @@ def test_build_property_mapping_with_custom_type():
         importable_types=[HARDWARE_TYPE],
     )
 
-    mapped = {p.column_name: p.proposed_property for p in proposals if p.proposed_property}
+    mapped = {
+        p.column_name: p.proposed_property for p in proposals if p.proposed_property
+    }
     # "Mark" is recognized as an identifier column (in IDENTIFIER_ALIASES)
     assert mapped.get("Mark") == "__identifier__"
     assert mapped.get("Manufacturer") == "manufacturer"
@@ -115,7 +120,9 @@ def test_build_property_mapping_custom_aliases():
         importable_types=[HARDWARE_TYPE],
     )
 
-    mapped = {p.column_name: p.proposed_property for p in proposals if p.proposed_property}
+    mapped = {
+        p.column_name: p.proposed_property for p in proposals if p.proposed_property
+    }
     assert mapped.get("HW Mark") == "mark"
     assert mapped.get("MFR") == "manufacturer"
 

@@ -141,7 +141,8 @@ async def test_create_type_definition_creates_item_and_connection(db_session, fi
     from app.services.dynamic_types import create_type_definition
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
     )
@@ -174,7 +175,8 @@ async def test_create_type_rejects_os_collision(db_session, firm):
 
     with pytest.raises(ValueError, match="OS type"):
         await create_type_definition(
-            db_session, firm.id,
+            db_session,
+            firm.id,
             type_name="conflict",
             label="Conflict",
         )
@@ -186,14 +188,16 @@ async def test_create_type_rejects_duplicate(db_session, firm):
     from app.services.dynamic_types import create_type_definition
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
     )
 
     with pytest.raises(ValueError, match="already exists"):
         await create_type_definition(
-            db_session, firm.id,
+            db_session,
+            firm.id,
             type_name="hardware_set",
             label="Hardware Set 2",
         )
@@ -205,7 +209,8 @@ async def test_create_type_defaults(db_session, firm):
     from app.services.dynamic_types import create_type_definition
 
     tc = await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="curtain_wall",
         label="Curtain Wall",
     )
@@ -236,7 +241,8 @@ async def test_get_firm_types_returns_created_types(db_session, firm):
     from app.services.dynamic_types import create_type_definition, get_firm_types
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
         property_defs=[{"name": "mark", "label": "Mark"}],
@@ -257,7 +263,8 @@ async def test_get_merged_registry_includes_os_and_firm_types(db_session, firm):
     from app.services.dynamic_types import create_type_definition, get_merged_registry
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
     )
@@ -303,16 +310,21 @@ async def test_merged_registry_os_wins_collision(db_session, firm):
 @pytest.mark.asyncio
 async def test_update_type_definition(db_session, firm):
     """Can update label and properties of a firm type."""
-    from app.services.dynamic_types import create_type_definition, update_type_definition
+    from app.services.dynamic_types import (
+        create_type_definition,
+        update_type_definition,
+    )
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
     )
 
     tc = await update_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Sets (Updated)",
         property_defs=[{"name": "series", "label": "Series"}],
@@ -330,7 +342,8 @@ async def test_update_rejects_os_type(db_session, firm):
 
     with pytest.raises(ValueError, match="OS type"):
         await update_type_definition(
-            db_session, firm.id,
+            db_session,
+            firm.id,
             type_name="milestone",
             label="My Milestone",
         )
@@ -342,10 +355,15 @@ async def test_update_rejects_os_type(db_session, firm):
 @pytest.mark.asyncio
 async def test_delete_type_definition(db_session, firm):
     """Can delete a firm type definition."""
-    from app.services.dynamic_types import create_type_definition, delete_type_definition, get_firm_types
+    from app.services.dynamic_types import (
+        create_type_definition,
+        delete_type_definition,
+        get_firm_types,
+    )
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
     )
@@ -368,10 +386,14 @@ async def test_delete_rejects_os_type(db_session, firm):
 @pytest.mark.asyncio
 async def test_delete_rejects_if_items_exist(db_session, firm):
     """Cannot delete a type if items of that type exist."""
-    from app.services.dynamic_types import create_type_definition, delete_type_definition
+    from app.services.dynamic_types import (
+        create_type_definition,
+        delete_type_definition,
+    )
 
     await create_type_definition(
-        db_session, firm.id,
+        db_session,
+        firm.id,
         type_name="hardware_set",
         label="Hardware Set",
     )
@@ -449,15 +471,18 @@ async def test_seed_preserves_properties(db_session, firm):
 @pytest.mark.asyncio
 async def test_api_create_type(client):
     """POST /v1/types creates a type definition for the user's firm."""
-    response = await client.post("/api/v1/types", json={
-        "type_name": "hardware_set",
-        "label": "Hardware Set",
-        "plural_label": "Hardware Sets",
-        "property_defs": [
-            {"name": "mark", "label": "Mark", "required": True},
-            {"name": "manufacturer", "label": "Manufacturer"},
-        ],
-    })
+    response = await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "hardware_set",
+            "label": "Hardware Set",
+            "plural_label": "Hardware Sets",
+            "property_defs": [
+                {"name": "mark", "label": "Mark", "required": True},
+                {"name": "manufacturer", "label": "Manufacturer"},
+            ],
+        },
+    )
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "hardware_set"
@@ -468,19 +493,25 @@ async def test_api_create_type(client):
 @pytest.mark.asyncio
 async def test_api_create_type_validation(client):
     """POST /v1/types with missing required fields returns 422."""
-    response = await client.post("/api/v1/types", json={
-        "label": "Missing Type Name",
-    })
+    response = await client.post(
+        "/api/v1/types",
+        json={
+            "label": "Missing Type Name",
+        },
+    )
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_api_create_type_os_collision(client):
     """POST /v1/types with OS type name returns 409."""
-    response = await client.post("/api/v1/types", json={
-        "type_name": "conflict",
-        "label": "Conflict",
-    })
+    response = await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "conflict",
+            "label": "Conflict",
+        },
+    )
     assert response.status_code == 409
 
 
@@ -488,10 +519,13 @@ async def test_api_create_type_os_collision(client):
 async def test_api_list_types_merged(client):
     """GET /v1/types returns OS types + firm types merged."""
     # Create a firm type first
-    await client.post("/api/v1/types", json={
-        "type_name": "hardware_set",
-        "label": "Hardware Set",
-    })
+    await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "hardware_set",
+            "label": "Hardware Set",
+        },
+    )
 
     response = await client.get("/api/v1/types")
     assert response.status_code == 200
@@ -510,10 +544,13 @@ async def test_api_list_types_merged(client):
 @pytest.mark.asyncio
 async def test_api_get_single_type(client):
     """GET /v1/types/{type_name} returns a single type config."""
-    await client.post("/api/v1/types", json={
-        "type_name": "hardware_set",
-        "label": "Hardware Set",
-    })
+    await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "hardware_set",
+            "label": "Hardware Set",
+        },
+    )
 
     response = await client.get("/api/v1/types/hardware_set")
     assert response.status_code == 200
@@ -542,15 +579,21 @@ async def test_api_get_single_type_404(client):
 @pytest.mark.asyncio
 async def test_api_update_type(client):
     """PATCH /v1/types/{type_name} updates a firm type."""
-    await client.post("/api/v1/types", json={
-        "type_name": "hardware_set",
-        "label": "Hardware Set",
-    })
+    await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "hardware_set",
+            "label": "Hardware Set",
+        },
+    )
 
-    response = await client.patch("/api/v1/types/hardware_set", json={
-        "label": "Hardware Sets (Updated)",
-        "property_defs": [{"name": "series", "label": "Series"}],
-    })
+    response = await client.patch(
+        "/api/v1/types/hardware_set",
+        json={
+            "label": "Hardware Sets (Updated)",
+            "property_defs": [{"name": "series", "label": "Series"}],
+        },
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["label"] == "Hardware Sets (Updated)"
@@ -560,19 +603,25 @@ async def test_api_update_type(client):
 @pytest.mark.asyncio
 async def test_api_update_os_type_rejected(client):
     """PATCH /v1/types/{type_name} for an OS type returns 403."""
-    response = await client.patch("/api/v1/types/milestone", json={
-        "label": "My Milestone",
-    })
+    response = await client.patch(
+        "/api/v1/types/milestone",
+        json={
+            "label": "My Milestone",
+        },
+    )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_api_delete_type(client):
     """DELETE /v1/types/{type_name} removes a firm type."""
-    await client.post("/api/v1/types", json={
-        "type_name": "hardware_set",
-        "label": "Hardware Set",
-    })
+    await client.post(
+        "/api/v1/types",
+        json={
+            "type_name": "hardware_set",
+            "label": "Hardware Set",
+        },
+    )
 
     response = await client.delete("/api/v1/types/hardware_set")
     assert response.status_code == 204

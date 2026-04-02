@@ -263,7 +263,9 @@ def detect_target_type(
     # Also keep lowercased raw headers for label matching
     lower_headers = [h.lower().strip() for h in headers]
 
-    types_to_check = importable_types if importable_types is not None else get_importable_types()
+    types_to_check = (
+        importable_types if importable_types is not None else get_importable_types()
+    )
     if not types_to_check:
         return ("", 0.0, {})
 
@@ -602,7 +604,9 @@ def propose_mapping(
 
     # Step 3: Detect target type
     target_type, type_confidence, _ = detect_target_type(
-        headers, user_aliases, importable_types=importable_types,
+        headers,
+        user_aliases,
+        importable_types=importable_types,
     )
 
     # Step 4: Detect identifier column
@@ -613,7 +617,10 @@ def propose_mapping(
     # Step 5: Build property mapping
     if target_type:
         column_proposals = build_property_mapping(
-            headers, target_type, user_aliases, importable_types=importable_types,
+            headers,
+            target_type,
+            user_aliases,
+            importable_types=importable_types,
         )
     else:
         column_proposals = [
