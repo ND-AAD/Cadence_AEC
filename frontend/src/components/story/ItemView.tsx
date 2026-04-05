@@ -629,6 +629,7 @@ export function ItemView({
                     change={change}
                     fromContextName={fromContextName}
                     toContextName={toContextName}
+                    unit={entry.unit}
                     onAcknowledge={
                       !isAcknowledgedFallback
                         ? () => handleAcknowledge(

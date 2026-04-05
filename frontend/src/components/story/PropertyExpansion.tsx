@@ -1,18 +1,11 @@
 // ─── Property Expansion ───────────────────────────────────────────
 // Expandable detail panel for a property change (cairn gesture).
 // DS-2 §4: Row body click expands in-place to show change detail.
-//
-// Layout:
-//   CHANGE · NEEDS REVIEW · [from] → [to]
-//   [from context]   [old value]     (text-trace)
-//   [to context]     [new value]     (pencil-ink)
-//   [affected item]  [identifier]    › (navigable)
-//   [Acknowledge]  [Hold]
-//
-// FE-2 MVP: Acknowledge marks in-memory only.
-// Backend persistence (POST /items/{id}/acknowledge) is a separate task.
 
 import type { PropertyChange } from "@/api/comparison";
+
+/** Conversion factors from canonical mm to display units. */
+const MM_TO: Record<string, number> = { in: 25.4, ft: 304.8 };
 
 interface PropertyExpansionProps {
   /** The property key/name. */
@@ -23,6 +16,8 @@ interface PropertyExpansionProps {
   fromContextName: string;
   /** Display name for the "to" context. */
   toContextName: string;
+  /** Display unit for value conversion (e.g., "in" for inches). */
+  unit?: string | null;
   /** Called when user acknowledges the change. */
   onAcknowledge?: () => void;
   /** Called when user wants to hold/defer the change. */
@@ -31,8 +26,18 @@ interface PropertyExpansionProps {
   onNavigateToItem?: (itemId: string) => void;
 }
 
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, unit?: string | null): string {
   if (value === null || value === undefined) return "—";
+
+  if (unit && unit in MM_TO) {
+    const num = Number(value);
+    if (!isNaN(num) && num !== 0) {
+      const converted = num / MM_TO[unit];
+      const rounded = Math.round(converted * 100) / 100;
+      return `${rounded} ${unit}`;
+    }
+  }
+
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return JSON.stringify(value);
@@ -43,6 +48,7 @@ export function PropertyExpansion({
   change,
   fromContextName,
   toContextName,
+  unit,
   onAcknowledge,
   onHold,
 }: PropertyExpansionProps) {
@@ -66,13 +72,13 @@ export function PropertyExpansion({
         <div className="grid grid-cols-[100px_1fr] gap-x-3 items-baseline">
           <span className="text-xs text-trace truncate">{fromContextName}</span>
           <span className="text-sm text-trace font-mono">
-            {formatValue(change.old_value)}
+            {formatValue(change.old_value, unit)}
           </span>
         </div>
         <div className="grid grid-cols-[100px_1fr] gap-x-3 items-baseline">
           <span className="text-xs text-pencil-ink truncate">{toContextName}</span>
           <span className="text-sm text-pencil-ink font-medium font-mono">
-            {formatValue(change.new_value)}
+            {formatValue(change.new_value, unit)}
           </span>
         </div>
       </div>
