@@ -645,7 +645,10 @@ async def run_import(
                         },
                         "from_context": str(prior_context.id),
                         "to_context": str(time_context.id),
+                        "from_context_name": prior_context.identifier,
+                        "to_context_name": time_context.identifier,
                         "source": str(source_item.id),
+                        "source_name": source_item.identifier,
                         "affected_item": str(matched_item.id),
                     },
                 )
@@ -730,7 +733,10 @@ async def run_import(
                         "changes": changes,
                         "from_context": str(prior_context.id),
                         "to_context": str(time_context.id),
+                        "from_context_name": prior_context.identifier,
+                        "to_context_name": time_context.identifier,
                         "source": str(source_item.id),
+                        "source_name": source_item.identifier,
                         "affected_item": str(matched_item.id),
                     },
                 )
@@ -748,7 +754,10 @@ async def run_import(
                         "changes": changes,
                         "from_context": str(prior_context.id),
                         "to_context": str(time_context.id),
+                        "from_context_name": prior_context.identifier,
+                        "to_context_name": time_context.identifier,
                         "source": str(source_item.id),
+                        "source_name": source_item.identifier,
                         "affected_item": str(matched_item.id),
                     },
                 )

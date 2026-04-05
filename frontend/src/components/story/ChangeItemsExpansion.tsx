@@ -2,9 +2,6 @@
 // Lazy-loaded expansion for property rows with workflow change items.
 // Fetches change item(s) by ID on mount, renders old → new values
 // with context labels. Each change item is navigable (page turn).
-//
-// This component is rendered inside a PropertyRow expansion when
-// workflow.change_ids exist but comparison mode is not active.
 
 import { useState, useEffect } from "react";
 import { getItems } from "@/api/items";
@@ -14,6 +11,8 @@ interface ChangeItemsExpansionProps {
   changeIds: string[];
   /** Property name this expansion is for (to filter relevant changes). */
   propertyName: string;
+  /** Display unit for value conversion (e.g., "in" for inches). */
+  unit?: string | null;
   /** Navigation callback — click a change item to page-turn to Surface 2. */
   onNavigate: (itemId: string) => void;
   /** Acknowledge a change by its item ID. */
@@ -29,9 +28,29 @@ interface ChangeDetail {
   source: string | null;
 }
 
+/** Conversion factors from canonical mm to display units. */
+const MM_TO: Record<string, number> = { in: 25.4, ft: 304.8 };
+
+function formatVal(value: unknown, unit?: string | null): string {
+  if (value === null || value === undefined) return "—";
+
+  // Try numeric conversion for dimension properties stored in mm
+  if (unit && unit in MM_TO) {
+    const num = Number(value);
+    if (!isNaN(num) && num !== 0) {
+      const converted = num / MM_TO[unit];
+      const rounded = Math.round(converted * 100) / 100;
+      return `${rounded} ${unit}`;
+    }
+  }
+
+  return String(value);
+}
+
 export function ChangeItemsExpansion({
   changeIds,
   propertyName,
+  unit,
   onNavigate,
   onAcknowledge,
 }: ChangeItemsExpansionProps) {
@@ -55,41 +74,36 @@ export function ChangeItemsExpansion({
         const details: ChangeDetail[] = [];
         for (const item of items) {
           const props = item.properties ?? {};
-          // The change item's "changes" dict maps property_name → { old, new }
           const changesDict = props.changes as Record<string, { old: unknown; new: unknown }> | undefined;
 
           if (changesDict && propertyName in changesDict) {
-            // This change item has data for our specific property
             details.push({
               id: item.id,
               oldValue: changesDict[propertyName].old,
               newValue: changesDict[propertyName].new,
-              fromContext: props.from_context_name as string | null ?? null,
-              toContext: props.to_context_name as string | null ?? null,
-              source: props.source_name as string | null ?? null,
+              fromContext: (props.from_context_name as string) ?? null,
+              toContext: (props.to_context_name as string) ?? null,
+              source: (props.source_name as string) ?? null,
             });
           } else if (changesDict) {
-            // Change item exists but doesn't have this specific property —
-            // show all changed properties from this item
             for (const [, vals] of Object.entries(changesDict)) {
               details.push({
                 id: item.id,
                 oldValue: vals.old,
                 newValue: vals.new,
-                fromContext: props.from_context_name as string | null ?? null,
-                toContext: props.to_context_name as string | null ?? null,
-                source: props.source_name as string | null ?? null,
+                fromContext: (props.from_context_name as string) ?? null,
+                toContext: (props.to_context_name as string) ?? null,
+                source: (props.source_name as string) ?? null,
               });
             }
           } else {
-            // Fallback: use top-level previous_value / new_value
             details.push({
               id: item.id,
               oldValue: props.previous_value ?? null,
               newValue: props.new_value ?? null,
-              fromContext: props.from_context_name as string | null ?? null,
-              toContext: props.to_context_name as string | null ?? null,
-              source: props.source_name as string | null ?? null,
+              fromContext: (props.from_context_name as string) ?? null,
+              toContext: (props.to_context_name as string) ?? null,
+              source: (props.source_name as string) ?? null,
             });
           }
         }
@@ -138,14 +152,14 @@ export function ChangeItemsExpansion({
           <div className="flex items-center gap-2 min-w-0 text-sm">
             {/* Old value */}
             <span className="font-mono text-trace">
-              {formatVal(change.oldValue)}
+              {formatVal(change.oldValue, unit)}
             </span>
             <span className="text-trace text-xs">→</span>
             {/* New value */}
             <span className="font-mono text-pencil-ink">
-              {formatVal(change.newValue)}
+              {formatVal(change.newValue, unit)}
             </span>
-            {/* Context labels if available */}
+            {/* Context labels */}
             {(change.fromContext || change.toContext) && (
               <span className="text-xs text-trace ml-1">
                 {change.fromContext ?? "?"} → {change.toContext ?? "?"}
@@ -162,7 +176,6 @@ export function ChangeItemsExpansion({
                 Acknowledge
               </button>
             )}
-            {/* Navigate to change item (Surface 2) */}
             <button
               type="button"
               onClick={() => onNavigate(change.id)}
@@ -175,9 +188,4 @@ export function ChangeItemsExpansion({
       ))}
     </div>
   );
-}
-
-function formatVal(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  return String(value);
 }

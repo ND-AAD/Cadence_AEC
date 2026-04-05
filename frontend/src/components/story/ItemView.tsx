@@ -592,6 +592,7 @@ export function ItemView({
                   <ChangeItemsExpansion
                     changeIds={changeIds}
                     propertyName={entry.key}
+                    unit={entry.unit}
                     onNavigate={onNavigate}
                     onAcknowledge={async (changeItemId) => {
                       try {
