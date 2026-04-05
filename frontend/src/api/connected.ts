@@ -8,6 +8,8 @@ export interface ConnectedItemsOptions {
   direction?: "outgoing" | "incoming" | "both";
   types?: string[];
   exclude?: string[];
+  /** Milestone context UUID — action_counts only include workflow items at or before this milestone. */
+  context?: string;
 }
 
 /**
@@ -28,6 +30,9 @@ export async function getConnectedItems(
   }
   if (options?.exclude && options.exclude.length > 0) {
     params.set("exclude", options.exclude.join(","));
+  }
+  if (options?.context) {
+    params.set("context", options.context);
   }
 
   const query = params.toString();

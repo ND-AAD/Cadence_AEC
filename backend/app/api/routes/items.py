@@ -409,6 +409,10 @@ async def get_connected_items(
     exclude: str | None = Query(
         None, description="Comma-separated UUIDs to exclude (breadcrumb ancestors)"
     ),
+    context: str | None = Query(
+        None,
+        description="Milestone context UUID — action_counts only include workflow items at or before this milestone ordinal",
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -433,6 +437,32 @@ async def get_connected_items(
     project_id = await get_project_for_item(db, item_id)
     if project_id:
         await require_project_access(db, project_id, current_user)
+
+    # Resolve context ordinal for action_counts filtering.
+    # When a context milestone is provided, workflow items at later milestones
+    # are excluded from pip counts (they haven't happened yet at this context).
+    context_ordinal: int | None = None
+    context_ordinal_map: dict[str, int] = {}
+    if context:
+        try:
+            ctx_uuid = uuid.UUID(context)
+            ctx_result = await db.execute(select(Item).where(Item.id == ctx_uuid))
+            ctx_item = ctx_result.scalar_one_or_none()
+            if ctx_item and ctx_item.properties:
+                context_ordinal = int(ctx_item.properties.get("ordinal", 0))
+        except (ValueError, TypeError):
+            pass
+        # Build a map of milestone UUID string → ordinal for quick lookup
+        if project_id:
+            milestones_result = await db.execute(
+                select(Item)
+                .join(Connection, Connection.target_item_id == Item.id)
+                .where(Connection.source_item_id == project_id)
+                .where(Item.item_type.in_(["milestone", "issuance"]))
+            )
+            for m in milestones_result.scalars().all():
+                if m.properties:
+                    context_ordinal_map[str(m.id)] = int(m.properties.get("ordinal", 0))
 
     # Parse exclusion list
     exclude_ids: set[uuid.UUID] = set()
@@ -538,8 +568,10 @@ async def get_connected_items(
         action_result.scalar() or 0
 
         # Count active changes and conflicts separately.
-        # Exclude acknowledged changes and resolved conflicts — they're no
-        # longer active workflow items and shouldn't produce pips.
+        # Exclude acknowledged changes and resolved conflicts.
+        # When a context is provided, also exclude workflow items whose
+        # context (to_context for changes, snapshot context for conflicts)
+        # is AFTER the viewing milestone ordinal.
         workflow_items_result = await db.execute(
             select(Item)
             .join(Connection, Connection.source_item_id == Item.id)
@@ -548,17 +580,31 @@ async def get_connected_items(
         )
         workflow_items = workflow_items_result.scalars().all()
 
+        def _is_at_or_before_context(wi: Item) -> bool:
+            """Check if a workflow item's context is at or before the viewing context."""
+            if context_ordinal is None:
+                return True
+            # For changes: check to_context ordinal
+            to_ctx_id = (wi.properties or {}).get("to_context")
+            if to_ctx_id and to_ctx_id in context_ordinal_map:
+                return context_ordinal_map[to_ctx_id] <= context_ordinal
+            # For conflicts: check if any connected milestone is at or before
+            # Fall back to True if we can't determine
+            return True
+
         changes_count = sum(
             1
             for wi in workflow_items
             if wi.item_type == "change"
             and (wi.properties or {}).get("status", "").upper() != "ACKNOWLEDGED"
+            and _is_at_or_before_context(wi)
         )
         conflicts_count = sum(
             1
             for wi in workflow_items
             if wi.item_type == "conflict"
             and (wi.properties or {}).get("status", "").lower() != "resolved"
+            and _is_at_or_before_context(wi)
         )
 
         grouped[ci.item_type].append(

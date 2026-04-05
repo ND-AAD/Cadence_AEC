@@ -203,7 +203,7 @@ function AppShellContent() {
   const { item: currentItem, loading: itemLoading, error: itemError, retry: refreshItem } =
     useCurrentItem(currentItemId);
   const { data: connectedData, loading: connectedLoading, retry: refreshConnected } =
-    useConnectedItems(currentItemId);
+    useConnectedItems(currentItemId, { context: breadcrumbMilestoneId ?? undefined });
   const { data: parentConnectedData } =
     useConnectedItems(parentItemId);
   // Project root connections — always available for milestone derivation.

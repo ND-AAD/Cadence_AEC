@@ -659,7 +659,7 @@ export function ItemView({
                     }}
                   />
                 );
-              } else if (entry.resolved && Object.keys(entry.resolved.sources).length > 0) {
+              } else if (!expansionContent && entry.resolved && Object.keys(entry.resolved.sources).length > 0) {
                 // Silent (aligned) with sources → SilentExpansion
                 expansionContent = (
                   <SilentExpansion

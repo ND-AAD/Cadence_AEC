@@ -54,7 +54,7 @@ export function useConnectedItems(
     })();
 
     return () => { cancelled = true; };
-  }, [itemId, retryCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemId, options?.context, retryCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const retry = () => setRetryCount((c) => c + 1);
 
