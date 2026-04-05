@@ -58,7 +58,9 @@ export function PropertyExpansion({
       <div className="flex items-center gap-2 text-xs">
         <span className="font-mono uppercase text-pencil-ink">{propertyName}</span>
         <span className="text-trace">·</span>
-        <span className="font-mono uppercase text-pencil">Needs Review</span>
+        <span className={`font-mono uppercase ${onAcknowledge ? "text-pencil" : "text-stamp"}`}>
+          {onAcknowledge ? "Needs Review" : "Accepted"}
+        </span>
         <span className="text-trace">·</span>
         <span className="text-graphite">
           {fromContextName}

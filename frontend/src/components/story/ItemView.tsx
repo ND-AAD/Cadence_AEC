@@ -370,11 +370,9 @@ export function ItemView({
               // Determine the effective workflow status for this property.
               // Quiet mode: suppress all workflow visual treatment — just show values.
               // Resolved in quiet mode: show the resolved value as the settled answer.
-              // Acknowledged changes should not show "changed" visual treatment.
-              const changeAcknowledged = isChanged && !hasWorkflowChanges && entry.resolved?.workflow;
               const rowStatus: PropertyStatus = isQuiet
                 ? "aligned"
-                : isChanged && !isAcknowledgedFallback && !changeAcknowledged
+                : isChanged && !isAcknowledgedFallback
                   ? "changed"
                   : entry.status;
 
