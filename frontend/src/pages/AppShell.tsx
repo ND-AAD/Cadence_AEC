@@ -638,13 +638,26 @@ function AppShellContent() {
       );
     } else if (itemType === "change") {
       // Change workflow item → ChangeItemView (Surface 2)
+      // Change items store data in a "changes" dict, not top-level fields.
       const changeProps = currentItem.properties ?? {};
+      const changesDict = changeProps.changes as Record<string, { old: unknown; new: unknown }> | undefined;
+      // If there's a single property changed, extract it. Otherwise show "multiple".
+      const changedKeys = changesDict ? Object.keys(changesDict) : [];
+      const singleProp = changedKeys.length === 1 ? changedKeys[0] : undefined;
+      const displayPropName = (changeProps.property_name as string)
+        ?? singleProp
+        ?? (changedKeys.length > 1 ? `${changedKeys.length} properties` : "Property");
+      const oldVal = singleProp && changesDict ? String(changesDict[singleProp].old ?? "—") : undefined;
+      const newVal = singleProp && changesDict ? String(changesDict[singleProp].new ?? "—") : undefined;
       storyContent = (
         <ChangeItemView
           item={currentItem}
-          propertyName={changeProps.property_name as string | undefined}
-          oldValue={changeProps.previous_value as string | undefined}
-          newValue={changeProps.new_value as string | undefined}
+          propertyName={displayPropName}
+          fromContextName={changeProps.from_context_name as string | undefined}
+          toContextName={changeProps.to_context_name as string | undefined}
+          oldValue={oldVal ?? (changeProps.previous_value as string | undefined)}
+          newValue={newVal ?? (changeProps.new_value as string | undefined)}
+          sourceName={changeProps.source_name as string | undefined}
           onNavigate={handleNavigate}
           onWorkflowAction={handleWorkflowAction}
           userName={user?.name ?? ""}
