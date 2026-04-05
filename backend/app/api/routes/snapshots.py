@@ -269,7 +269,7 @@ async def get_effective_value(
 # ─── Resolved View ────────────────────────────────────────────
 
 
-@router.get("/item/{item_id}/resolved", response_model=ResolvedView)
+@router.get("/item/{item_id}/resolved")  # response_model temporarily removed for debug
 async def get_resolved_view(
     item_id: uuid.UUID,
     context: uuid.UUID | None = Query(
