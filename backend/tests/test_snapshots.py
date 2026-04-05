@@ -1187,3 +1187,72 @@ async def test_resolved_view_invalid_mode_returns_400(client):
     )
     assert resp.status_code == 400
     assert "mode" in resp.json()["detail"].lower()
+
+
+# ─── Workflow Discovery for Changes ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_resolved_view_includes_change_ids(
+    client, db_session, make_item, make_connection
+):
+    """Resolved properties should include change_ids when change items are connected."""
+    from app.models.core import Snapshot
+
+    # Setup: project → schedule → door, with two milestones
+    project = await make_item("project", "Test Project")
+    schedule = await make_item("schedule", "Door Schedule")
+    await make_connection(project, schedule)
+    milestone_sd = await make_item("milestone", "SD", {"ordinal": 200})
+    milestone_dd = await make_item("milestone", "DD", {"ordinal": 300})
+    await make_connection(project, milestone_sd)
+    await make_connection(project, milestone_dd)
+
+    door = await make_item("door", "101")
+    await make_connection(schedule, door)
+
+    # Create snapshots at SD and DD with different height
+    snap_sd = Snapshot(
+        item_id=door.id,
+        context_id=milestone_sd.id,
+        source_id=schedule.id,
+        properties={"height": "80"},
+    )
+    snap_dd = Snapshot(
+        item_id=door.id,
+        context_id=milestone_dd.id,
+        source_id=schedule.id,
+        properties={"height": "84"},
+    )
+    db_session.add_all([snap_sd, snap_dd])
+    await db_session.flush()
+
+    # Create a change item connected to the door (change → door)
+    change = await make_item(
+        "change",
+        "height change",
+        {
+            "changes": {"height": {"old": "80", "new": "84"}},
+            "status": "DETECTED",
+        },
+    )
+    await make_connection(change, door)
+
+    # Query resolved properties at DD
+    response = await client.get(
+        f"/api/v1/snapshots/item/{door.id}/resolved?mode=submitted&context={milestone_dd.id}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Find the height property
+    height_prop = next(
+        (p for p in data["properties"] if p["property_name"] == "height"),
+        None,
+    )
+    assert height_prop is not None, "height property not found in resolved view"
+    assert height_prop["workflow"] is not None, "workflow refs missing"
+    assert len(height_prop["workflow"]["change_ids"]) > 0, (
+        f"change_ids empty! workflow={height_prop['workflow']}"
+    )
+    assert height_prop["workflow"]["change_ids"][0] == str(change.id)
