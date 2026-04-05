@@ -370,9 +370,11 @@ export function ItemView({
               // Determine the effective workflow status for this property.
               // Quiet mode: suppress all workflow visual treatment — just show values.
               // Resolved in quiet mode: show the resolved value as the settled answer.
+              // Acknowledged changes should not show "changed" visual treatment.
+              const changeAcknowledged = isChanged && !hasWorkflowChanges && entry.resolved?.workflow;
               const rowStatus: PropertyStatus = isQuiet
                 ? "aligned"
-                : isChanged && !isAcknowledgedFallback
+                : isChanged && !isAcknowledgedFallback && !changeAcknowledged
                   ? "changed"
                   : entry.status;
 
@@ -380,7 +382,12 @@ export function ItemView({
               // DS-2: filled = present (at current context), hollow = adjacent (different context).
               // Quiet mode: no pips at all — user asked for silence.
               const pips: PipData[] = [];
-              if (!isQuiet && ((isChanged && !isAcknowledgedFallback) || hasWorkflowChanges)) {
+              // Show change pip only for active (unacknowledged) changes.
+              // hasWorkflowChanges = true when change_ids is non-empty (unacknowledged).
+              // For comparison-detected changes without workflow data, use fallback.
+              const hasActiveChange = hasWorkflowChanges
+                || (isChanged && !isAcknowledgedFallback && !entry.resolved?.workflow);
+              if (!isQuiet && hasActiveChange) {
                 pips.push({
                   key: "change",
                   filled: hasWorkflowChanges || (comparisonActive && isChanged),
@@ -623,6 +630,9 @@ export function ItemView({
 
               if (!expansionContent && isChanged && change) {
                 // Active change → PropertyExpansion (existing)
+                // Show acknowledge only if the change hasn't been acknowledged yet.
+                // hasWorkflowChanges is false when change_ids is empty (acknowledged).
+                const showAcknowledge = hasWorkflowChanges && !isAcknowledgedFallback;
                 expansionContent = (
                   <PropertyExpansion
                     propertyName={entry.label}
@@ -631,7 +641,7 @@ export function ItemView({
                     toContextName={toContextName}
                     unit={entry.unit}
                     onAcknowledge={
-                      !isAcknowledgedFallback
+                      showAcknowledge
                         ? () => handleAcknowledge(
                             entry.key,
                             entry.resolved?.workflow?.change_ids?.[0] ?? undefined,
