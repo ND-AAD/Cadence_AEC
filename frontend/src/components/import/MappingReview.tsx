@@ -5,14 +5,14 @@ import type { ColumnProposal, ProposedMappingResponse } from "@/api/import";
 
 interface MappingReviewProps {
   proposal: ProposedMappingResponse;
-  onConfirm: (corrections: Record<string, string | null>) => void;
+  onConfirm: (corrections: Record<string, string | null>, targetType?: string) => void;
   onCancel: () => void;
   /** Re-run analysis after creating a new type. */
   onReanalyze?: () => void;
 }
 
 export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: MappingReviewProps) {
-  const { getType, refresh: refreshTypes } = useTypeRegistry();
+  const { registry, getType, refresh: refreshTypes } = useTypeRegistry();
   const [showCreateType, setShowCreateType] = useState(false);
   const [corrections, setCorrections] = useState<Record<string, string | null>>({});
   const [editing, setEditing] = useState<Set<string>>(new Set());
@@ -56,7 +56,8 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
   }
 
   function handleConfirm() {
-    onConfirm(corrections);
+    const typeOverride = selectedType !== proposal.target_item_type ? selectedType : undefined;
+    onConfirm(corrections, typeOverride);
   }
 
   const proposedColumnNames = new Set(proposal.columns.map((c) => c.column_name));
@@ -96,14 +97,52 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
     );
   }
 
+  // Build list of importable types for the type selector
+  const allTypes = registry
+    ? Object.entries(registry)
+        .filter(([, tc]) => tc.category === "spatial")
+        .map(([name, tc]) => ({ name, label: tc.label }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    : [];
+
+  const [selectedType, setSelectedType] = useState(proposal.target_item_type);
+
+  // When the user changes the target type, update the property options
+  const activeTypeConfig = getType(selectedType);
+  const activePropertyOptions = activeTypeConfig?.properties ?? propertyOptions;
+
+  function handleTypeChange(newType: string) {
+    setSelectedType(newType);
+    // Clear all corrections since the property set changed
+    setCorrections({});
+    setCustomInputs(new Set());
+    setCustomValues({});
+  }
+
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-ink mb-1">Column Mapping Review</h3>
-        <p className="text-xs text-graphite">
-          We detected columns of <span className="font-mono">{proposal.target_item_type}</span> data.
-          Here's how we mapped your columns:
-        </p>
+        <div className="flex items-center gap-2 text-xs text-graphite">
+          <span>Data type:</span>
+          <select
+            value={selectedType}
+            onChange={(e) => handleTypeChange(e.target.value)}
+            className="px-2 py-1 text-sm font-mono bg-sheet border border-rule text-ink
+                       focus:outline-none focus:border-ink transition-colors"
+          >
+            {allTypes.map((t) => (
+              <option key={t.name} value={t.name}>{t.label}</option>
+            ))}
+            {/* Ensure current type is always in the list even if not spatial */}
+            {!allTypes.some((t) => t.name === proposal.target_item_type) && (
+              <option value={proposal.target_item_type}>{proposal.target_item_type}</option>
+            )}
+          </select>
+          <span className="text-trace">
+            ({Math.round(proposal.overall_confidence * 100)}% confidence)
+          </span>
+        </div>
       </div>
 
       {/* Low confidence prompt */}
@@ -198,7 +237,7 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
                     {col.proposed_property && (
                       <option value={col.proposed_property}>{col.proposed_property}</option>
                     )}
-                    {propertyOptions
+                    {activePropertyOptions
                       .filter((p) => p.name !== col.proposed_property)
                       .map((p) => (
                         <option key={p.name} value={p.name}>

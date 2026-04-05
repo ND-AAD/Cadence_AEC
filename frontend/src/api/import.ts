@@ -71,10 +71,14 @@ export async function analyzeFile(
 export async function confirmMapping(
   proposalId: string,
   corrections: Record<string, string | null>,
+  targetTypeOverride?: string,
 ): Promise<MappingConfirmResponse> {
   return apiPost<MappingConfirmResponse>(
     `/v1/import/analyze/${proposalId}/confirm`,
-    { corrections },
+    {
+      corrections,
+      ...(targetTypeOverride ? { target_item_type: targetTypeOverride } : {}),
+    },
   );
 }
 

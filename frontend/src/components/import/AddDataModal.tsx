@@ -156,9 +156,9 @@ export function AddDataModal({
                   setPhase("error");
                 }
               }}
-              onConfirm={async (corrections) => {
+              onConfirm={async (corrections, targetType) => {
                 try {
-                  const confirmed = await confirmMapping(proposal.proposal_id, corrections);
+                  const confirmed = await confirmMapping(proposal.proposal_id, corrections, targetType);
                   // Now run the actual import
                   if (!file || !source || !milestone) return;
                   setPhase("progress");
