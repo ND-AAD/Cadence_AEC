@@ -2,10 +2,8 @@
 // Fetches all three dashboard endpoints in parallel.
 // Returns combined health, import summary, and directive status data
 // for the exec summary dock.
-//
-// Follows the useCurrentItem pattern: useState + useEffect + cancellation.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getProjectHealth, getImportSummary, getDirectiveStatus } from "@/api/dashboard";
 import type {
   ProjectHealthResponse,
@@ -19,6 +17,8 @@ export interface DashboardHealthResult {
   directiveStatus: DirectiveStatusResponse | null;
   loading: boolean;
   error: string | null;
+  /** Force a re-fetch (e.g. after import or workflow action). */
+  refresh: () => void;
 }
 
 export function useDashboardHealth(projectId?: string): DashboardHealthResult {
@@ -27,6 +27,7 @@ export function useDashboardHealth(projectId?: string): DashboardHealthResult {
   const [directiveStatus, setDirectiveStatus] = useState<DirectiveStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchCount, setFetchCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +36,6 @@ export function useDashboardHealth(projectId?: string): DashboardHealthResult {
 
     (async () => {
       try {
-        // Fetch all three endpoints in parallel.
         const [healthData, importData, directiveData] = await Promise.all([
           getProjectHealth(projectId),
           getImportSummary(projectId),
@@ -61,7 +61,11 @@ export function useDashboardHealth(projectId?: string): DashboardHealthResult {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, fetchCount]);
 
-  return { health, importSummary, directiveStatus, loading, error };
+  const refresh = useCallback(() => {
+    setFetchCount((c) => c + 1);
+  }, []);
+
+  return { health, importSummary, directiveStatus, loading, error, refresh };
 }

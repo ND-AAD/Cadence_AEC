@@ -343,6 +343,7 @@ function AppShellContent() {
     importSummary,
     directiveStatus,
     loading: dockLoading,
+    refresh: refreshDashboard,
   } = useDashboardHealth(projectId ?? undefined);
 
   // ─── Affected items for workflow perspective ───────────────────
@@ -472,7 +473,8 @@ function AppShellContent() {
   const handleWorkflowAction = useCallback(() => {
     refreshItem();
     refreshConnected();
-  }, [refreshItem, refreshConnected]);
+    refreshDashboard();
+  }, [refreshItem, refreshConnected, refreshDashboard]);
 
   // ─── Loading state ───────────────────────────────────────────────
 
@@ -768,8 +770,9 @@ function AppShellContent() {
           onClose={() => setAddDataOpen(false)}
           onImportComplete={() => {
             setAddDataOpen(false);
-            // Refresh connected items to update empty state → dashboard transition
+            // Refresh connected items + dashboard to update empty state and exec summary
             if (typeof refreshConnected === "function") refreshConnected();
+            refreshDashboard();
           }}
         />
       )}
