@@ -685,3 +685,60 @@ async def test_import_connections_direction(
         )
         target = target_result.scalar_one()
         assert target.item_type == "door"
+
+
+# ─── Cross-Project Isolation ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_match_item_scoped_to_project(db_session, make_item, make_connection):
+    """Items in different projects with the same identifier are distinct."""
+    from app.services.import_service import match_item
+
+    # Create two projects
+    project_a = await make_item("project", "Project A")
+    project_b = await make_item("project", "Project B")
+
+    # Create a door in Project A's graph
+    source_a = await make_item("schedule", "Schedule A")
+    await make_connection(project_a, source_a)
+    door_a = await make_item("door", "101")
+    await make_connection(source_a, door_a)
+
+    # Match "101" scoped to Project A → finds door_a
+    matched, confidence = await match_item(db_session, "101", "door", project_a.id)
+    assert matched is not None
+    assert matched.id == door_a.id
+    assert confidence == "exact"
+
+    # Match "101" scoped to Project B → no match (door_a isn't reachable)
+    matched_b, confidence_b = await match_item(db_session, "101", "door", project_b.id)
+    assert matched_b is None
+    assert confidence_b == "none"
+
+
+@pytest.mark.asyncio
+async def test_match_item_shared_building(db_session, make_item, make_connection):
+    """When two projects share a building, items under it are shared."""
+    from app.services.import_service import match_item
+
+    project_a = await make_item("project", "Project A")
+    project_b = await make_item("project", "Project B")
+
+    # Shared building connected to both projects
+    building = await make_item("building", "Building X")
+    await make_connection(project_a, building)
+    await make_connection(project_b, building)
+
+    # Door under the shared building
+    door = await make_item("door", "101")
+    await make_connection(building, door)
+
+    # Both projects can find the shared door
+    matched_a, _ = await match_item(db_session, "101", "door", project_a.id)
+    assert matched_a is not None
+    assert matched_a.id == door.id
+
+    matched_b, _ = await match_item(db_session, "101", "door", project_b.id)
+    assert matched_b is not None
+    assert matched_b.id == door.id

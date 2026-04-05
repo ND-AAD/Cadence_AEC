@@ -240,6 +240,35 @@ def parse_csv(
 # ─── Identifier Matching ──────────────────────────────────────
 
 
+async def _get_reachable_item_ids(
+    db: AsyncSession,
+    root_id: uuid.UUID,
+) -> set[uuid.UUID]:
+    """
+    Get all item IDs reachable from a root item through connections.
+
+    BFS traversal following outgoing connections (source → target).
+    The root item (e.g., a project) is the starting point; everything
+    connected transitively is considered "in scope."
+    """
+    visited: set[uuid.UUID] = set()
+    frontier = {root_id}
+
+    while frontier:
+        result = await db.execute(
+            select(Connection.target_item_id).where(
+                Connection.source_item_id.in_(frontier)
+            )
+        )
+        targets = {row[0] for row in result.all()}
+        new = targets - visited
+        visited.update(frontier)
+        frontier = new
+
+    visited.update(frontier)
+    return visited
+
+
 async def match_item(
     db: AsyncSession,
     raw_identifier: str,
@@ -249,14 +278,21 @@ async def match_item(
     """
     Match a raw identifier to an existing item.
 
+    When project_id is provided, matches are scoped to items reachable
+    from the project through the connection graph. This prevents
+    cross-project contamination when multiple projects track items
+    with the same identifier.
+
     Returns (item, confidence) where confidence is:
       - 'exact': identifier matches exactly
       - 'normalized': matches after stripping non-alphanumeric + lowering
       - 'none': no match found
-
-    Fuzzy matching (pg_trgm) is not available in SQLite tests,
-    so it's handled separately in the route layer for production.
     """
+    # Build the set of items reachable from the project
+    reachable: set[uuid.UUID] | None = None
+    if project_id:
+        reachable = await _get_reachable_item_ids(db, project_id)
+
     # 1. Exact match
     query = select(Item).where(
         and_(
@@ -265,14 +301,19 @@ async def match_item(
         )
     )
     result = await db.execute(query)
-    exact = result.scalar_one_or_none()
-    if exact:
-        return exact, "exact"
+    candidates = result.scalars().all()
+
+    for item in candidates:
+        if reachable is None or item.id in reachable:
+            return item, "exact"
 
     # 2. Normalized match: strip non-alphanumeric, lowercase
     normalized = _strip_to_alphanum(raw_identifier)
-    # Load all items of this type and compare normalized identifiers
-    all_items_result = await db.execute(select(Item).where(Item.item_type == item_type))
+
+    type_query = select(Item).where(Item.item_type == item_type)
+    if reachable is not None:
+        type_query = type_query.where(Item.id.in_(reachable))
+    all_items_result = await db.execute(type_query)
     all_items = all_items_result.scalars().all()
 
     for item in all_items:
