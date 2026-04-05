@@ -59,15 +59,18 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
     onConfirm(corrections);
   }
 
+  const proposedColumnNames = new Set(proposal.columns.map((c) => c.column_name));
   const allColumns = [
     ...proposal.columns,
-    ...proposal.unmatched_columns.map((name) => ({
-      column_name: name,
-      proposed_property: null,
-      confidence: 0,
-      match_method: "unmatched",
-      alternatives: [],
-    })),
+    ...proposal.unmatched_columns
+      .filter((name) => !proposedColumnNames.has(name))
+      .map((name) => ({
+        column_name: name,
+        proposed_property: null,
+        confidence: 0,
+        match_method: "unmatched",
+        alternatives: [],
+      })),
   ];
 
   const lowConfidence = proposal.overall_confidence < 0.5;
