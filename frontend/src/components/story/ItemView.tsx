@@ -371,7 +371,7 @@ export function ItemView({
               // Quiet mode: suppress all workflow visual treatment — just show values.
               // Resolved in quiet mode: show the resolved value as the settled answer.
               const rowStatus: PropertyStatus = isQuiet
-                ? (entry.status === "resolved" ? "resolved" : "aligned")
+                ? "aligned"
                 : isChanged && !isAcknowledgedFallback
                   ? "changed"
                   : entry.status;
@@ -486,6 +486,30 @@ export function ItemView({
                     value: (
                       <span className="font-mono text-base-size">
                         {formatValue(change.new_value, entry.unit)}
+                      </span>
+                    ),
+                    isOld: false,
+                  },
+                ];
+              } else if (comparisonActive && hasWorkflowChanges) {
+                // Workflow detected a change but comparison API didn't have it.
+                // Show effective_context hint or dash for old value.
+                const effectiveCtx = entry.resolved?.effective_context;
+                comparisonColumns = [
+                  {
+                    contextLabel: fromContextName,
+                    value: (
+                      <span className="font-mono text-base-size text-trace">
+                        {effectiveCtx ? formatValue(entry.value, entry.unit) : "—"}
+                      </span>
+                    ),
+                    isOld: true,
+                  },
+                  {
+                    contextLabel: toContextName,
+                    value: (
+                      <span className="font-mono text-base-size">
+                        {formatValue(entry.value, entry.unit)}
                       </span>
                     ),
                     isOld: false,
