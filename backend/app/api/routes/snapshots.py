@@ -660,7 +660,7 @@ async def get_resolved_view(
             identifier=context_item.identifier,
         )
 
-    return ResolvedView(
+    resolved_view = ResolvedView(
         item=ItemSummary(
             id=item.id, item_type=item.item_type, identifier=item.identifier
         ),
@@ -670,3 +670,12 @@ async def get_resolved_view(
         source_count=len(effective_by_source),
         snapshot_count=len(document_snapshots),
     )
+    # Temporary debug: include workflow discovery stats
+    result_dict = resolved_view.model_dump()
+    result_dict["_debug_workflow"] = {
+        "candidate_ids_count": len(candidate_ids),
+        "workflow_items_count": len(all_workflow_items),
+        "workflow_types_found": [wi.item_type for wi in all_workflow_items],
+        "indexed_properties": list(workflow_by_property.keys()),
+    }
+    return result_dict
