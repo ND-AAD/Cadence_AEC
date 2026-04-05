@@ -452,32 +452,32 @@ async def get_resolved_view(
     # they reference (stored in the workflow item's own properties).
     workflow_types = {"conflict", "change", "directive", "decision"}
 
-    # Workflow items connected TO this item (workflow → item pattern)
-    workflow_as_target = await db.execute(
-        select(Item)
-        .join(Connection, Connection.source_item_id == Item.id)
-        .where(
-            and_(
-                Connection.target_item_id == item_id,
-                Item.item_type.in_(workflow_types),
-            )
-        )
+    # Find workflow item IDs connected to this item (both directions).
+    # Using subqueries on connections then loading items avoids JOIN
+    # ambiguity issues across databases.
+    workflow_ids_as_source = await db.execute(
+        select(Connection.source_item_id).where(Connection.target_item_id == item_id)
     )
-    # Workflow items connected FROM this item (item → workflow, less common)
-    workflow_as_source = await db.execute(
-        select(Item)
-        .join(Connection, Connection.target_item_id == Item.id)
-        .where(
-            and_(
-                Connection.source_item_id == item_id,
-                Item.item_type.in_(workflow_types),
-            )
-        )
+    workflow_ids_as_target = await db.execute(
+        select(Connection.target_item_id).where(Connection.source_item_id == item_id)
     )
+    candidate_ids = {row[0] for row in workflow_ids_as_source.all()} | {
+        row[0] for row in workflow_ids_as_target.all()
+    }
+    candidate_ids.discard(item_id)  # Don't include self
 
-    all_workflow_items = list(workflow_as_target.scalars().all()) + list(
-        workflow_as_source.scalars().all()
-    )
+    if candidate_ids:
+        workflow_items_result = await db.execute(
+            select(Item).where(
+                and_(
+                    Item.id.in_(candidate_ids),
+                    Item.item_type.in_(workflow_types),
+                )
+            )
+        )
+        all_workflow_items = list(workflow_items_result.scalars().all())
+    else:
+        all_workflow_items = []
 
     # Deduplicate
     seen_workflow: set[uuid.UUID] = set()
