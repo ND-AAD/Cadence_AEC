@@ -104,6 +104,7 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
     : [];
 
   const [selectedType, setSelectedType] = useState(proposal.target_item_type);
+  const typeChanged = selectedType !== proposal.target_item_type;
 
   // When the user changes the target type, update the property options
   const activeTypeConfig = getType(selectedType);
@@ -202,8 +203,8 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
               {/* Property mapping */}
               <div className="flex-1 min-w-0">
                 {isIdentifier ? (
-                  <span className="text-sm text-ink font-medium">{proposal.target_item_type} ID</span>
-                ) : isHighConfidence && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
+                  <span className="text-sm text-ink font-medium">{selectedType} ID</span>
+                ) : isHighConfidence && !typeChanged && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
                   <span className="text-sm text-ink">{col.proposed_property}</span>
                 ) : customInputs.has(col.column_name) ? (
                   <div className="flex gap-1">
