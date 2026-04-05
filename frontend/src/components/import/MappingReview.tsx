@@ -74,8 +74,6 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
       })),
   ];
 
-  const lowConfidence = proposal.overall_confidence < 0.5;
-
   function handleTypeCreated(_typeName: string) {
     setShowCreateType(false);
     refreshTypes();
@@ -123,44 +121,10 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-ink mb-1">Column Mapping Review</h3>
-        <div className="flex items-center gap-2 text-xs text-graphite">
-          <span>Data type:</span>
-          <select
-            value={selectedType}
-            onChange={(e) => handleTypeChange(e.target.value)}
-            className="px-2 py-1 text-sm font-mono bg-sheet border border-rule text-ink
-                       focus:outline-none focus:border-ink transition-colors"
-          >
-            {allTypes.map((t) => (
-              <option key={t.name} value={t.name}>{t.label}</option>
-            ))}
-            {/* Ensure current type is always in the list even if not spatial */}
-            {!allTypes.some((t) => t.name === proposal.target_item_type) && (
-              <option value={proposal.target_item_type}>{proposal.target_item_type}</option>
-            )}
-          </select>
-          <span className="text-trace">
-            ({Math.round(proposal.overall_confidence * 100)}% confidence)
-          </span>
-        </div>
+        <p className="text-xs text-graphite">
+          Confirm the data type and column mappings before importing.
+        </p>
       </div>
-
-      {/* Low confidence prompt */}
-      {lowConfidence && (
-        <div className="flex items-center justify-between px-3 py-2 border border-pencil-wash bg-pencil-wash/30">
-          <span className="text-xs text-graphite">
-            Low confidence match ({Math.round(proposal.overall_confidence * 100)}%).
-            Does this data belong to a different type?
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowCreateType(true)}
-            className="px-2 py-1 text-xs font-medium text-ink border border-rule hover:bg-vellum transition-colors shrink-0 ml-2"
-          >
-            Create New Type
-          </button>
-        </div>
-      )}
 
       {/* Mapping table */}
       <div className="border border-rule divide-y divide-rule">
@@ -172,8 +136,43 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
           <span className="w-8" />
         </div>
 
-        {/* Rows */}
-        {allColumns.map((col) => {
+        {/* Data type row — first row in table */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-vellum">
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-medium text-graphite uppercase tracking-wider">Data Type</span>
+          </div>
+          <span className="text-trace text-xs shrink-0">→</span>
+          <div className="flex-1 min-w-0">
+            <select
+              value={selectedType}
+              onChange={(e) => {
+                if (e.target.value === "__create__") {
+                  setShowCreateType(true);
+                } else {
+                  handleTypeChange(e.target.value);
+                }
+              }}
+              className="w-full px-2 py-1 text-sm font-mono bg-sheet border border-rule text-ink
+                         focus:outline-none focus:border-ink transition-colors"
+            >
+              {allTypes.map((t) => (
+                <option key={t.name} value={t.name}>{t.label}</option>
+              ))}
+              {!allTypes.some((t) => t.name === proposal.target_item_type) && (
+                <option value={proposal.target_item_type}>{proposal.target_item_type}</option>
+              )}
+              <option value="__create__">+ New Type</option>
+            </select>
+          </div>
+          <div className="w-8 text-center shrink-0">
+            <span className="text-xs text-trace">
+              {Math.round(proposal.overall_confidence * 100)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Column mapping rows — skip empty column names */}
+        {allColumns.filter((col) => col.column_name.trim()).map((col) => {
           const isIdentifier = col.column_name === proposal.identifier_column;
           const effective = getEffectiveProperty(col);
           const isHighConfidence = col.confidence >= 0.8 && col.proposed_property;
@@ -274,10 +273,6 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
       {/* Summary line */}
       <div className="text-xs text-trace">
         Identifier: <span className="font-mono text-ink">{proposal.identifier_column}</span>
-        {" · "}
-        Type: <span className="font-mono text-ink">{proposal.target_item_type}</span>
-        {" · "}
-        Confidence: <span className="font-mono text-ink">{Math.round(proposal.overall_confidence * 100)}%</span>
       </div>
 
       {/* Actions */}
@@ -288,15 +283,6 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
         >
           Cancel
         </button>
-        {!lowConfidence && (
-          <button
-            type="button"
-            onClick={() => setShowCreateType(true)}
-            className="px-3 py-1.5 text-xs text-graphite border border-rule hover:text-ink transition-colors"
-          >
-            Create New Type
-          </button>
-        )}
         <button
           onClick={handleConfirm}
           className="px-3 py-1.5 text-xs font-medium bg-ink text-sheet hover:bg-ink/90 transition-colors"
