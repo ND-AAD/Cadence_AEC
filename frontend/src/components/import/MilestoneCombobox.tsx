@@ -43,6 +43,7 @@ export function MilestoneCombobox({ projectId, value, onChange, onItemCreated }:
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,6 +87,43 @@ export function MilestoneCombobox({ projectId, value, onChange, onItemCreated }:
   const exactMatch = milestones.some(
     (m) => m.identifier.toLowerCase() === query.toLowerCase()
   );
+
+  // Total selectable options: filtered items + "Create" if applicable
+  const showCreate = query.trim() && !exactMatch;
+  const optionCount = filtered.length + (showCreate ? 1 : 0);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter") {
+        setOpen(true);
+        e.preventDefault();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i + 1) % optionCount);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i - 1 + optionCount) % optionCount);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightIndex >= 0 && highlightIndex < filtered.length) {
+        handleSelect(filtered[highlightIndex]);
+      } else if (highlightIndex === filtered.length && showCreate) {
+        handleCreate();
+      } else if (optionCount === 1 && filtered.length === 1) {
+        // Only one match — select it
+        handleSelect(filtered[0]);
+      } else if (optionCount === 1 && showCreate) {
+        // Only "Create" option — create it
+        handleCreate();
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setHighlightIndex(-1);
+    }
+  }
 
   async function handleCreate() {
     if (!query.trim() || creating) return;
@@ -140,8 +178,10 @@ export function MilestoneCombobox({ projectId, value, onChange, onItemCreated }:
           if (value) onChange(null);
           setQuery(e.target.value);
           setOpen(true);
+          setHighlightIndex(-1);
         }}
         onFocus={() => setOpen(true)}
+        onKeyDown={handleKeyDown}
         placeholder="Type to search or create…"
         className="w-full px-3 py-2 text-sm bg-sheet border border-rule text-ink
                    focus:outline-none focus:border-ink transition-colors"
@@ -149,12 +189,14 @@ export function MilestoneCombobox({ projectId, value, onChange, onItemCreated }:
 
       {open && (query || milestones.length > 0) && (
         <div className="absolute z-10 mt-1 w-full bg-sheet border border-rule shadow-sm max-h-48 overflow-auto">
-          {filtered.map((m) => (
+          {filtered.map((m, i) => (
             <button
               key={m.id}
               type="button"
               onClick={() => handleSelect(m)}
-              className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-vellum transition-colors"
+              className={`w-full text-left px-3 py-2 text-sm text-ink transition-colors ${
+                i === highlightIndex ? "bg-vellum" : "hover:bg-vellum"
+              }`}
             >
               {m.identifier}
               <span className="text-xs text-trace ml-2">
@@ -162,12 +204,14 @@ export function MilestoneCombobox({ projectId, value, onChange, onItemCreated }:
               </span>
             </button>
           ))}
-          {query.trim() && !exactMatch && (
+          {showCreate && (
             <button
               type="button"
               onClick={handleCreate}
               disabled={creating}
-              className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-vellum transition-colors border-t border-rule"
+              className={`w-full text-left px-3 py-2 text-sm text-ink transition-colors border-t border-rule ${
+                highlightIndex === filtered.length ? "bg-vellum" : "hover:bg-vellum"
+              }`}
             >
               {creating ? "Creating…" : `Create "${query.trim()}"`}
             </button>

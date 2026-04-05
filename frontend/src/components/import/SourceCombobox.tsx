@@ -34,6 +34,7 @@ export function SourceCombobox({ projectId, value, onChange, onItemCreated }: So
   const [creating, setCreating] = useState(false);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [selectedType, setSelectedType] = useState("schedule");
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,6 +76,9 @@ export function SourceCombobox({ projectId, value, onChange, onItemCreated }: So
     (s) => s.identifier.toLowerCase() === query.toLowerCase()
   );
 
+  const showCreateOption = query.trim() && !exactMatch;
+  const optionCount = filtered.length + (showCreateOption ? 1 : 0);
+
   async function handleCreate() {
     if (!query.trim() || creating) return;
     setCreating(true);
@@ -109,6 +113,50 @@ export function SourceCombobox({ projectId, value, onChange, onItemCreated }: So
     setOpen(false);
   }
 
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter") {
+        setOpen(true);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    if (showTypeSelector) {
+      // In type selector: Enter confirms creation
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCreate();
+      } else if (e.key === "Escape") {
+        setShowTypeSelector(false);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i + 1) % optionCount);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i - 1 + optionCount) % optionCount);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightIndex >= 0 && highlightIndex < filtered.length) {
+        handleSelect(filtered[highlightIndex]);
+      } else if (highlightIndex === filtered.length && showCreateOption) {
+        setShowTypeSelector(true);
+      } else if (optionCount === 1 && filtered.length === 1) {
+        handleSelect(filtered[0]);
+      } else if (optionCount === 1 && showCreateOption) {
+        setShowTypeSelector(true);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setHighlightIndex(-1);
+    }
+  }
+
   return (
     <div ref={wrapperRef} className="relative">
       <input
@@ -118,8 +166,11 @@ export function SourceCombobox({ projectId, value, onChange, onItemCreated }: So
           if (value) onChange(null);
           setQuery(e.target.value);
           setOpen(true);
+          setHighlightIndex(-1);
+          setShowTypeSelector(false);
         }}
         onFocus={() => setOpen(true)}
+        onKeyDown={handleKeyDown}
         placeholder="Type to search or create…"
         className="w-full px-3 py-2 text-sm bg-sheet border border-rule text-ink
                    focus:outline-none focus:border-ink transition-colors"
@@ -127,27 +178,31 @@ export function SourceCombobox({ projectId, value, onChange, onItemCreated }: So
 
       {open && (query || sources.length > 0) && (
         <div className="absolute z-10 mt-1 w-full bg-sheet border border-rule shadow-sm max-h-48 overflow-auto">
-          {filtered.map((s) => (
+          {filtered.map((s, i) => (
             <button
               key={s.id}
               type="button"
               onClick={() => handleSelect(s)}
-              className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-vellum transition-colors"
+              className={`w-full text-left px-3 py-2 text-sm text-ink transition-colors ${
+                i === highlightIndex ? "bg-vellum" : "hover:bg-vellum"
+              }`}
             >
               {s.identifier}
               <span className="text-xs text-trace ml-2">{s.item_type}</span>
             </button>
           ))}
-          {query.trim() && !exactMatch && !showTypeSelector && (
+          {showCreateOption && !showTypeSelector && (
             <button
               type="button"
               onClick={() => setShowTypeSelector(true)}
-              className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-vellum transition-colors border-t border-rule"
+              className={`w-full text-left px-3 py-2 text-sm text-ink transition-colors border-t border-rule ${
+                highlightIndex === filtered.length ? "bg-vellum" : "hover:bg-vellum"
+              }`}
             >
               Create "{query.trim()}"
             </button>
           )}
-          {query.trim() && !exactMatch && showTypeSelector && (
+          {showCreateOption && showTypeSelector && (
             <div className="px-3 py-2 border-t border-rule">
               <p className="text-xs text-graphite mb-2">Source type:</p>
               <div className="flex gap-1 mb-2">
