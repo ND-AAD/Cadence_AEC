@@ -26,9 +26,11 @@ export interface AcknowledgeResponse {
  */
 export async function acknowledgeChange(
   changeItemId: string,
+  propertyName?: string,
 ): Promise<AcknowledgeResponse> {
+  const params = propertyName ? `?property_name=${encodeURIComponent(propertyName)}` : "";
   return apiPost<AcknowledgeResponse>(
-    `/v1/items/${changeItemId}/acknowledge`,
+    `/v1/items/${changeItemId}/acknowledge${params}`,
     {},
   );
 }

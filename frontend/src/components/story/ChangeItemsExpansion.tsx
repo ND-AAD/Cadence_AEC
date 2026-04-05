@@ -15,8 +15,8 @@ interface ChangeItemsExpansionProps {
   unit?: string | null;
   /** Navigation callback — click a change item to page-turn to Surface 2. */
   onNavigate: (itemId: string) => void;
-  /** Acknowledge a change by its item ID. */
-  onAcknowledge?: (changeItemId: string) => void;
+  /** Acknowledge a change by its item ID and property name. */
+  onAcknowledge?: (changeItemId: string, propertyName: string) => void;
 }
 
 interface ChangeDetail {
@@ -170,7 +170,7 @@ export function ChangeItemsExpansion({
             {onAcknowledge && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onAcknowledge(change.id); }}
+                onClick={(e) => { e.stopPropagation(); onAcknowledge(change.id, propertyName); }}
                 className="bg-pencil-wash text-pencil-ink border border-pencil rounded text-xs px-2 py-1 hover:bg-pencil/10 transition-colors duration-100"
               >
                 Acknowledge

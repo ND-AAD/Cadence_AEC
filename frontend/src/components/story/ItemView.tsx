@@ -191,7 +191,7 @@ export function ItemView({
   const handleAcknowledge = useCallback(async (key: string, changeItemId?: string) => {
     if (changeItemId) {
       try {
-        await acknowledgeChange(changeItemId);
+        await acknowledgeChange(changeItemId, key);
         onWorkflowAction?.();
       } catch (err) {
         console.error("Failed to acknowledge change:", err);
@@ -649,9 +649,9 @@ export function ItemView({
                     propertyName={entry.key}
                     unit={entry.unit}
                     onNavigate={onNavigate}
-                    onAcknowledge={async (changeItemId) => {
+                    onAcknowledge={async (changeItemId, propName) => {
                       try {
-                        await acknowledgeChange(changeItemId);
+                        await acknowledgeChange(changeItemId, propName);
                         onWorkflowAction?.();
                       } catch (err) {
                         console.error("Failed to acknowledge change:", err);

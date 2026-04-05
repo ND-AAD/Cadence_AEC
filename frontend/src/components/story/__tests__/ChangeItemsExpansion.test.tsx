@@ -87,7 +87,7 @@ describe("ChangeItemsExpansion", () => {
 
     await user.click(screen.getByRole("button", { name: /acknowledge/i }));
     expect(onAcknowledge).toHaveBeenCalledTimes(1);
-    expect(onAcknowledge).toHaveBeenCalledWith("change-001");
+    expect(onAcknowledge).toHaveBeenCalledWith("change-001", "fire_rating");
   });
 
   it("renders old and new values from the changes dict", async () => {

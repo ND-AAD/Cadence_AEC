@@ -604,11 +604,14 @@ async def get_resolved_view(
 
         if prop_workflow:
             conflicts = prop_workflow.get("conflict", [])
-            # Exclude acknowledged changes — they're no longer active workflow items
+            # Exclude acknowledged changes — either fully acknowledged or
+            # this specific property acknowledged via acknowledged_properties.
             changes = [
                 c
                 for c in prop_workflow.get("change", [])
                 if (c.properties or {}).get("status", "").lower() != "acknowledged"
+                and prop_name
+                not in ((c.properties or {}).get("acknowledged_properties") or [])
             ]
             decisions = prop_workflow.get("decision", [])
             # Exclude fulfilled directives

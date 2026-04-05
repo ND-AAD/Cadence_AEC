@@ -113,10 +113,13 @@ async def resolve_conflict(
 )
 async def acknowledge_change(
     change_id: uuid.UUID,
+    property_name: str | None = Query(
+        None, description="Acknowledge a specific property only"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Acknowledge a detected change."""
+    """Acknowledge a detected change, optionally for a specific property."""
     result = await db.execute(
         select(Item).where(and_(Item.id == change_id, Item.item_type == "change"))
     )
@@ -130,7 +133,9 @@ async def acknowledge_change(
         await require_project_access(db, project_id, current_user)
 
     try:
-        await resolution_service.acknowledge_change(db, change)
+        await resolution_service.acknowledge_change(
+            db, change, property_name=property_name
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

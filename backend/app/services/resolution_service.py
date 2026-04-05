@@ -384,14 +384,21 @@ async def resolve_conflict(
 async def acknowledge_change(
     db: AsyncSession,
     change_item: Item,
+    property_name: str | None = None,
 ) -> None:
     """
-    Acknowledge a detected change.
+    Acknowledge a detected change, optionally for a specific property.
 
-    Updates the change item and its self-sourced snapshot to "acknowledged".
+    When property_name is provided, only that property is marked as
+    acknowledged. The change item transitions to "acknowledged" only
+    when ALL properties have been individually acknowledged.
+
+    When property_name is None, acknowledges the entire change item
+    (all properties at once).
 
     Args:
         change_item: The change item to acknowledge
+        property_name: Optional specific property to acknowledge
 
     Raises:
         ValueError: If item is not a change or has invalid status
@@ -403,11 +410,28 @@ async def acknowledge_change(
     if current_status == "acknowledged":
         return  # Idempotent
 
-    # Update item properties
-    change_item.properties = {
-        **change_item.properties,
-        "status": "acknowledged",
-    }
+    props = dict(change_item.properties)
+
+    if property_name:
+        # Per-property acknowledgment
+        acknowledged_props = set(props.get("acknowledged_properties") or [])
+        acknowledged_props.add(property_name)
+        props["acknowledged_properties"] = sorted(acknowledged_props)
+
+        # Check if all properties in the changes dict are now acknowledged
+        changes_dict = props.get("changes") or {}
+        all_acknowledged = all(k in acknowledged_props for k in changes_dict)
+
+        if all_acknowledged:
+            props["status"] = "acknowledged"
+
+        change_item.properties = props
+    else:
+        # Acknowledge entire change item
+        change_item.properties = {
+            **props,
+            "status": "acknowledged",
+        }
 
     # Update self-sourced snapshot
     snap_result = await db.execute(
