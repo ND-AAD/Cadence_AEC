@@ -15,7 +15,6 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
   const { registry, getType, refresh: refreshTypes } = useTypeRegistry();
   const [showCreateType, setShowCreateType] = useState(false);
   const [corrections, setCorrections] = useState<Record<string, string | null>>({});
-  const [editing, setEditing] = useState<Set<string>>(new Set());
   const [customInputs, setCustomInputs] = useState<Set<string>>(new Set());
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
 
@@ -104,8 +103,6 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
     : [];
 
   const [selectedType, setSelectedType] = useState(proposal.target_item_type);
-  const typeChanged = selectedType !== proposal.target_item_type;
-
   // When the user changes the target type, update the property options
   const activeTypeConfig = getType(selectedType);
   const activePropertyOptions = activeTypeConfig?.properties ?? propertyOptions;
@@ -176,15 +173,11 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
         {allColumns.filter((col) => col.column_name.trim()).map((col) => {
           const isIdentifier = col.column_name === proposal.identifier_column;
           const effective = getEffectiveProperty(col);
-          const isHighConfidence = col.confidence >= 0.8 && col.proposed_property;
-          const isLowConfidence = col.confidence > 0 && col.confidence < 0.8 && col.proposed_property;
-          const isUnmapped = !col.proposed_property && !(col.column_name in corrections);
-
           return (
             <div
               key={col.column_name}
               className={`flex items-center gap-2 px-3 py-2 ${
-                isIdentifier ? "bg-vellum" : isLowConfidence || isUnmapped ? "bg-pencil-wash/30" : ""
+                isIdentifier ? "bg-vellum" : ""
               }`}
             >
               {/* Column name */}
@@ -204,8 +197,6 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
               <div className="flex-1 min-w-0">
                 {isIdentifier ? (
                   <span className="text-sm text-ink font-medium">{selectedType} ID</span>
-                ) : isHighConfidence && !typeChanged && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
-                  <span className="text-sm text-ink">{col.proposed_property}</span>
                 ) : customInputs.has(col.column_name) ? (
                   <div className="flex gap-1">
                     <input
@@ -249,19 +240,10 @@ export function MappingReview({ proposal, onConfirm, onCancel, onReanalyze }: Ma
                 )}
               </div>
 
-              {/* Status indicator / edit toggle */}
+              {/* Status indicator */}
               <div className="w-8 text-center shrink-0">
                 {isIdentifier ? (
                   <span className="text-xs text-trace">🔑</span>
-                ) : isHighConfidence && !editing.has(col.column_name) && !(col.column_name in corrections) ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditing((prev) => new Set(prev).add(col.column_name))}
-                    className="text-xs text-trace hover:text-ink transition-colors cursor-pointer"
-                    title="Edit mapping"
-                  >
-                    ✎
-                  </button>
                 ) : (
                   <span className="text-xs text-trace">✎</span>
                 )}
