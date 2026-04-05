@@ -368,18 +368,19 @@ export function ItemView({
               const isCarriedForward = valueMode === "cumulative" && !!entry.resolved?.effective_context;
 
               // Determine the effective workflow status for this property.
-              // Priority: hold > change > resolved status from snapshots.
-              // TODO: When we have per-property hold status from backend, use it.
-              const rowStatus: PropertyStatus = isChanged && !isAcknowledgedFallback
-                ? "changed"
-                : entry.status;
+              // Quiet mode: suppress all workflow visual treatment — just show values.
+              // Resolved in quiet mode: show the resolved value as the settled answer.
+              const rowStatus: PropertyStatus = isQuiet
+                ? (entry.status === "resolved" ? "resolved" : "aligned")
+                : isChanged && !isAcknowledgedFallback
+                  ? "changed"
+                  : entry.status;
 
               // ── Build pips for indicator lane ──
               // DS-2: filled = present (at current context), hollow = adjacent (different context).
-              // Changes in single-context view are adjacent (hollow); fill in during comparison.
-              // Conflicts at the resolved context are always present (filled).
+              // Quiet mode: no pips at all — user asked for silence.
               const pips: PipData[] = [];
-              if ((isChanged && !isAcknowledgedFallback) || hasWorkflowChanges) {
+              if (!isQuiet && ((isChanged && !isAcknowledgedFallback) || hasWorkflowChanges)) {
                 pips.push({
                   key: "change",
                   filled: hasWorkflowChanges || (comparisonActive && isChanged),
@@ -387,7 +388,7 @@ export function ItemView({
                   tooltip: `${entry.label} \u00B7 changed`,
                 });
               }
-              if (entry.status === "conflicted") {
+              if (!isQuiet && entry.status === "conflicted") {
                 pips.push({
                   key: "conflict",
                   filled: true,
@@ -398,7 +399,7 @@ export function ItemView({
               // Directive pip: show when directives exist on this property
               // (whether the conflict is still active or already resolved).
               const directiveIds = entry.resolved?.workflow?.directive_ids ?? [];
-              if (directiveIds.length > 0) {
+              if (!isQuiet && directiveIds.length > 0) {
                 pips.push({
                   key: "directive",
                   filled: true,
@@ -566,7 +567,37 @@ export function ItemView({
                     onNavigate={onNavigate}
                   />
                 );
-              } else if (isChanged && change) {
+              }
+
+              // If there are workflow changes alongside a conflict/resolution,
+              // append the change acknowledge UI below the primary expansion.
+              if (expansionContent && hasWorkflowChanges) {
+                const changeIds = entry.resolved?.workflow?.change_ids ?? [];
+                const primaryExpansion = expansionContent;
+                expansionContent = (
+                  <>
+                    {primaryExpansion}
+                    <div className="border-t border-rule mt-2 pt-2">
+                      <ChangeItemsExpansion
+                        changeIds={changeIds}
+                        propertyName={entry.key}
+                        unit={entry.unit}
+                        onNavigate={onNavigate}
+                        onAcknowledge={async (changeItemId) => {
+                          try {
+                            await acknowledgeChange(changeItemId);
+                            onWorkflowAction?.();
+                          } catch (err) {
+                            console.error("Failed to acknowledge change:", err);
+                          }
+                        }}
+                      />
+                    </div>
+                  </>
+                );
+              }
+
+              if (!expansionContent && isChanged && change) {
                 // Active change → PropertyExpansion (existing)
                 expansionContent = (
                   <PropertyExpansion
@@ -585,7 +616,7 @@ export function ItemView({
                     onNavigateToItem={onNavigate}
                   />
                 );
-              } else if (hasWorkflowChanges && !isChanged) {
+              } else if (!expansionContent && hasWorkflowChanges) {
                 // Workflow-sourced change — lazy-fetch change items for full detail.
                 const changeIds = entry.resolved?.workflow?.change_ids ?? [];
                 expansionContent = (
@@ -624,7 +655,10 @@ export function ItemView({
               // DTC-8: In Quiet mode with multiple disagreeing sources and no
               // source in the breadcrumb path, show all values with inline
               // source attribution.
+              // Quiet diamond: show dual values only for UNRESOLVED disagreements.
+              // Resolved conflicts have a settled answer — show that instead.
               const quietDiamond = isQuiet
+                && entry.status !== "resolved"
                 && entry.resolved
                 && Object.keys(entry.resolved.sources).length > 1
                 && new Set(Object.values(entry.resolved.sources).map(String)).size > 1;
