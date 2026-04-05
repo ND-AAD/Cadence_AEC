@@ -537,24 +537,29 @@ async def get_connected_items(
         action_result = await db.execute(action_counts_query)
         action_result.scalar() or 0
 
-        # Count both changes and conflicts separately for the action_counts dict
-        changes_query = (
-            select(func.count(Connection.id))
-            .join(Item, Connection.source_item_id == Item.id)
+        # Count active changes and conflicts separately.
+        # Exclude acknowledged changes and resolved conflicts — they're no
+        # longer active workflow items and shouldn't produce pips.
+        workflow_items_result = await db.execute(
+            select(Item)
+            .join(Connection, Connection.source_item_id == Item.id)
             .where(Connection.target_item_id == ci.id)
-            .where(Item.item_type == "change")
+            .where(Item.item_type.in_(["change", "conflict"]))
         )
-        changes_result = await db.execute(changes_query)
-        changes_count = changes_result.scalar() or 0
+        workflow_items = workflow_items_result.scalars().all()
 
-        conflicts_query = (
-            select(func.count(Connection.id))
-            .join(Item, Connection.source_item_id == Item.id)
-            .where(Connection.target_item_id == ci.id)
-            .where(Item.item_type == "conflict")
+        changes_count = sum(
+            1
+            for wi in workflow_items
+            if wi.item_type == "change"
+            and (wi.properties or {}).get("status", "").upper() != "ACKNOWLEDGED"
         )
-        conflicts_result = await db.execute(conflicts_query)
-        conflicts_count = conflicts_result.scalar() or 0
+        conflicts_count = sum(
+            1
+            for wi in workflow_items
+            if wi.item_type == "conflict"
+            and (wi.properties or {}).get("status", "").lower() != "resolved"
+        )
 
         grouped[ci.item_type].append(
             ItemSummary(
